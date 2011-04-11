@@ -21,6 +21,11 @@
 
 #include "Atomics.h"
 
+#if defined(__mips__)
+#include "atomic_mips.h"
+pthread_mutex_t cmpxchg_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
 ///////////////////////////////////////////////////////////////////////////
 // 32-bit atomic compare-and-swap
 // Returns previous value of *pAddr
@@ -77,6 +82,12 @@ long cas(volatile long* pAddr, long expectedVal, long swapVal)
   return __sync_val_compare_and_swap(pAddr, expectedVal, swapVal); 
 }
 
+#elif defined(__mips__)
+long cas(volatile long* pAddr,long expectedVal, long swapVal)
+{
+  return cmpxchg32(pAddr, expectedVal, swapVal);
+}
+
 #else // Linux / OSX86 (GCC)
 
 long cas(volatile long* pAddr,long expectedVal, long swapVal)
@@ -121,6 +132,12 @@ long long cas2(volatile long long* pAddr, long long expectedVal, long long swapV
   }
 
   return prev;
+}
+
+#elif defined(__mips__)
+long long cas2(volatile long long* pAddr, long long expectedVal, long long swapVal)
+{
+  return cmpxchg64(pAddr, expectedVal, swapVal);
 }
 
 #else // Linux / OSX86 (GCC)
@@ -194,6 +211,12 @@ long AtomicIncrement(volatile long* pAddr)
   return __sync_fetch_and_add(pAddr, 1);
 }
 
+#elif defined(__mips__)
+long AtomicIncrement(volatile long* pAddr)
+{
+  return atomic_add(1, pAddr);
+}
+
 #else // Linux / OSX86 (GCC)
 
 long AtomicIncrement(volatile long* pAddr)
@@ -256,6 +279,12 @@ long AtomicAdd(volatile long* pAddr, long amount)
 {
   // TODO: ARM Assembler
   return 0;
+}
+
+#elif defined(__mips__)
+long AtomicAdd(volatile long* pAddr, long amount)
+{
+  return atomic_add(amount, pAddr);
 }
 
 #else // Linux / OSX86 (GCC)
@@ -321,6 +350,12 @@ long AtomicDecrement(volatile long* pAddr)
   return __sync_fetch_and_add(pAddr, -1);
 }
 
+#elif defined(__mips__)
+long AtomicDecrement(volatile long* pAddr)
+{
+  return atomic_sub(1, pAddr);
+}
+
 #else // Linux / OSX86 (GCC)
 
 long AtomicDecrement(volatile long* pAddr)
@@ -384,6 +419,12 @@ long AtomicSubtract(volatile long* pAddr, long amount)
 {
   // TODO: ARM Assembler
   return 0;
+}
+
+#elif defined(__mips__)
+long AtomicSubtract(volatile long* pAddr, long amount)
+{
+  return atomic_sub(amount, pAddr);
 }
 
 #else // Linux / OSX86 (GCC)
