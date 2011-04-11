@@ -32,7 +32,7 @@ ifneq ($(findstring osx,$(ARCH)), osx)
   CXXFLAGS+=-DHAS_ALSA
 endif
 
-ifneq ($(ARCH), arm)
+ifeq ($(or $(findstring arm,$(ARCH)),$(findstring mips,$(ARCH))),)
   CXXFLAGS+=-DHAS_SPC_CODEC
   SRCS+=SPCCodec.cpp
 endif

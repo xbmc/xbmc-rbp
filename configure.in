@@ -330,6 +330,9 @@ MAKE="${MAKE:-make}"
 
 # host detection and setup
 case $host in
+  mips-*-linux-gnu)
+     ARCH="mipsel-linux"
+     ;;
   i*86*-linux-gnu*)
      ARCH="i486-linux"
      ;;
