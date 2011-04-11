@@ -23,11 +23,15 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
+#include "system.h"
 #include "windowing/WinSystem.h"
 #include <EGL/egl.h>
+#ifdef HAS_X11
 #include <X11/Xlib.h>
+#endif
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GlobalsHandling.h"
+#define SUPPORT_DIRECTFB_WS
 
 class CWinSystemEGL : public CWinSystemBase, public CRenderSystemGLES
 {
@@ -66,9 +70,15 @@ protected:
   EGLContext   m_eglContext;
   EGLContext   m_eglOMXContext;
   EGLSurface   m_eglSurface;
+#if defined(HAS_X11)
   Window       m_eglWindow;
   Window       m_wmWindow;
   Display*     m_dpy;
+#else
+  void*        m_eglWindow;
+  void*        m_wmWindow;
+  void*        m_dpy;
+#endif
 
   bool         m_bWasFullScreenBeforeMinimize;
 

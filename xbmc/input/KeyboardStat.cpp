@@ -30,7 +30,7 @@
 #include "utils/TimeUtils.h"
 #include "input/XBMC_keytable.h"
 
-#if defined(_LINUX) && !defined(__APPLE__)
+#if defined(_LINUX) && !defined(__APPLE__) && defined(HAS_X11)
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #endif
@@ -170,7 +170,7 @@ void CKeyboardStat::Initialize()
  * but in some x11 specific WinEvents file  *
  * but for some reason the code to map keys *
  * to specific xbmc vkeys is here           */
-#if defined(_LINUX) && !defined(__APPLE__)
+#if defined(_LINUX) && !defined(__APPLE__) && defined(HAS_X11)
   Display* dpy = XOpenDisplay(NULL);
   if (!dpy)
     return;

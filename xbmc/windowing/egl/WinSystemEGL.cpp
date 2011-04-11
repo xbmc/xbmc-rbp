@@ -53,6 +53,22 @@ using namespace std;
 #define BPP		16
 #endif
 
+#if defined(HAS_X11)
+#define M_EGL_WINDOW info.info.x11.window;
+#define M_WM_WINDOW info.info.x11.wmwindow;
+#define XOPENDISPLAY XOpenDisplay(NULL)
+#define M_DPY_NOCHECK false
+#define RESIZABLE_MW true
+#else
+#define M_EGL_WINDOW SDL_DirectFB_GetSurface()
+#define M_WM_WINDOW NULL
+#define XOPENDISPLAY NULL
+#define M_DPY_NOCHECK true
+#define RESIZABLE_MW false
+#endif
+
+
+
 static int configAttributes[] =
 {
   EGL_RED_SIZE,			RSIZE,
@@ -135,6 +151,7 @@ bool CWinSystemEGL::DestroyWindowSystem()
     m_eglSurface = NULL;
   }
 
+#if defined(HAS_X11)
   // Needed???
   if (m_eglWindow)
   {
@@ -148,19 +165,20 @@ bool CWinSystemEGL::DestroyWindowSystem()
     XDestroyWindow(m_dpy, m_wmWindow);
     m_wmWindow = 0;
   }
-
+#endif
   if (m_eglDisplay)
   {
     eglTerminate(m_eglDisplay);
     m_eglDisplay = 0;
   }
 
+#if defined(HAS_X11)
   if (m_dpy)
   {
     XCloseDisplay(m_dpy);
     m_dpy = NULL;
   }
-
+#endif
   return true;
 }
 
@@ -275,13 +293,20 @@ void CWinSystemEGL::UpdateResolutions()
     g_settings.m_ResInfo[RES_DESKTOP].strId     = mode.id;
     g_settings.m_ResInfo[RES_DESKTOP].strOutput = out.name;
   }
-#else
+#elif defined(HAS_X11)
   {
     int x11screen = DefaultScreen(m_dpy);
     int w = DisplayWidth(m_dpy, x11screen);
     int h = DisplayHeight(m_dpy, x11screen);
     UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
   }
+#else
+  {
+    int w=1280;
+    int h=720;
+    UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
+  }
+
 #endif
 
 #if defined(HAS_XRANDR)
@@ -350,12 +375,13 @@ bool CWinSystemEGL::RefreshEGLContext()
 {
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
+#if defined(HAS_X11)
   if (SDL_GetWMInfo(&info) <= 0)
   {
     CLog::Log(LOGERROR, "Failed to get window manager info from SDL");
     return false;
   }
-
+#endif
   if (!m_eglDisplay)
   {
     CLog::Log(LOGERROR, "EGL: No valid display!");
@@ -462,15 +488,19 @@ bool CWinSystemEGL::Restore()
 
 bool CWinSystemEGL::Hide()
 {
+#if defined(HAS_X11)
   XUnmapWindow(m_dpy, m_wmWindow);
   XSync(m_dpy, False);
+#endif
   return true;
 }
 
 bool CWinSystemEGL::Show(bool raise)
 {
+#if defined(HAS_X11)
   XMapWindow(m_dpy, m_wmWindow);
   XSync(m_dpy, False);
+#endif
   return true;
 }
 
