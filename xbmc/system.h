@@ -195,6 +195,11 @@
 #undef HAS_FILESYSTEM_HTSP
 #endif
 
+// Sigma does not support certain features... disable them here!
+#ifdef HAVE_SIGMASMP
+#undef HAS_SDL_AUDIO
+#endif
+
 // EGL detected. Dont use GLX!
 #ifdef HAVE_LIBEGL
 #undef HAS_GLX

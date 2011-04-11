@@ -20,7 +20,7 @@ AC_DEFUN([XB_FIND_SONAME],
 [
   if [[ "$host_vendor" != "apple" ]]; then
     AC_MSG_CHECKING([for lib$2 soname])
-    $1_SONAME=$( $CC -print-file-name=lib$2.so | \
+    $1_SONAME=$( find ${prefix} -name lib$2.so | \
       while read output; do objdump -p $output | \
         grep "SONAME" | \
         sed -e 's/  *SONAME  *//'; done 2> /dev/null )
@@ -294,6 +294,12 @@ AC_ARG_WITH([lirc-device],
   [lirc_device=$withval],
   [lirc_device=/dev/lircd])
 AC_DEFINE_UNQUOTED([LIRC_DEVICE], ["$lirc_device"], [Default LIRC device])
+
+AC_ARG_ENABLE([sigmasmp],
+  [AS_HELP_STRING([--enable-sigmasmp],
+  [enable Sigma SMP8656 support (default is no)])],
+  [use_sigmasmp=$enableval],
+  [use_sigmasmp=no])
 
 ### External libraries options
 AC_ARG_ENABLE([external-libraries],
@@ -1062,7 +1068,7 @@ else
       AC_DEFINE([HAVE_LIBOPENMAX], [1], [Define to 1 if you have the 'OpenMax' library.]),
       use_openmax=no;USE_OPENMAX=0;AC_MSG_RESULT($openmax_not_found))
     if test "$use_openmax" = "yes"; then
-      INCLUDES="$INCLUDES -I/usr/include/OpenMAX/IL"
+	  INCLUDES="$INCLUDES -I${prefix}/usr/include/OpenMAX/IL"
       USE_OPENMAX=1
     fi
   else
@@ -1253,6 +1259,13 @@ if test "$use_mid" = "yes"; then
   SDL_DEFINES="$SDL_DEFINES -DMID"
 else
   final_message="$final_message\n  MID Support:\tNo"
+fi
+
+if test "$use_sigmasmp" = "yes"; then
+  final_message="$final_message\n  Sigma SMP:\tYes"
+  AC_DEFINE([HAVE_SIGMASMP], [1], [Define to 1 to have SIGMASMP])
+else
+  final_message="$final_message\n  Sigma SMP:\tNo"
 fi
 
 if test "x$use_ccache" != "xno"; then
