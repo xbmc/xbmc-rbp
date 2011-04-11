@@ -30,12 +30,13 @@
 #include "guilib/Texture.h"
 #include "windowing/X11/XRandR.h"
 #include <vector>
+#include <SDL/SDL_video.h>
 
 using namespace std;
 
 // Comment out one of the following defines to select the colourspace to use
-//#define RGBA8888
-#define RGB565
+#define RGBA8888
+//#define RGB565
 
 #if defined(RGBA8888)
 #define RSIZE	8
@@ -114,7 +115,9 @@ bool CWinSystemEGL::InitWindowSystem()
 {
   EGLBoolean val = false;
   EGLint maj, min;
-  if ((m_dpy = XOpenDisplay(NULL)) &&
+  m_dpy = SDL_DirectFB_GetIDirectFB();
+  
+  if (m_dpy &&
       (m_eglDisplay = eglGetDisplay((EGLNativeDisplayType)m_dpy)) &&
       (val = eglInitialize(m_eglDisplay, &maj, &min)))
   {
@@ -179,6 +182,7 @@ bool CWinSystemEGL::DestroyWindowSystem()
     m_dpy = NULL;
   }
 #endif
+  SDL_VideoQuit();
   return true;
 }
 
@@ -226,7 +230,8 @@ bool CWinSystemEGL::ResizeWindow(int newWidth, int newHeight, int newLeft, int n
     else
       options |= SDL_RESIZABLE;
 
-    if ((m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
+    if ((RESIZABLE_MW || !m_SDLSurface) &&
+        (m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
     {
       RefreshEGLContext();
     }
@@ -271,7 +276,8 @@ bool CWinSystemEGL::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool bl
   else
     options |= SDL_RESIZABLE;
 
-  if ((m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
+  if ((RESIZABLE_MW || !m_SDLSurface) &&
+      (m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
   {
     RefreshEGLContext();
   }
@@ -388,7 +394,7 @@ bool CWinSystemEGL::RefreshEGLContext()
     return false;
   }
 
-  if ((m_eglWindow == info.info.x11.window) && m_eglSurface && m_eglContext)
+  if ((m_eglWindow == M_EGL_WINDOW) && m_eglSurface && m_eglContext)
   {
     CLog::Log(LOGWARNING, "EGL: Same window as before, refreshing context");
     eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -396,8 +402,8 @@ bool CWinSystemEGL::RefreshEGLContext()
     return true;
   }
 
-  m_eglWindow = info.info.x11.window;
-  m_wmWindow  = info.info.x11.wmwindow;
+  m_eglWindow = M_EGL_WINDOW;
+  m_wmWindow  = M_WM_WINDOW;
 
   EGLConfig eglConfig = NULL;
   EGLint num;
@@ -409,7 +415,10 @@ bool CWinSystemEGL::RefreshEGLContext()
   }
 
   if (m_eglContext)
+  {
     eglDestroyContext(m_eglDisplay, m_eglContext);
+    m_eglContext=NULL;
+  }
 
   if ((m_eglContext = eglCreateContext(m_eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttributes)) == EGL_NO_CONTEXT)
   {
@@ -424,7 +433,10 @@ bool CWinSystemEGL::RefreshEGLContext()
   }
 
   if (m_eglSurface)
+  {
     eglDestroySurface(m_eglDisplay, m_eglSurface);
+	m_eglSurface=NULL;
+  }
 
   if ((m_eglSurface = eglCreateWindowSurface(m_eglDisplay, eglConfig, (EGLNativeWindowType)m_eglWindow, NULL)) == EGL_NO_SURFACE)
   {
@@ -445,6 +457,7 @@ bool CWinSystemEGL::RefreshEGLContext()
 bool CWinSystemEGL::PresentRenderImpl()
 {
 //  glFinish();	// Needed???
+  eglWaitClient();
   eglSwapBuffers(m_eglDisplay, m_eglSurface);
 
   return true;
