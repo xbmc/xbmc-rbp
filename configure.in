@@ -488,6 +488,8 @@ elif expr "X$host_cpu" : 'Xarm.*' > /dev/null; then
     CXXFLAGS+=" -Wa,-march=armv7a -mcpu=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad"
     FFMPEG_EXTRACFLAGS+=" -mfpu=neon"
   fi
+elif expr "X$host_cpu" : 'Xmips.*' > /dev/null; then
+	use_arch=mips
 fi
 
 # Checks for library functions.
