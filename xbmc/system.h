@@ -198,6 +198,8 @@
 // Sigma does not support certain features... disable them here!
 #ifdef HAVE_SIGMASMP
 #undef HAS_SDL_AUDIO
+#undef HAS_DBUS
+#undef HAS_DBUS_SERVER
 #endif
 
 // EGL detected. Dont use GLX!
