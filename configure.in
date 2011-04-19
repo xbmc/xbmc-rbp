@@ -345,9 +345,9 @@ case $host in
   mips-*-linux-gnu)
      ARCH="mipsel-linux"
      PYTHON_VERSION="2.6"
-     PYTHON_CPPFLAGS="-I${prefix}/include/python2.6"
-     PYTHON_LDFLAGS="-L${prefix}/lib -lpython2.6"
-     PYTHON_SITE_PKG="${prefix}/lib/python2.6/site-packages"
+     PYTHON_CPPFLAGS="-I${STAGING_DIR_TARGET}/${prefix}/include/python2.6"
+     PYTHON_LDFLAGS="-L${STAGING_DIR_TARGET}/${prefix}/lib -lpython2.6"
+     PYTHON_SITE_PKG="${STAGING_DIR_TARGET}/${prefix}/lib/python2.6/site-packages"
      PYTHON_NOVERSIONCHECK="no-check"
      ;;
   i*86*-linux-gnu*)
