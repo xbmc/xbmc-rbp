@@ -3,7 +3,7 @@ ifneq ($(or $(findstring powerpc,@ARCH@),$(findstring ppc, @ARCH@)),)
 DEFINES += -DHOST_BIGENDIAN
 endif
 
-CXXFLAGS+= \
+CXXFLAGS= \
   -I. \
   -I@abs_top_srcdir@/lib \
   -I@abs_top_srcdir@/xbmc \
