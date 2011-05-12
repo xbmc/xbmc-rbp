@@ -1,5 +1,8 @@
-#Set This. It should be {/path/to/OE}/trunk/build/tmp/sysroots/
-export XBMCSTAGE=
+#Set This. It should be {/path/to/OE}/trunk/build
+export OEROOT=
+export RUA_DIR=${OEROOT}/tmp/work/smp8656-linux-gnu/mrua-smp8656f-3.10.0-r1/mrua_SMP8656F_3_10_0_dev.mips
+export DCCHD_DIR=${OEROOT}/tmp/work/smp8656-linux-gnu/dcchd-smp865x-black-3.10.0-r1/dcchd_SMP865x_3_10_0_black.mips/dcchd
+export XBMCSTAGE=${OEROOT}/tmp/sysroots
 
 export BUILD=$(shell uname -m)-linux
 export BUILDPREFIX=${XBMCSTAGE}/mips-linux-gnu/usr
