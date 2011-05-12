@@ -20,7 +20,7 @@ AC_DEFUN([XB_FIND_SONAME],
 [
   if [[ "$host_vendor" != "apple" ]]; then
     AC_MSG_CHECKING([for lib$2 soname])
-    $1_SONAME=$( find ${prefix} -name lib$2.so | \
+    $1_SONAME=$( find ${use_build_prefix} -name lib$2.so | \
       while read output; do objdump -p $output | \
         grep "SONAME" | \
         sed -e 's/  *SONAME  *//'; done 2> /dev/null )
@@ -113,6 +113,12 @@ AC_ARG_WITH([arch],
   [build with given arch passing to internal ffmpeg (default is no, needed for crosscompiling)])],
   [use_arch=$withval],
   [use_arch=no])
+
+AC_ARG_WITH([build-prefix],
+  [AS_HELP_STRING([--with-build-prefix],
+  [when cross-compiling, set the prefix where libs and includes should be searched])],
+  [use_build_prefix=$withval],
+  [use_build_prefix=$prefix])
 
 AC_ARG_WITH([cpu],
   [AS_HELP_STRING([--with-cpu],
@@ -345,9 +351,9 @@ case $host in
   mips-*-linux-gnu)
      ARCH="mipsel-linux"
      PYTHON_VERSION="2.6"
-     PYTHON_CPPFLAGS="-I${STAGING_DIR_TARGET}/${prefix}/include/python2.6"
-     PYTHON_LDFLAGS="-L${STAGING_DIR_TARGET}/${prefix}/lib -lpython2.6"
-     PYTHON_SITE_PKG="${STAGING_DIR_TARGET}/${prefix}/lib/python2.6/site-packages"
+     PYTHON_CPPFLAGS="-I${use_build_prefix}/include/python2.6"
+     PYTHON_LDFLAGS="-L${use_build_prefix}/lib -lpython2.6"
+     PYTHON_SITE_PKG="${use_build_prefix}/lib/python2.6/site-packages"
      PYTHON_NOVERSIONCHECK="no-check"
      ;;
   i*86*-linux-gnu*)
@@ -1083,7 +1089,7 @@ else
       AC_DEFINE([HAVE_LIBOPENMAX], [1], [Define to 1 if you have the 'OpenMax' library.]),
       use_openmax=no;USE_OPENMAX=0;AC_MSG_RESULT($openmax_not_found))
     if test "$use_openmax" = "yes"; then
-	  INCLUDES="$INCLUDES -I${prefix}/usr/include/OpenMAX/IL"
+	  INCLUDES="$INCLUDES -I${use_build_prefix}/usr/include/OpenMAX/IL"
       USE_OPENMAX=1
     fi
   else

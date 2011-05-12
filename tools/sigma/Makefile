@@ -2,8 +2,8 @@ include sigma-sdk.mk
 
 SOURCE=../../
 # configuration settings
-export PKG_CONFIG_PATH=$(PREFIX)/lib/pkgconfig
-CONFIGURE=./configure --prefix=$(PREFIX) --host=$(HOST) \
+export PKG_CONFIG_PATH=$(BUILDPREFIX)/lib/pkgconfig
+CONFIGURE=./configure --host=$(HOST) --with-build-prefix=$(BUILDPREFIX) \
   --enable-external-python --enable-gles --disable-xrandr \
   --disable-optical-drive --disable-dvdcss --enable-optimizations \
   --disable-x11 --disable-webserver --disable-joystick --disable-libbluray \
