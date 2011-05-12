@@ -98,8 +98,6 @@ int main (int argc, char * const argv[])
     DFBResult res;
 		IDirectFBEventBuffer *keybuffer = NULL;
     IDirectFBEventBuffer *pAmpEvent = NULL;
-    //DFBDataBufferDescription desc = { DBDESC_FILE , ctx.url,{ NULL, 0}};
-
 
     if (dfb->CreateInputEventBuffer(dfb, DICAPS_ALL, DFB_TRUE, &keybuffer) != DFB_OK)
 		{
@@ -114,25 +112,25 @@ int main (int argc, char * const argv[])
 
     // default to autodetection
     ctx.format.mediaType = MTYPE_APP_UNKNOWN;
-    //dfb->CreateDataBuffer(dfb, &desc, &ctx.cDataBuffer );
-
+    // setup IDataSource cookie
     ctx.ids.src = new CFileIDataSource();
+    ctx.ids.src->SetInternalULR(input_filename.c_str());
 		fprintf(stderr, "Using IDataSource: 0x%08lx\n", (long unsigned int)ctx.ids.src);
     snprintf(ctx.url, sizeof(ctx.url)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ctx.ids);
 
     // open the media
     if (pAmp->OpenMedia(pAmp, ctx.url, &ctx.format, NULL) == DFB_OK)
     {
-      char buffer[8192] = {0, };
+      SStatus   status;
 
-      ((struct SStatus *)buffer)->size = sizeof(buffer);
-      ((struct SStatus *)buffer)->mediaSpace = MEDIA_SPACE_UNKNOWN;
+      memset(&status, 0, sizeof(status));
+      status.size = sizeof(status);
+      status.mediaSpace = MEDIA_SPACE_UNKNOWN;
 
       // wait and check the confirmation event
       if ((pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 1000, 0) == DFB_OK) &&
-          (pAmp->UploadStatusChanges(pAmp, (struct SStatus *)buffer, DFB_TRUE) == DFB_OK) &&
-          (((struct SStatus *)buffer)->flags & SSTATUS_COMMAND) &&
-        IS_SUCCESS(((struct SStatus *)buffer)->lastCmd.result)) // succeeded
+          (pAmp->UploadStatusChanges(pAmp, &status, DFB_TRUE) == DFB_OK) &&
+          (status.flags & SSTATUS_COMMAND) && IS_SUCCESS(status.lastCmd.result)) // succeeded
       {
 				DFBEvent event;
 
@@ -179,16 +177,17 @@ int main (int argc, char * const argv[])
 				res = pAmp->StartPresentation(pAmp, DFB_TRUE);
         if (res == DFB_OK)
 				{
-					((struct SStatus *)buffer)->size = sizeof(buffer);
-					((struct SStatus *)buffer)->mediaSpace = MEDIA_SPACE_UNKNOWN;
+          bool paused = false;
+          memset(&status, 0, sizeof(status));
+          status.size = sizeof(status);
+          status.mediaSpace = MEDIA_SPACE_UNKNOWN;
 
           sleep(2);
 					// wait and check the confirmation event
 					//if ((pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 1000, 0) == DFB_OK) &&
 					if ((pAmpEvent->WaitForEvent(pAmpEvent) == DFB_OK) &&
-						(pAmp->UploadStatusChanges(pAmp, (struct SStatus *)buffer, DFB_TRUE) == DFB_OK) &&
-						(((struct SStatus *)buffer)->flags & SSTATUS_MODE) &&
-						(((struct SStatus *)buffer)->mode.flags & SSTATUS_MODE_PLAYING))
+						(pAmp->UploadStatusChanges(pAmp, &status, DFB_TRUE) == DFB_OK) &&
+						(status.flags & SSTATUS_MODE) && (status.mode.flags & SSTATUS_MODE_PLAYING))
 					{
 						DFBEvent keyEvent;
 						struct SLPBCommand cmd;
@@ -251,17 +250,17 @@ int main (int argc, char * const argv[])
 							{
 								pAmpEvent->GetEvent(pAmpEvent, &event);
 
-								((struct SStatus *)buffer)->size = sizeof(buffer);
-								((struct SStatus *)buffer)->mediaSpace = MEDIA_SPACE_UNKNOWN;
+                memset(&status, 0, sizeof(status));
+                status.size = sizeof(status);
+                status.mediaSpace = MEDIA_SPACE_UNKNOWN;
 
-								if (pAmp->UploadStatusChanges(pAmp, (struct SStatus *)buffer, DFB_TRUE) == DFB_OK)
+								if (pAmp->UploadStatusChanges(pAmp, &status, DFB_TRUE) == DFB_OK)
 								{
-									if ((((struct SStatus *)buffer)->flags & SSTATUS_MODE) &&
-										(((struct SStatus *)buffer)->mode.flags & SSTATUS_MODE_STOPPED) &&
+									if ((status.flags & SSTATUS_MODE) &&
+										(status.mode.flags & SSTATUS_MODE_STOPPED) &&
 										(cmd.cmd != LPBCmd_STOP))
 									{
-										// presentation has stopped spontaneously, exit the program
-                    fprintf(stderr, "presentation has stopped spontaneously, exit the program\n");
+                    fprintf(stderr, "presentation has stopped, leaving runloop\n");
 										bExit = true;
 										break;
 									}
@@ -287,18 +286,27 @@ int main (int argc, char * const argv[])
 											case DIKS_FASTFORWARD:
 												printf("Issuing FAST FORWARD command...\n");
 												cmd.cmd = LPBCmd_FAST_FORWARD;
-												cmd.param2.speed = 5*1024;	// 5 x FFWD
+												cmd.param2.speed = 2*1024;	// 2 x normal
+												break;
+
+											case DIKS_REWIND:
+												printf("Issuing FAST REWIND command...\n");
+												cmd.cmd = LPBCmd_SCAN_BACKWARD;
+												cmd.param2.speed = 2*1024;	// 2 x normal
 												break;
 
 											case DIKS_SLOW:
 												printf("Issuing SLOW FORWARD command...\n");
 												cmd.cmd = LPBCmd_SCAN_FORWARD;
-												cmd.param2.speed = 1024/2;	// 1/2 x SFWD
+												cmd.param2.speed = 1024/2;	// 1/2 x normal
 												break;
 
 											case DIKS_PLAY:
 												printf("Issuing PLAY command to resume normal playback\n");
-												cmd.cmd = LPBCmd_PLAY; // back to regular playback
+                        if (paused)
+                          cmd.cmd = LPBCmd_PAUSE_OFF;
+                        else
+                          cmd.cmd = LPBCmd_PLAY;
 												break;
 
 											case DIKS_STOP:
@@ -309,6 +317,7 @@ int main (int argc, char * const argv[])
 
 											case DIKS_PAUSE:
 												printf("Issuing Pause command...\n");
+                        paused = true;
 												cmd.cmd = LPBCmd_PAUSE_ON; // back to regular playback
 												break;
 
@@ -359,6 +368,7 @@ _exit:
 		if (keybuffer) keybuffer->Release(keybuffer);
 		if (pAmpEvent) pAmpEvent->Release(pAmpEvent);
 		pAmp->Release(pAmp);
+    dfb->Release(dfb);
 	}
 
   return 0;

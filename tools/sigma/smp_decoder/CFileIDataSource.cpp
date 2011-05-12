@@ -21,6 +21,7 @@
 
 #include "CFileIDataSource.h"
 #include <unistd.h>
+#include <string.h>
 #include <fcntl.h>
 
 //========================================================================
@@ -35,22 +36,21 @@ void* CFileIDataSource::GetFormatSpecificCPInterface()
 //========================================================================
 void* CFileIDataSource::Open(char* url, enum EDSResult *pRes)
 {
-  char filename[512] = "/home/root/SpeedRacer.mov";
-
+  //char filename[512] = "/home/root/SpeedRacer.mov";
   // open the file, always in read mode
-  m_fp = open(filename, O_RDONLY | O_LARGEFILE);
+  int fp = open(m_real_url, O_RDONLY | O_LARGEFILE);
   fprintf(stderr, "CFileIDataSource::Open url(%s), filename(%s), fp(%d)\n",
-    url, filename, m_fp);
+    url, m_real_url, fp);
 
   if (pRes)
   {
-    if (m_fp)
+    if (fp)
       *pRes = DSRES_OK;
     else
       *pRes = DSRES_SOURCE_MISSING;
   }
 
-  return (void*)m_fp;
+  return (void*)fp;
 }
 
 //========================================================================
@@ -70,10 +70,10 @@ return false;
 //========================================================================
 uint32_t CFileIDataSource::Read(void *ch, uint32_t size, unsigned char *buf, enum EDSResult *pRes)
 {
-  //fprintf(stderr, "CFileIDataSource::Read, ch(%d), size(%d), fp(%d)\n",
-  //  (int)ch, size, m_fp);
+  //fprintf(stderr, "CFileIDataSource::Read, ch(%d), size(%d)\n",
+  //  (int)ch, size);
   uint32_t readSize;
-  readSize = read(m_fp, buf, size);
+  readSize = read((int)ch, buf, size);
 
   if (readSize > 0)
   {
@@ -96,21 +96,21 @@ uint32_t CFileIDataSource::Read(void *ch, uint32_t size, unsigned char *buf, enu
 //========================================================================
 int64_t CFileIDataSource::Seek(void *ch, int64_t pos, bool isRel, enum EDSResult *pRes)
 {
-  //fprintf(stderr, "CFileIDataSource::Seek, ch(%d), pos(%lld), isRel(%d), fp(%d)\n",
-  //  (int)ch, pos, isRel, m_fp);
+  //fprintf(stderr, "CFileIDataSource::Seek, ch(%d), pos(%lld), isRel(%d)\n",
+  //  (int)ch, pos, isRel);
   if (pRes)
     *pRes = DSRES_SOURCE_ERROR;
 
   if (!isRel && (pos == -1))
   {
     // seek to the end of file
-    pos = lseek(m_fp, 0, SEEK_END);
+    pos = lseek((int)ch, 0, SEEK_END);
     if (pos == -1)
       return -1;
   }
   else
   {
-    pos = lseek(m_fp, pos, isRel ? SEEK_CUR : SEEK_SET);
+    pos = lseek((int)ch, pos, isRel ? SEEK_CUR : SEEK_SET);
     if (pos == -1)
     return -1;
   }
@@ -124,8 +124,15 @@ int64_t CFileIDataSource::Seek(void *ch, int64_t pos, bool isRel, enum EDSResult
 //========================================================================
 void CFileIDataSource::Close(void* ch)
 {
-  fprintf(stderr, "CFileIDataSource::Close, ch(%d), fp(%d)\n",
-    (int)ch, m_fp);
-  close(m_fp);
+  fprintf(stderr, "CFileIDataSource::Close, ch(%d)\n",
+    (int)ch);
+  close((int)ch);
 }
+
+//========================================================================
+void CFileIDataSource::SetInternalULR(const char *url)
+{
+  strncpy(m_real_url, url, sizeof(m_real_url));
+}
+
 

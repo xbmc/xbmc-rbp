@@ -88,6 +88,9 @@ public:
   // Closes a previously opened channel.
   virtual void Close(void* ch);
   
+  void SetInternalULR(const char *url);
+
 private:
-  int     m_fp;
+  char      m_real_url[2048];
+
 };
