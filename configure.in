@@ -355,6 +355,7 @@ case $host in
      PYTHON_LDFLAGS="-L${use_build_prefix}/lib -lpython2.6"
      PYTHON_SITE_PKG="${use_build_prefix}/lib/python2.6/site-packages"
      PYTHON_NOVERSIONCHECK="no-check"
+     use_texturepacker_native=yes
      ;;
   i*86*-linux-gnu*)
      ARCH="i486-linux"
