@@ -25,6 +25,17 @@
 #include <fcntl.h>
 
 //========================================================================
+CFileIDataSource::CFileIDataSource(const char *url)
+{
+  strncpy(m_url, url, sizeof(m_url));
+};
+
+//========================================================================
+CFileIDataSource::~CFileIDataSource()
+{
+};
+
+//========================================================================
 void* CFileIDataSource::GetFormatSpecificCPInterface()
 {
   fprintf(stderr, "CFileIDataSource::GetFormatSpecificCPInterface\n");
@@ -36,11 +47,10 @@ void* CFileIDataSource::GetFormatSpecificCPInterface()
 //========================================================================
 void* CFileIDataSource::Open(char* url, enum EDSResult *pRes)
 {
-  //char filename[512] = "/home/root/SpeedRacer.mov";
   // open the file, always in read mode
-  int fp = open(m_real_url, O_RDONLY | O_LARGEFILE);
+  int fp = open(m_url, O_RDONLY | O_LARGEFILE);
   fprintf(stderr, "CFileIDataSource::Open url(%s), filename(%s), fp(%d)\n",
-    url, m_real_url, fp);
+    url, m_url, fp);
 
   if (pRes)
   {
@@ -122,17 +132,15 @@ int64_t CFileIDataSource::Seek(void *ch, int64_t pos, bool isRel, enum EDSResult
 }
 
 //========================================================================
+void CFileIDataSource::Flush(void *ch, bool internal = false)
+{
+};
+
+
+//========================================================================
 void CFileIDataSource::Close(void* ch)
 {
   fprintf(stderr, "CFileIDataSource::Close, ch(%d)\n",
     (int)ch);
   close((int)ch);
 }
-
-//========================================================================
-void CFileIDataSource::SetInternalULR(const char *url)
-{
-  strncpy(m_real_url, url, sizeof(m_real_url));
-}
-
-

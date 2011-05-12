@@ -113,8 +113,7 @@ int main (int argc, char * const argv[])
     // default to autodetection
     ctx.format.mediaType = MTYPE_APP_UNKNOWN;
     // setup IDataSource cookie
-    ctx.ids.src = new CFileIDataSource();
-    ctx.ids.src->SetInternalULR(input_filename.c_str());
+    ctx.ids.src = new CFileIDataSource(input_filename.c_str());
 		fprintf(stderr, "Using IDataSource: 0x%08lx\n", (long unsigned int)ctx.ids.src);
     snprintf(ctx.url, sizeof(ctx.url)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ctx.ids);
 

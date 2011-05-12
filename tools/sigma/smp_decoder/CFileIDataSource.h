@@ -48,8 +48,8 @@ public:
     DSRES_EOF,              // end of file has been encountered
   };
 
-  CFileIDataSource() {};
-  virtual ~CFileIDataSource() {};
+  CFileIDataSource(const char *url);
+  virtual ~CFileIDataSource();
 
   virtual void* GetFormatSpecificCPInterface();
 
@@ -83,14 +83,11 @@ public:
   // external: Flushing the channel discards any data not read yet.
   //
   // The expected use is: Flush(internal), (temporarily) stop the reading process, Flush(external)
-  virtual void Flush(void *ch, bool internal = false) {};
+  virtual void Flush(void *ch, bool internal = false);
 
   // Closes a previously opened channel.
   virtual void Close(void* ch);
-  
-  void SetInternalULR(const char *url);
 
 private:
-  char      m_real_url[2048];
-
+  char      m_url[2048];
 };
