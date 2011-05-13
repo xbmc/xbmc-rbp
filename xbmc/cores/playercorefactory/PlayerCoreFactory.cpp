@@ -36,6 +36,9 @@
 #include "PlayerCoreConfig.h"
 #include "PlayerSelectionRule.h"
 #include "guilib/LocalizeStrings.h"
+#if defined (HAVE_SIGMASMP)
+#include "cores/smpplayer/SMPPlayer.h"
+#endif
 
 using namespace AUTOPTR;
 
@@ -306,7 +309,9 @@ bool CPlayerCoreFactory::LoadConfiguration(TiXmlElement* pConfig, bool clear)
       if (type == "dvdplayer" || type == "mplayer") eCore = EPC_DVDPLAYER;
       if (type == "paplayer" ) eCore = EPC_PAPLAYER;
       if (type == "externalplayer" ) eCore = EPC_EXTPLAYER;
-
+#if defined (HAVE_SIGMASMP)
+      if (type == "smpplayer" ) eCore = EPC_SMPPLAYER;
+#endif
       if (eCore != EPC_NONE)
       {
         s_vecCoreConfigs.push_back(new CPlayerCoreConfig(name, eCore, pPlayer));

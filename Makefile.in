@@ -22,6 +22,7 @@ BIN_DIRS=	\
 	xbmc/cores/VideoRenderers \
 	xbmc/cores/VideoRenderers/VideoShaders \
 	xbmc/cores/ExternalPlayer \
+	xbmc/cores/smpplayer \
 	xbmc/cores/playercorefactory \
 	xbmc/filesystem \
 	xbmc/filesystem/MusicDatabaseDirectory \
@@ -238,6 +239,8 @@ xbmc/cores/VideoRenderers/VideoShaders/VideoShaders.a: force
 	$(MAKE) -C xbmc/cores/VideoRenderers/VideoShaders
 xbmc/cores/ExternalPlayer/ExternalPlayer.a: force
 	$(MAKE) -C xbmc/cores/ExternalPlayer
+xbmc/cores/smpplayer/SMPPlayer.a: force
+	$(MAKE) -C xbmc/cores/smpplayer
 xbmc/cores/playercorefactory/playercorefactory.a: force
 	$(MAKE) -C xbmc/cores/playercorefactory
 xbmc/filesystem/filesystem.a: force
@@ -461,6 +464,7 @@ OBJSXBMC=	\
 	xbmc/cores/dvdplayer/DVDSubtitles/DVDSubtitles.a \
 	xbmc/cores/AudioRenderers/audiorenderers.a \
 	xbmc/cores/ExternalPlayer/ExternalPlayer.a \
+	xbmc/cores/smpplayer/SMPPlayer.a \
 	xbmc/filesystem/filesystem.a \
 	xbmc/filesystem/MusicDatabaseDirectory/musicdatabasedirectory.a \
 	xbmc/filesystem/VideoDatabaseDirectory/videodatabasedirectory.a \
