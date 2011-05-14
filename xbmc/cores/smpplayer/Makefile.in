@@ -1,0 +1,11 @@
+CXXFLAGS+= -isystem$(DCCHD_DIR)/core -isystem$(DCCHD_DIR)/mono
+
+SRCS=	\
+	FileIDataSource.cpp \
+	SMPPlayer.cpp
+
+LIB=	SMPPlayer.a
+
+include @abs_top_srcdir@/Makefile.include
+-include $(patsubst %.cpp,%.P,$(patsubst %.c,%.P,$(SRCS)))
+

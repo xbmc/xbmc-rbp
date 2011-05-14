@@ -1436,6 +1436,7 @@ OUTPUT_FILES="Makefile \
     xbmc/cores/dvdplayer/DVDSubtitles/Makefile \
     xbmc/cores/AudioRenderers/Makefile \
     xbmc/cores/paplayer/Makefile \
+    xbmc/cores/smpplayer/Makefile \
     lib/timidity/Makefile \
     lib/xbadpcm/Makefile \
     lib/asap/Makefile \
