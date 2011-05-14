@@ -136,20 +136,25 @@ void CSMPPlayer::Pause()
   if (!m_amp)
     return;
 
-  SLPBResult  res;
-  res.dataSize   = sizeof(res);
-  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-
   SLPBCommand cmd;
-  cmd.dataSize   = sizeof(cmd);
+  cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   
   if (m_paused)
+  {
     cmd.cmd = LPBCmd_PAUSE_OFF;
+    m_callback.OnPlayBackResumed();
+  }
   else
+  {
     cmd.cmd = LPBCmd_PAUSE_ON;
+    m_callback.OnPlayBackPaused();
+  }
   m_paused = !m_paused;
 
+  SLPBResult  res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
     CLog::Log(LOGDEBUG, "CSMPPlayer::Pause:AMP command succeeded\n");
   else
@@ -335,6 +340,26 @@ void CSMPPlayer::Process()
   {
     // eat the event
     pAmpEvent->GetEvent(pAmpEvent, &event);
+
+    int m_width = g_graphicsContext.GetWidth();
+    int m_height= g_graphicsContext.GetHeight();
+    int m_displayWidth = m_width;
+    int m_displayHeight= m_height;
+    double m_fFrameRate = 24;
+    
+    unsigned int flags = 0;
+    flags |= CONF_FLAGS_FORMAT_BYPASS;
+    CStdString formatstr = "BYPASS";
+    CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
+      __FUNCTION__, m_width, m_height, m_fFrameRate, formatstr.c_str());
+    if(!g_renderManager.Configure(m_width, m_height, m_displayWidth, m_displayHeight, m_fFrameRate, flags))
+    {
+      CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
+    }
+    if (!g_renderManager.IsStarted()) {
+      CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
+    }
+
     // start the playback
     res = m_amp->StartPresentation(m_amp, DFB_TRUE);
     if (res != DFB_OK)
@@ -372,8 +397,9 @@ void CSMPPlayer::Process()
           if ((m_amp->UploadStatusChanges(m_amp, &status, DFB_TRUE) == DFB_OK) &&
               (status.flags & SSTATUS_MODE) && (status.mode.flags & SSTATUS_MODE_STOPPED))
           {
-            fprintf(stderr, "presentation has stopped, leaving runloop\n");
+            CLog::Log(LOGINFO, "CSMPPlayer: End of playback reached");
             m_StopPlaying = true;
+            m_callback.OnPlayBackEnded();
           }
         }
       }
@@ -396,10 +422,6 @@ _exit:
   if (pAmpEvent)
     pAmpEvent->Release(pAmpEvent);
   
-  CLog::Log(LOGINFO, "CSMPPlayer: End of playback reached");
-  if (!m_StopPlaying && !m_bStop)
-    m_callback.OnPlayBackEnded();
-
   CLog::Log(LOGDEBUG, "CSMPPlayer: Thread end");
 }
 #endif
