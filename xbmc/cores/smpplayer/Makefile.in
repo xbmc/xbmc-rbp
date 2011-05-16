@@ -1,4 +1,4 @@
-CXXFLAGS+= -isystem$(DCCHD_DIR)/core -isystem$(DCCHD_DIR)/mono
+CXXFLAGS+= -isystem${BUILDPREFIX}/include/dcchd/core -isystem${BUILDPREFIX}/include/dcchd/mono
 
 SRCS=	\
 	FileIDataSource.cpp \
