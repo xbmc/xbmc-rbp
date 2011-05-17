@@ -40,6 +40,22 @@
 #include <directfb/advancedmediaprovider.h>
 #include <cdefs_lpb.h>
 
+union UMSStatus
+{
+  struct SStatus      generic;
+  struct SLPBStatus   lpb;
+};
+union UMSCommand
+{
+  struct SCommand     generic;
+  struct SLPBCommand  lpb;
+};
+union UMSResult
+{
+  struct SResult      generic;
+  struct SLPBResult   lpb;
+};
+
 struct SIdsData
 {
 	CFileIDataSource *src;
@@ -53,8 +69,7 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
 {
   m_amp = NULL;
   // request video layer
-  //m_ampID = MAIN_VIDEO_AMP_ID & UNIQUE_AMP_ID_FLAG; // SECONDARY_VIDEO_AMP_ID
-  m_ampID = MAIN_VIDEO_AMP_ID; // SECONDARY_VIDEO_AMP_ID
+  m_ampID = MAIN_VIDEO_AMP_ID;
   m_speed = 1;
   m_paused = false;
   m_idatasource = NULL;
@@ -276,9 +291,9 @@ void CSMPPlayer::Process()
   IDirectFB   *dfb = NULL;
   DFBEvent    event;
   IDirectFBEventBuffer *pAmpEvent = NULL;
+  UMSStatus   status;
 
   CLog::Log(LOGDEBUG, "CSMPPlayer: Thread started");
-  m_callback.OnPlayBackStarted();
 
   dfb = (IDirectFB*)SDL_DirectFB_GetIDirectFB();
 
@@ -299,7 +314,6 @@ void CSMPPlayer::Process()
 #if 0
   SIdsData      ids;
   SMediaFormat  format;
-  SStatus       status;
   char          url[2048];
   // default to autodetection
   format.mediaType = MTYPE_APP_UNKNOWN;
@@ -313,8 +327,8 @@ void CSMPPlayer::Process()
   res = m_amp->OpenMedia(m_amp, url, &format, NULL);
 #else
   SMediaFormat  format;
-  SStatus       status;
   // default to autodetection
+  memset(&format, 0, sizeof(format));
   format.mediaType = MTYPE_APP_UNKNOWN;
 
   // open the media using the IAdvancedMediaProvider
@@ -331,12 +345,12 @@ void CSMPPlayer::Process()
   m_ready.Set();
 
   memset(&status, 0, sizeof(status));
-  status.size = sizeof(SStatus);
-  status.mediaSpace = MEDIA_SPACE_UNKNOWN;
+  status.generic.size = sizeof(SStatus);
+  status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
   // wait 10 seconds and check the confirmation event
   if ((pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 10, 0) == DFB_OK) &&
-      (m_amp->UploadStatusChanges(m_amp, &status, DFB_TRUE)   == DFB_OK) &&
-      (status.flags & SSTATUS_COMMAND) && IS_SUCCESS(status.lastCmd.result))
+      (m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE)   == DFB_OK) &&
+      (status.generic.flags & SSTATUS_COMMAND) && IS_SUCCESS(status.generic.lastCmd.result))
   {
     // eat the event
     pAmpEvent->GetEvent(pAmpEvent, &event);
@@ -349,9 +363,11 @@ void CSMPPlayer::Process()
     
     unsigned int flags = 0;
     flags |= CONF_FLAGS_FORMAT_BYPASS;
+    flags |= CONF_FLAGS_FULLSCREEN;
     CStdString formatstr = "BYPASS";
     CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
       __FUNCTION__, m_width, m_height, m_fFrameRate, formatstr.c_str());
+    g_renderManager.IsConfigured();
     if(!g_renderManager.Configure(m_width, m_height, m_displayWidth, m_displayHeight, m_fFrameRate, flags))
     {
       CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
@@ -365,55 +381,54 @@ void CSMPPlayer::Process()
     if (res != DFB_OK)
     {
       fprintf(stderr, "Could not issue StartPresentation()\n");
-      goto _close_and_exit;
+      goto _exit;
     }
 
     // grrr, should not need this.
     sleep(10);
 
     memset(&status, 0, sizeof(status));
-    status.size = sizeof(status);
-    status.mediaSpace = MEDIA_SPACE_UNKNOWN;
+    status.generic.size = sizeof(status);
+    status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
     // wait 10 seconds and check the confirmation event
     //if ((pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 10, 0) == DFB_OK) &&
     if ((pAmpEvent->WaitForEvent(pAmpEvent) == DFB_OK) &&
-        (m_amp->UploadStatusChanges(m_amp, &status, DFB_TRUE) == DFB_OK) &&
-        (status.flags & SSTATUS_MODE) && (status.mode.flags & SSTATUS_MODE_PLAYING))
+        (m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE) == DFB_OK) &&
+        (status.generic.flags & SSTATUS_MODE) && (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
     {
       // eat the event
       pAmpEvent->GetEvent(pAmpEvent, &event);
 
+      m_callback.OnPlayBackStarted();
       while (!m_bStop && !m_StopPlaying)
       {
         // AMP monitoring loop for automatic playback termination (100ms wait)
-        if (pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 0, 100) == DFB_OK)
+        //if (pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 0, 100) == DFB_OK)
+        //if ((pAmpEvent->WaitForEvent(pAmpEvent) == DFB_OK))
         {
           // eat the event
-          pAmpEvent->GetEvent(pAmpEvent, &event);
+          //pAmpEvent->GetEvent(pAmpEvent, &event);
 
           memset(&status, 0, sizeof(status));
-          status.size = sizeof(status);
-          status.mediaSpace = MEDIA_SPACE_UNKNOWN;
-          if ((m_amp->UploadStatusChanges(m_amp, &status, DFB_TRUE) == DFB_OK) &&
-              (status.flags & SSTATUS_MODE) && (status.mode.flags & SSTATUS_MODE_STOPPED))
+          status.generic.size = sizeof(status);
+          status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
+          if ((m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE) == DFB_OK) &&
+              (status.generic.flags & SSTATUS_MODE) && (status.generic.mode.flags & SSTATUS_MODE_STOPPED))
           {
             CLog::Log(LOGINFO, "CSMPPlayer: End of playback reached");
             m_StopPlaying = true;
-            m_callback.OnPlayBackEnded();
           }
         }
+        usleep(100*1000);
       }
+      m_callback.OnPlayBackEnded();
     }
     else
     {
       fprintf(stderr, "StartPresentation() failed, status.flags(0x%08lx), status.mode.flags(0x%08lx)\n",
-        (long unsigned int)status.flags, (long unsigned int)status.mode.flags);
+        (long unsigned int)status.generic.flags, (long unsigned int)status.generic.mode.flags);
     }
   }
-
-_close_and_exit:
-  if (m_amp)
-    m_amp->CloseMedia(m_amp);
 
 _exit:
   if (m_amp)
