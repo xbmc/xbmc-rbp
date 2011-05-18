@@ -75,7 +75,6 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
   m_ampID = MAIN_VIDEO_AMP_ID;
   m_speed = 1;
   m_paused = false;
-  m_idatasource = NULL;
   m_StopPlaying = false;
 }
 
@@ -242,7 +241,6 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 
 void CSMPPlayer::ToFFRW(int iSpeed)
 {
-  fprintf(stderr, "CSMPPlayer::ToFFRW, iSpeed(%d)\n", iSpeed);
   if (!m_amp)
     return;
 
@@ -261,7 +259,6 @@ void CSMPPlayer::ToFFRW(int iSpeed)
     {
       // regular playback
       case  0:
-      case  1:
         cmd.cmd = LPBCmd_PLAY;
         cmd.param2.speed = 1 * 1024;
       break;
@@ -274,14 +271,15 @@ void CSMPPlayer::ToFFRW(int iSpeed)
         cmd.param2.speed = ipower * 1024;
       break;
     }
+    fprintf(stderr, "CSMPPlayer::ToFFRW, iSpeed(%d), ipower(%d)\n", iSpeed, ipower);
 
     SLPBResult res;
     res.dataSize = sizeof(res);
     res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
     if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
-      CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command succeeded\n");
+      CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command succeeded");
     else
-      CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command failed!\n");
+      CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command failed!");
 
     m_speed = iSpeed;
   }
@@ -310,37 +308,33 @@ void CSMPPlayer::OnExit()
 
 void CSMPPlayer::Process()
 {
-  DFBResult   res;
-  UMSStatus   status;
+  DFBResult     res;
+  UMSStatus     status;
+  SMediaFormat  format;
+  CStdString    url;
 
   CLog::Log(LOGDEBUG, "CSMPPlayer: Thread started");
 
-// hacks for now, local source only.
-#if 0
-  SIdsData      ids;
-  SMediaFormat  format;
-  char          url[2048];
-  // default to autodetection
-  memset(&format, 0, sizeof(format));
-  format.mediaType = MTYPE_APP_UNKNOWN;
-  // setup IDataSource cookie
-  m_idatasource = new CFileIDataSource(m_item.m_strPath.c_str());
-  ids.src = m_idatasource;
-  CLog::Log(LOGDEBUG, "Using IDataSource: 0x%08lx", (long unsigned int)ids.src);
-  snprintf(url, sizeof(url)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
-
-  // open the media using the IAdvancedMediaProvider
-  res = m_amp->OpenMedia(m_amp, url, &format, NULL);
-#else
-  SMediaFormat  format;
   // default to autodetection
   memset(&format, 0, sizeof(format));
   format.mediaType = MTYPE_APP_UNKNOWN;
 
+  if (m_item.m_strPath.Left(7).Equals("http://"))
+  {
+    url = m_item.m_strPath;
+  }
+  else
+  {
+    // local source only for now, smb is failing to read
+    SIdsData      ids;
+    char          c_str[64];
+    // setup the IDataSource cookie, CloseMedia will delete it
+    ids.src = new CFileIDataSource(m_item.m_strPath.c_str());
+    snprintf(c_str, sizeof(c_str)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
+    url = c_str;
+  }
   // open the media using the IAdvancedMediaProvider
-  res = m_amp->OpenMedia(m_amp, (char*)CSpecialProtocol::TranslatePath(m_item.m_strPath).c_str(),
-    &format, NULL);
-#endif
+  res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, NULL);
   if (res != DFB_OK)
   {
     CLog::Log(LOGDEBUG, "OpenMedia() failed");
@@ -428,9 +422,6 @@ void CSMPPlayer::Process()
   }
 
 _exit:
-  delete m_idatasource;
-  m_idatasource = NULL;
-
   CLog::Log(LOGDEBUG, "m_amp->CloseMedia(m_amp)");
   if (m_amp)
     m_amp->CloseMedia(m_amp);

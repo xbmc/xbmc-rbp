@@ -25,7 +25,6 @@
 #include "dialogs/GUIDialogBusy.h"
 #include "threads/Thread.h"
 
-class CFileIDataSource;
 typedef struct _IDirectFBEventBuffer IDirectFBEventBuffer;
 typedef struct _IAdvancedMediaProvider IAdvancedMediaProvider;
 
@@ -147,7 +146,6 @@ private:
   CPlayerOptions          m_options;
   CCriticalSection        m_StateSection;
 
-  CFileIDataSource        *m_idatasource;
   IAdvancedMediaProvider  *m_amp;
   IDirectFBEventBuffer    *m_amp_event;
   int                     m_ampID;

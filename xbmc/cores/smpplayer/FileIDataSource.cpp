@@ -30,12 +30,12 @@
 CFileIDataSource::CFileIDataSource(const char *url)
 {
   strncpy(m_url, url, sizeof(m_url));
-};
+}
 
 //========================================================================
 CFileIDataSource::~CFileIDataSource()
 {
-};
+}
 
 //========================================================================
 void* CFileIDataSource::GetFormatSpecificCPInterface()
@@ -165,4 +165,5 @@ void CFileIDataSource::Close(void* ch)
     (long unsigned int)ch);
 	XFILE::CFile *cfile = (XFILE::CFile*)ch;
   cfile->Close();
+  delete cfile;
 }
