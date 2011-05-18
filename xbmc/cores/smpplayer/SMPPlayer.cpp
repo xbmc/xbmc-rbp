@@ -34,8 +34,6 @@
 
 #include "FileIDataSource.h"
 
-#include <SDL/SDL_syswm.h>
-
 #include <directfb/directfb.h>
 #include <directfb/advancedmediaprovider.h>
 #include <cdefs_lpb.h>
@@ -96,7 +94,7 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_item = file;
     m_options = options;
 
-    IDirectFB *dfb = (IDirectFB*)SDL_DirectFB_GetIDirectFB();
+    IDirectFB *dfb = g_Windowing.GetIDirectFB();
     DFBResult res = dfb->GetInterface(dfb, "IAdvancedMediaProvider", "EM8630", (void*)m_ampID, (void **)&m_amp);
     if (res != DFB_OK)
     {
