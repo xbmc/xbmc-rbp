@@ -115,7 +115,7 @@ bool CWinSystemEGL::InitWindowSystem()
 {
   EGLBoolean val = false;
   EGLint maj, min;
-  m_dpy = SDL_DirectFB_GetIDirectFB();
+  m_dpy = GetIDirectFB();
   
   if (m_dpy &&
       (m_eglDisplay = eglGetDisplay((EGLNativeDisplayType)m_dpy)) &&
@@ -525,6 +525,11 @@ EGLContext CWinSystemEGL::GetEGLContext() const
 EGLDisplay CWinSystemEGL::GetEGLDisplay() const
 {
   return m_eglDisplay;
+}
+
+IDirectFB* CWinSystemEGL::GetIDirectFB() const
+{
+  return (IDirectFB*)SDL_DirectFB_GetIDirectFB();
 }
 
 bool CWinSystemEGL::makeOMXCurrent()

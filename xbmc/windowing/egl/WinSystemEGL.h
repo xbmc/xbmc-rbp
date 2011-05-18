@@ -36,6 +36,8 @@
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GlobalsHandling.h"
 
+typedef struct _IDirectFB IDirectFB;
+
 class CWinSystemEGL : public CWinSystemBase, public CRenderSystemGLES
 {
 public:
@@ -63,8 +65,9 @@ public:
 
   virtual bool makeOMXCurrent();
 
-  EGLContext GetEGLContext() const;
-  EGLDisplay GetEGLDisplay() const;
+  EGLContext  GetEGLContext() const;
+  EGLDisplay  GetEGLDisplay() const;
+  IDirectFB*  GetIDirectFB()  const;
 protected:
   bool RefreshEGLContext();
 
