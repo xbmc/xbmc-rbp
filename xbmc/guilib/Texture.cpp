@@ -31,6 +31,9 @@
 #include "filesystem/File.h"
 #include "osx/DarwinUtils.h"
 #endif
+#if defined (HAVE_SIGMASMP)
+#include "directfb.h"
+#endif
 
 /************************************************************************/
 /*                                                                      */
@@ -295,6 +298,48 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
   CGImageRelease(image);
   CFRelease(cfdata);
   delete [] imageBuff;
+#elif 0
+//crashy, disable for now
+//#elif defined (HAVE_SIGMASMP)
+  IDirectFB *dfb = g_Windowing.GetIDirectFB();
+  DFBSurfaceDescription dsc;
+  DFBResult err;
+  IDirectFBImageProvider *provider = NULL;
+  IDirectFBSurface *imagesurface = NULL;
+  IDirectFBDataBuffer *buffer = NULL;
+  const unsigned char *src = NULL;
+  char image_filename[1024];
+  int gotpitch=0;
+
+  DFBDataBufferDescription dbd = {DBDESC_FILE, image_filename};
+  strcpy(image_filename, CSpecialProtocol::TranslatePath(texturePath).c_str());
+  if ((err = dfb->CreateDataBuffer(dfb, &dbd, &buffer )) != DFB_OK)
+  {
+    CLog::Log(LOGERROR,"Error reading %s into buffer:%x",image_filename, err);
+    return false;
+  }
+  buffer->SeekTo(buffer, 0);
+  if ((err = buffer->CreateImageProvider(buffer, &provider )) != DFB_OK)
+  {
+    CLog::Log(LOGERROR, "Could not create image %s. Error:%x", CSpecialProtocol::TranslatePath(texturePath).c_str(), err);
+    return false;
+  }
+  provider->GetSurfaceDescription (provider, &dsc);
+  dsc.flags = DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT;
+  dsc.caps = (DFBSurfaceCapabilities)(dsc.caps | DSCAPS_VIDEOONLY);
+  dsc.caps = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
+  dsc.pixelformat = DSPF_ARGB;
+  CLog::Log(LOGDEBUG, "directfb: Loading image %s, size: %ix%i", image_filename, dsc.width, dsc.height);
+  Allocate(dsc.width, dsc.height, XB_FMT_A8R8G8B8);
+  dfb->CreateSurface( dfb, &dsc, &imagesurface );
+  provider->RenderTo (provider, imagesurface, NULL);
+  provider->Release (provider);
+  buffer->Release(buffer);
+  imagesurface->Lock(imagesurface, DSLF_READ , &src, &gotpitch);
+  memcpy(m_pixels, src, GetPitch() * dsc.height);
+  imagesurface->Unlock(imagesurface);
+  imagesurface->Release (imagesurface);
+
 #else
   DllImageLib dll;
   if (!dll.Load())
