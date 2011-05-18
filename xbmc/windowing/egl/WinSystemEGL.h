@@ -25,13 +25,16 @@
  */
 #include "system.h"
 #include "windowing/WinSystem.h"
+// We have to define SUPPORT_DIRECTFB_WS before including egl.h so
+// that eglplatform.h (included in egl.h) will typedef the native
+// window system types:
+#define SUPPORT_DIRECTFB_WS
 #include <EGL/egl.h>
 #ifdef HAS_X11
 #include <X11/Xlib.h>
 #endif
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GlobalsHandling.h"
-#define SUPPORT_DIRECTFB_WS
 
 class CWinSystemEGL : public CWinSystemBase, public CRenderSystemGLES
 {
