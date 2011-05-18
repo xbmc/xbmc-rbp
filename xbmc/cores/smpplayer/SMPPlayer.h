@@ -26,6 +26,7 @@
 #include "threads/Thread.h"
 
 class CFileIDataSource;
+typedef struct _IDirectFBEventBuffer IDirectFBEventBuffer;
 typedef struct _IAdvancedMediaProvider IAdvancedMediaProvider;
 
 class CSMPPlayer : public IPlayer, public CThread
@@ -131,11 +132,13 @@ public:
   virtual CStdString GetPlayingTitle()                            {return "";};
   
 protected:
-  virtual void OnStartup();
-  virtual void OnExit();
-  virtual void Process();
+  virtual void  OnStartup();
+  virtual void  OnExit();
+  virtual void  Process();
   
 private:
+  bool          WaitForAmpPlaying(int timeout);
+
   int                     m_speed;
   bool                    m_paused;
   bool                    m_StopPlaying;
@@ -146,6 +149,7 @@ private:
 
   CFileIDataSource        *m_idatasource;
   IAdvancedMediaProvider  *m_amp;
+  IDirectFBEventBuffer    *m_amp_event;
   int                     m_ampID;
 
 };
