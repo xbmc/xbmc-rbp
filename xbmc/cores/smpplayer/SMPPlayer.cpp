@@ -28,6 +28,7 @@
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIWindowManager.h"
 #include "settings/AdvancedSettings.h"
+#include "threads/SingleLock.h"
 #include "windowing/WindowingFactory.h"
 #include "utils/log.h"
 #include "utils/TimeUtils.h"
@@ -35,26 +36,24 @@
 #include "FileIDataSource.h"
 
 #include <directfb/directfb.h>
-#include <directfb/advancedmediaprovider.h>
+#include <directfb/iadvancedmediaprovider.h>
+//#include <globals.h>
 #include <cdefs_lpb.h>
 
 union UMSStatus
 {
   struct SStatus      generic;
   struct SLPBStatus   lpb;
-  uint8_t             pad[8192];
 };
 union UMSCommand
 {
   struct SCommand     generic;
   struct SLPBCommand  lpb;
-  uint8_t             pad[8192];
 };
 union UMSResult
 {
   struct SResult      generic;
   struct SLPBResult   lpb;
-  uint8_t             pad[8192];
 };
 
 struct SIdsData
@@ -62,6 +61,28 @@ struct SIdsData
 	CFileIDataSource *src;
 	void *ch;
 };
+
+void dump_status_info(IAdvancedMediaProvider *pAmp, UMSStatus *status)
+{
+	uint64_t mediaTime = 0;
+	uint64_t presentationTime = 0;
+	
+  if (status->generic.getMediaAndPresentationTime)
+    status->generic.getMediaAndPresentationTime(status->generic.presentationId, &mediaTime, &presentationTime);
+
+  fprintf(stderr,
+    "status->flags(0x%08lx), status.mode->flags(0x%08lx), "
+    "elapsedTime(%u), bufferFullness(%d), crtBitrate(%d),"
+    "mediaTime(%llu), presentationTime(%llu)\n",
+    (long unsigned int)status->generic.flags, (long unsigned int)status->generic.mode.flags,
+    status->generic.elapsedTime, status->generic.statistics.bufferFullness, status->generic.statistics.crtBitrate,
+    mediaTime, presentationTime);
+
+  // Elapsed time, in seconds
+  //status->generic.elapsedTime
+  //status->generic.statistics.bufferFullness >> 10 (KB)
+  //status->generic.statistics.crtBitrate/(1024*1024) (Mbps)
+}
 
 CSMPPlayer::CSMPPlayer(IPlayerCallback &callback) 
   : IPlayer(callback),
@@ -71,6 +92,7 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
   m_amp = NULL;
   // request video layer
   m_ampID = MAIN_VIDEO_AMP_ID;
+  //m_ampID = SECONDARY_VIDEO_AMP_ID;
   m_speed = 1;
   m_paused = false;
   m_StopPlaying = false;
@@ -109,6 +131,12 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
       return false;
     }
 
+    DFBAdvancedMediaProviderDescription desc;
+    memset(&desc, 0, sizeof(desc));
+
+		m_amp->GetDescription(m_amp, &desc);
+    //SGlobals *ampGlobals = (SGlobals*)desc.privateInfo;
+
     m_StopPlaying = false;
     m_ready.Reset();
     Create();
@@ -136,6 +164,7 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
 bool CSMPPlayer::CloseFile()
 {
+  CLog::Log(LOGDEBUG, "CSMPPlayer::CloseFile");
   m_bStop = true;
   m_StopPlaying = true;
 
@@ -145,14 +174,13 @@ bool CSMPPlayer::CloseFile()
   // we are done after the StopThread call
   StopThread();
 
-  CLog::Log(LOGDEBUG, "m_amp->Release(m_amp)");
   if (m_amp)
     m_amp->Release(m_amp);
   m_amp = NULL;
-  CLog::Log(LOGDEBUG, "m_amp_event->Release(m_amp_event)");
   //  The event buffer must be released after the CloseMedia()/Release call
   if (m_amp_event)
     m_amp_event->Release(m_amp_event);
+  m_amp_event = NULL;
 
   CLog::Log(LOGNOTICE, "CSMPPlayer: finished waiting");
   g_renderManager.UnInit();
@@ -167,8 +195,7 @@ bool CSMPPlayer::IsPlaying() const
 
 void CSMPPlayer::Pause()
 {
-  fprintf(stderr, "CSMPPlayer::Pause\n");
-  if (!m_amp)
+  if (!m_amp && m_StopPlaying)
     return;
 
   SLPBCommand cmd;
@@ -190,10 +217,10 @@ void CSMPPlayer::Pause()
   SLPBResult  res;
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
-    CLog::Log(LOGDEBUG, "CSMPPlayer::Pause:AMP command succeeded\n");
-  else
-    CLog::Log(LOGDEBUG, "CSMPPlayer::Pause:AMP command failed!\n");
+
+  CSingleLock lock(m_StateSection);
+  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+    CLog::Log(LOGDEBUG, "CSMPPlayer::Pause:AMP command failed!");
 }
 
 bool CSMPPlayer::IsPaused() const
@@ -203,23 +230,46 @@ bool CSMPPlayer::IsPaused() const
 
 void CSMPPlayer::SetVolume(long nVolume)
 {
-  //short vol = (1.0f + (nVolume / 6000.0f)) * 256.0f;
-  //m_qtFile->SetVolume(vol);
+  // nVolume is a milliBels from -6000 (-60dB or mute) to 0 (0dB or full volume)
+  // 0db is represented by Volume = 0x10000000
+  // bit shifts adjust by 6db.
+  // Maximum gain is 0xFFFFFFFF ~=24db
+
+  uint32_t volume = (1.0f + (nVolume / 6000.0f)) * (float)0x10000000;
+
+  SAdjustment adjustment;
+  // use ADJ_MIXER_VOLUME_MAIN and not ADJ_VOLUME as
+  // ADJ_VOLUME will cause a complete re-init of audio decoder.
+  adjustment.type = ADJ_MIXER_VOLUME_MAIN;
+  adjustment.value.volume	= volume;
+
+  SLPBCommand cmd;
+  cmd.cmd = (ELPBCmd)Cmd_Adjust;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+  cmd.control.adjustment = &adjustment;
+
+  CSingleLock lock(m_StateSection);
+  if (m_amp->PostPresentationCmd(m_amp, (SCommand*)&cmd) != DFB_OK)
+    CLog::Log(LOGDEBUG, "CSMPPlayer::SetVolume:AMP command failed!");
 }
 
 void CSMPPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
-  //CSingleLock lock(m_StateSection);
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioInfo");
+  CSingleLock lock(m_StateSection);
 }
 
 void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
-  //CSingleLock lock(m_StateSection);
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoInfo");
+  CSingleLock lock(m_StateSection);
 }
 
 void CSMPPlayer::GetGeneralInfo(CStdString &strVideoInfo)
 {
-  //CSingleLock lock(m_StateSection);
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetGeneralInfo");
+  CSingleLock lock(m_StateSection);
 }
 
 void CSMPPlayer::Update(bool bPauseDrawing)
@@ -239,7 +289,8 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 
 void CSMPPlayer::ToFFRW(int iSpeed)
 {
-  if (!m_amp)
+  CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW, iSpeed(%d)", iSpeed);
+  if (!m_amp && m_StopPlaying)
     return;
 
   if (m_speed != iSpeed)
@@ -269,14 +320,13 @@ void CSMPPlayer::ToFFRW(int iSpeed)
         cmd.param2.speed = ipower * 1024;
       break;
     }
-    fprintf(stderr, "CSMPPlayer::ToFFRW, iSpeed(%d), ipower(%d)\n", iSpeed, ipower);
 
     SLPBResult res;
     res.dataSize = sizeof(res);
     res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-    if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
-      CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command succeeded");
-    else
+
+    CSingleLock lock(m_StateSection);
+    if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
       CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command failed!");
 
     m_speed = iSpeed;
@@ -342,7 +392,7 @@ void CSMPPlayer::Process()
   
   memset(&status, 0, sizeof(status));
   status.generic.size = sizeof(SStatus);
-  status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
+  status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   // wait 10 seconds and check the confirmation event
   if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 10, 0) == DFB_OK) &&
       (m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE)   == DFB_OK) &&
@@ -354,8 +404,8 @@ void CSMPPlayer::Process()
 
     int m_width = g_graphicsContext.GetWidth();
     int m_height= g_graphicsContext.GetHeight();
-    int m_displayWidth = m_width;
-    int m_displayHeight= m_height;
+    int m_displayWidth  = m_width;
+    int m_displayHeight = m_height;
     double m_fFrameRate = 24;
     
     unsigned int flags = 0;
@@ -377,7 +427,7 @@ void CSMPPlayer::Process()
     res = m_amp->StartPresentation(m_amp, DFB_TRUE);
     if (res != DFB_OK)
     {
-      fprintf(stderr, "Could not issue StartPresentation()\n");
+      CLog::Log(LOGDEBUG,"Could not issue StartPresentation()");
       m_ready.Set();
       goto _exit;
     }
@@ -402,12 +452,13 @@ void CSMPPlayer::Process()
           memset(&status, 0, sizeof(status));
           status.generic.size = sizeof(status);
           status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
+          //status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
           if ((m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE) == DFB_OK) &&
               (status.generic.flags & SSTATUS_MODE) && (status.generic.mode.flags & SSTATUS_MODE_STOPPED))
           {
-            CLog::Log(LOGINFO, "CSMPPlayer: End of playback reached");
             m_StopPlaying = true;
           }
+          //dump_status_info(m_amp, &status);
         }
       }
       m_callback.OnPlayBackEnded();
@@ -418,9 +469,8 @@ void CSMPPlayer::Process()
         (long unsigned int)status.generic.flags, (long unsigned int)status.generic.mode.flags);
     }
   }
-
+ 
 _exit:
-  CLog::Log(LOGDEBUG, "m_amp->CloseMedia(m_amp)");
   if (m_amp)
     m_amp->CloseMedia(m_amp);
   
@@ -436,13 +486,16 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
   {
     memset(&status, 0, sizeof(status));
     status.generic.size = sizeof(status);
-    status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
+    status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
     if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK) &&
         (m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE) == DFB_OK))
     {
       // eat the event
       DFBEvent event;
       m_amp_event->GetEvent(m_amp_event, &event);
+
+
+      //dump_status_info(m_amp, &status);
       if ((status.generic.flags & SSTATUS_MODE) && 
           (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
       {
