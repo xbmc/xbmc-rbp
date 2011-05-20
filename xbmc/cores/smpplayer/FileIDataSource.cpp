@@ -21,10 +21,8 @@
 
 #include "FileIDataSource.h"
 #include "filesystem/File.h"
+#include "utils/log.h"
 #include "FileItem.h"
-#include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
 
 //========================================================================
 CFileIDataSource::CFileIDataSource(const char *url)
@@ -40,10 +38,9 @@ CFileIDataSource::~CFileIDataSource()
 //========================================================================
 void* CFileIDataSource::GetFormatSpecificCPInterface()
 {
-  fprintf(stderr, "CFileIDataSource::GetFormatSpecificCPInterface\n");
+  CLog::Log(LOGDEBUG, "CFileIDataSource::GetFormatSpecificCPInterface");
 
-  void *test = NULL;
-  return test;
+  return (void*)NULL;
 }
 
 //========================================================================
@@ -63,7 +60,7 @@ void* CFileIDataSource::Open(char* url, enum EDSResult *pRes)
     cfile = NULL;
   }
 
-  fprintf(stderr, "CFileIDataSource::Open url(%s), filename(%s), ch(0x%08lx)\n",
+  CLog::Log(LOGDEBUG, "CFileIDataSource::Open url(%s), filename(%s), ch(0x%08lx)",
     url, m_url, (long unsigned int)cfile);
 
   if (pRes)
@@ -80,7 +77,7 @@ void* CFileIDataSource::Open(char* url, enum EDSResult *pRes)
 //========================================================================
 bool CFileIDataSource::GetChannelParams(struct SChannelParams *pParams)
 {
-  fprintf(stderr, "CFileIDataSource::GetChannelParams\n");
+  CLog::Log(LOGDEBUG, "CFileIDataSource::GetChannelParams");
   // we do not know the channel parameters,
   /*
   pParams->blockSize;     // amount of data currently available in the buffer
@@ -151,7 +148,7 @@ int64_t CFileIDataSource::Seek(void *ch, int64_t pos, bool isRel, enum EDSResult
 //========================================================================
 void CFileIDataSource::Flush(void *ch, bool internal)
 {
-  fprintf(stderr, "CFileIDataSource::Flush, ch(0x%08lx), internal(%d)\n",
+  CLog::Log(LOGDEBUG, "CFileIDataSource::Flush, ch(0x%08lx), internal(%d)",
     (long unsigned int)ch, internal);
 	XFILE::CFile *cfile = (XFILE::CFile*)ch;
   cfile->Flush();
@@ -161,7 +158,7 @@ void CFileIDataSource::Flush(void *ch, bool internal)
 //========================================================================
 void CFileIDataSource::Close(void* ch)
 {
-  fprintf(stderr, "CFileIDataSource::Close, ch(0x%08lx)\n",
+  CLog::Log(LOGDEBUG, "CFileIDataSource::Close, ch(0x%08lx)",
     (long unsigned int)ch);
 	XFILE::CFile *cfile = (XFILE::CFile*)ch;
   cfile->Close();
