@@ -45,6 +45,7 @@ config.log
 /build/
 .DS_Store
 *.dSYM
+._*
 /tools/darwin/depends/config.site
 /tools/darwin/depends/config.site.mk
 /tools/darwin/depends/Makefile
