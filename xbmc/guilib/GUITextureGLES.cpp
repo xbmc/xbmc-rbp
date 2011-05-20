@@ -224,17 +224,14 @@ void CGUITextureGLES::DrawQuad(const CRect &rect, color_t color, CBaseTexture *t
     glEnable(GL_TEXTURE_2D);
   }
   else
-  {
     glDisable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-  }
 
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
   glEnable(GL_BLEND);          // Turn Blending On
 
   VerifyGLState();
 
-  GLfloat col[4][4];
+  GLubyte col[4][4];
   GLfloat ver[4][3];
   GLfloat tex[4][2];
   GLubyte idx[4] = {0, 1, 3, 2};        //determines order of triangle strip
