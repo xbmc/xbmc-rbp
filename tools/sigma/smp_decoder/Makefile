@@ -2,11 +2,10 @@ include ../sigma-sdk.mk
 
 BIN = smp_decoder
 
-INCLUDES+= -I$(DCCHD_DIR)/core -I$(DCCHD_DIR)/dcchd -I$(DCCHD_DIR)/mono -I${BUILDPREFIX}/include/directfb
+INCLUDES+= -I$(DCCHD_DIR)/core -I$(DCCHD_DIR)/mono -I${BUILDPREFIX}/include/directfb
 
 LDFLAGS+= -lbz2 -lz -lc -lpthread -ldirectfb -lfusion -ldirect \
 	-L$(BUILDPREFIX)/lib \
-	-Wl,-rpath-link -Wl,$(RUA_DIR)/lib \
 	-Wl,-rpath-link -Wl,$(DCCHD_DIR)/core \
 	-Wl,-rpath-link -Wl,$(DCCHD_DIR)/mono \
 	-Wl,-rpath-link -Wl,$(DCCHD_DIR)/dcchd

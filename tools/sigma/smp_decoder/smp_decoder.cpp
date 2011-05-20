@@ -35,12 +35,40 @@
 
 #include "CFileIDataSource.h"
 
+union UMSStatus
+{
+  struct SStatus      generic;
+  struct SLPBStatus   lpb;
+};
+union UMSCommand
+{
+  struct SCommand     generic;
+  struct SLPBCommand  lpb;
+};
+union UMSResult
+{
+  struct SResult      generic;
+  struct SLPBResult   lpb;
+};
+
 struct SIdsData
 {
 	CFileIDataSource *src;
 	void *ch;
 };
 
+static const char *videoMediaTypes[] =
+{
+  "",
+  "MPEG1",
+  "MPEG2",
+  "MPEG4",
+  "AVC",
+  "VC1",
+  "DIVX3",
+  "DIVX4",
+  "WMV",
+};
 // AppContext - Application state
 typedef struct
 {
@@ -51,6 +79,59 @@ typedef struct
   struct SMediaFormat       format;
 } AppContext;
 
+void dump_stream_info(IAdvancedMediaProvider *pAmp, UMSStatus *status)
+{
+/*
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_GET_STREAM_SET_INFO;
+  cmd.param1.streamSetIndex = 0;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+  
+  SLPBResult  res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+  if (pAmp->ExecutePresentationCmd(pAmp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
+    fprintf(stderr, "CSMPPlayer::Pause:AMP command succeeded\n");
+  else
+    fprintf(stderr, "CSMPPlayer::Pause:AMP command failed!\n");
+
+  fprintf(stderr,
+    "Type: 0x%x \n"
+    "Duration: %d \n"
+    "Rate: %ld/%ld \n"
+    "Streams: %d \n"
+    "Videos: %d \n"
+    "Audios: %d \n"
+    "Subtitles: %d \n",
+    res.value.media.format.mediaType,
+    res.value.media.duration,
+    res.value.media.clockTickM,
+    res.value.media.clockTickN,
+    res.value.media.streams,
+    res.value.media.video_streams,
+    res.value.media.audio_streams,
+    res.value.media.subtitle_streams);
+*/
+  for (size_t i=0; i<sizeof(status->generic.mediaInfo)/sizeof(status->generic.mediaInfo[0]); i++)
+  {
+    fprintf(stderr, "dump, i(%d), status->mediaInfo[i].mediaType(0x%08lx)\n",
+      i, (long unsigned int)status->generic.mediaInfo[i].mediaType);
+    //if (MTYPE_ELEM_IS_VIDEO(status->mediaInfo[i].mediaType))
+    {
+      fprintf(stderr,
+          "Video: %s %dx%d @ %2.2f%c AR: %d:%d ",
+          GET_VIDEO_MINDEX(status->generic.mediaInfo[i].mediaType) < sizeof(videoMediaTypes)/sizeof(videoMediaTypes[0])
+              ? videoMediaTypes[GET_VIDEO_MINDEX(status->generic.mediaInfo[i].mediaType)]
+              : "unknown",
+          status->generic.mediaInfo[i].format.image.width,
+          status->generic.mediaInfo[i].format.image.height,
+          (float)status->generic.mediaInfo[i].format.image.rateM/status->generic.mediaInfo[i].format.image.rateN,
+          status->generic.mediaInfo[i].format.image.interlaced ? 'i' : 'p',
+          status->generic.mediaInfo[i].format.image.aspectX, status->generic.mediaInfo[i].format.image.aspectY);
+    }
+  }
+}
 
 int main (int argc, char * const argv[])
 {
@@ -120,20 +201,27 @@ int main (int argc, char * const argv[])
     // open the media
     if (pAmp->OpenMedia(pAmp, ctx.url, &ctx.format, NULL) == DFB_OK)
     {
-      SStatus   status;
+      UMSStatus   status;
 
       memset(&status, 0, sizeof(status));
-      status.size = sizeof(status);
-      status.mediaSpace = MEDIA_SPACE_UNKNOWN;
+      status.generic.size = sizeof(status);
+      status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
 
       // wait and check the confirmation event
       if ((pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 1000, 0) == DFB_OK) &&
-          (pAmp->UploadStatusChanges(pAmp, &status, DFB_TRUE) == DFB_OK) &&
-          (status.flags & SSTATUS_COMMAND) && IS_SUCCESS(status.lastCmd.result)) // succeeded
+          (pAmp->UploadStatusChanges(pAmp, (SStatus*)&status, DFB_TRUE) == DFB_OK) &&
+          (status.generic.flags & SSTATUS_COMMAND) && IS_SUCCESS(status.generic.lastCmd.result)) // succeeded
       {
 				DFBEvent event;
 
 				pAmpEvent->GetEvent(pAmpEvent, &event);
+        
+        
+        memset(&status, 0, sizeof(status));
+        status.generic.size = sizeof(status);
+        status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+        pAmp->UploadStatusChanges(pAmp, (SStatus*)&status, DFB_TRUE);
+        dump_stream_info(pAmp, &status);
 
 				// make the graphic layer transparent so that the video layer beneath can be seen
 				{
@@ -178,15 +266,15 @@ int main (int argc, char * const argv[])
 				{
           bool paused = false;
           memset(&status, 0, sizeof(status));
-          status.size = sizeof(status);
-          status.mediaSpace = MEDIA_SPACE_UNKNOWN;
+          status.generic.size = sizeof(status);
+          status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
 
           sleep(2);
 					// wait and check the confirmation event
 					//if ((pAmpEvent->WaitForEventWithTimeout(pAmpEvent, 1000, 0) == DFB_OK) &&
 					if ((pAmpEvent->WaitForEvent(pAmpEvent) == DFB_OK) &&
-						(pAmp->UploadStatusChanges(pAmp, &status, DFB_TRUE) == DFB_OK) &&
-						(status.flags & SSTATUS_MODE) && (status.mode.flags & SSTATUS_MODE_PLAYING))
+						(pAmp->UploadStatusChanges(pAmp, (SStatus*)&status, DFB_TRUE) == DFB_OK) &&
+						(status.generic.flags & SSTATUS_MODE) && (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
 					{
 						DFBEvent keyEvent;
 						struct SLPBCommand cmd;
@@ -194,6 +282,12 @@ int main (int argc, char * const argv[])
             
             // consume the event
 						pAmpEvent->GetEvent(pAmpEvent, &event);
+
+            memset(&status, 0, sizeof(status));
+            status.generic.size = sizeof(status);
+            status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+            pAmp->UploadStatusChanges(pAmp, (SStatus*)&status, DFB_TRUE);
+            dump_stream_info(pAmp, &status);
 
 						// enable the video layer
 						{
@@ -250,13 +344,15 @@ int main (int argc, char * const argv[])
 								pAmpEvent->GetEvent(pAmpEvent, &event);
 
                 memset(&status, 0, sizeof(status));
-                status.size = sizeof(status);
-                status.mediaSpace = MEDIA_SPACE_UNKNOWN;
+                status.generic.size = sizeof(status);
+                status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
 
-								if (pAmp->UploadStatusChanges(pAmp, &status, DFB_TRUE) == DFB_OK)
+								if (pAmp->UploadStatusChanges(pAmp, (SStatus*)&status, DFB_TRUE) == DFB_OK)
 								{
-									if ((status.flags & SSTATUS_MODE) &&
-										(status.mode.flags & SSTATUS_MODE_STOPPED) &&
+                  dump_stream_info(pAmp, &status);
+
+									if ((status.generic.flags & SSTATUS_MODE) &&
+										(status.generic.mode.flags & SSTATUS_MODE_STOPPED) &&
 										(cmd.cmd != LPBCmd_STOP))
 									{
                     fprintf(stderr, "presentation has stopped, leaving runloop\n");
