@@ -165,8 +165,12 @@ int main(int argc, char* argv[])
     g_playlistPlayer.SetCurrentPlaylist(0);
   }
 
-  ThreadMessage tMsg = {TMSG_PLAYLISTPLAYER_PLAY, (DWORD) -1};
-  g_application.getApplicationMessenger().SendMessage(tMsg, false);
+  {
+    // since we never return from g_application.Run until stopped,
+    // 
+    ThreadMessage tMsg = {TMSG_PLAYLISTPLAYER_PLAY, (DWORD) -1};
+    g_application.getApplicationMessenger().SendMessage(tMsg, false);
+  }
 
   try
   {
