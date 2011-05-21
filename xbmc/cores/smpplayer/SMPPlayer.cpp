@@ -592,7 +592,7 @@ void CSMPPlayer::Process()
           {
             m_StopPlaying = true;
           }
-          dump_status_info(m_amp, &status);
+          //dump_status_info(m_amp, &status);
         }
       }
       m_callback.OnPlayBackEnded();
@@ -629,7 +629,7 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
       m_amp_event->GetEvent(m_amp_event, &event);
 
 
-      dump_status_info(m_amp, &status);
+      //dump_status_info(m_amp, &status);
       if ((status.generic.flags & SSTATUS_MODE) && 
           (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
       {
