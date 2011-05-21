@@ -228,6 +228,51 @@ bool CSMPPlayer::IsPaused() const
   return m_paused;
 }
 
+bool CSMPPlayer::HasVideo() const
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::HasVideo");
+  return true;
+}
+
+bool CSMPPlayer::HasAudio() const
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::HasAudio");
+  return true;
+}
+
+void CSMPPlayer::ToggleFrameDrop()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::ToggleFrameDrop");
+}
+
+bool CSMPPlayer::CanSeek()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::CanSeek");
+  return true;
+}
+
+void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::Seek");
+}
+
+bool CSMPPlayer::SeekScene(bool bPlus)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekScene");
+  return false;
+}
+
+void CSMPPlayer::SeekPercentage(float fPercent)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekPercentage");
+}
+
+float CSMPPlayer::GetPercentage()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetPercentage");
+  return 0.0f;
+}
+
 void CSMPPlayer::SetVolume(long nVolume)
 {
   // nVolume is a milliBels from -6000 (-60dB or mute) to 0 (0dB or full volume)
@@ -285,6 +330,95 @@ void CSMPPlayer::GetVideoRect(CRect& SrcRect, CRect& DestRect)
 void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 {
   fAR = g_renderManager.GetAspectRatio();
+}
+
+void CSMPPlayer::SeekTime(__int64 iTime)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime");
+  int seekOffset = (int)(iTime - GetTime());
+
+  // seek here
+
+  m_callback.OnPlayBackSeek((int)iTime, seekOffset);
+}
+
+__int64 CSMPPlayer::GetTime()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetTime");
+  // return the time in milliseconds
+  return 0;
+}
+
+int CSMPPlayer::GetTotalTime()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetTotalTime");
+  // return total length in seconds
+  return 0;
+}
+
+int CSMPPlayer::GetAudioBitrate()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioBitrate");
+  return 0;
+}
+int CSMPPlayer::GetVideoBitrate()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoBitrate");
+  return 0;
+}
+
+int CSMPPlayer::GetSourceBitrate()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSourceBitrate");
+  return 0;
+}
+
+int CSMPPlayer::GetChannels()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetChannels");
+  return 0;
+}
+
+int CSMPPlayer::GetBitsPerSample()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetBitsPerSample");
+  return 0;
+}
+
+int CSMPPlayer::GetSampleRate()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSampleRate");
+  return 0;
+}
+
+CStdString CSMPPlayer::GetAudioCodecName()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioCodecName");
+  return "";
+}
+
+CStdString CSMPPlayer::GetVideoCodecName()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoCodecName");
+ return "";
+}
+
+int CSMPPlayer::GetPictureWidth()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureWidth");
+  return 0;
+}
+
+int CSMPPlayer::GetPictureHeight()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureHeight");
+  return 0;
+}
+
+bool CSMPPlayer::GetStreamDetails(CStreamDetails &details)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetStreamDetails");
+  return false;
 }
 
 void CSMPPlayer::ToFFRW(int iSpeed)
@@ -458,7 +592,7 @@ void CSMPPlayer::Process()
           {
             m_StopPlaying = true;
           }
-          //dump_status_info(m_amp, &status);
+          dump_status_info(m_amp, &status);
         }
       }
       m_callback.OnPlayBackEnded();
@@ -495,7 +629,7 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
       m_amp_event->GetEvent(m_amp_event, &event);
 
 
-      //dump_status_info(m_amp, &status);
+      dump_status_info(m_amp, &status);
       if ((status.generic.flags & SSTATUS_MODE) && 
           (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
       {

@@ -44,14 +44,14 @@ public:
   virtual bool  IsPlaying() const;
   virtual void  Pause();
   virtual bool  IsPaused() const;
-  virtual bool  HasVideo() const                                  {return true;}
-  virtual bool  HasAudio() const                                  {return true;}
-  virtual void  ToggleFrameDrop()                                 {}
-  virtual bool  CanSeek()                                         {return true;}
-  virtual void  Seek(bool bPlus = true, bool bLargeStep = false)  {}
-  virtual bool  SeekScene(bool bPlus = true)                      {return false;};
-  virtual void  SeekPercentage(float fPercent = 0.0f)             {}
-  virtual float GetPercentage()                                   {return 0.0f;}
+  virtual bool  HasVideo() const;
+  virtual bool  HasAudio() const;
+  virtual void  ToggleFrameDrop();
+  virtual bool  CanSeek();
+  virtual void  Seek(bool bPlus = true, bool bLargeStep = false);
+  virtual bool  SeekScene(bool bPlus = true);
+  virtual void  SeekPercentage(float fPercent = 0.0f);
+  virtual float GetPercentage();
   virtual void  SetVolume(long nVolume);
   virtual void  SetDynamicRangeCompression(long drc)              {}
   virtual void  GetAudioInfo(CStdString &strAudioInfo);
@@ -93,20 +93,20 @@ public:
   virtual int   SeekChapter(int iChapter)                         {return -1;}
 
   virtual float GetActualFPS()                                    {return 0.0f;};
-  virtual void  SeekTime(__int64 iTime = 0)                       {};
-  virtual __int64 GetTime()                                       {return 0;};
-  virtual int   GetTotalTime()                                    {return 0;};
-  virtual int   GetAudioBitrate()                                 {return 0;}
-  virtual int   GetVideoBitrate()                                 {return 0;}
-  virtual int   GetSourceBitrate()                                {return 0;}
-  virtual int   GetChannels()                                     {return 0;};
-  virtual int   GetBitsPerSample()                                {return 0;};
-  virtual int   GetSampleRate()                                   {return 0;};
-  virtual CStdString GetAudioCodecName()                          {return "";}
-  virtual CStdString GetVideoCodecName()                          {return "";}
-  virtual int   GetPictureWidth()                                 {return 0;}
-  virtual int   GetPictureHeight()                                {return 0;}
-  virtual bool  GetStreamDetails(CStreamDetails &details)         {return false;}
+  virtual void  SeekTime(__int64 iTime = 0);
+  virtual __int64 GetTime();
+  virtual int   GetTotalTime();
+  virtual int   GetAudioBitrate();
+  virtual int   GetVideoBitrate();
+  virtual int   GetSourceBitrate();
+  virtual int   GetChannels();
+  virtual int   GetBitsPerSample();
+  virtual int   GetSampleRate();
+  virtual CStdString GetAudioCodecName();
+  virtual CStdString GetVideoCodecName();
+  virtual int   GetPictureWidth();
+  virtual int   GetPictureHeight();
+  virtual bool  GetStreamDetails(CStreamDetails &details);
   virtual void  ToFFRW(int iSpeed = 0);
   // Skip to next track/item inside the current media (if supported).
   virtual bool  SkipNext()                                        {return false;}
