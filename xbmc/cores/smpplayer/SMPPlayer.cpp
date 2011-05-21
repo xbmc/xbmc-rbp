@@ -500,12 +500,13 @@ void CSMPPlayer::Process()
   // default to autodetection
   memset(&format, 0, sizeof(format));
   format.mediaType = MTYPE_APP_UNKNOWN;
-
+/*
   if (m_item.m_strPath.Left(7).Equals("http://"))
   {
     url = m_item.m_strPath;
   }
   else
+*/
   {
     // local source only for now, smb is failing to read
     SIdsData      ids;
