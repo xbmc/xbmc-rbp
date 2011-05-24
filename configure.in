@@ -117,7 +117,7 @@ AC_ARG_WITH([arch],
 AC_ARG_WITH([build-prefix],
   [AS_HELP_STRING([--with-build-prefix],
   [when cross-compiling, set the prefix where libs and includes should be searched])],
-  [use_build_prefix=$withval],
+  [use_build_prefix=$withval;AC_SUBST([BUILDPREFIX], $withval)],
   [use_build_prefix=$prefix])
 
 AC_ARG_WITH([cpu],
