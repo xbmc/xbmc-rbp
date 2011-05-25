@@ -73,9 +73,11 @@ void dump_status_info(IAdvancedMediaProvider *pAmp, UMSStatus *status)
   fprintf(stderr,
     "status->flags(0x%08lx), status.mode->flags(0x%08lx), "
     "elapsedTime(%u), bufferFullness(%d), crtBitrate(%d),"
+    "streamSets.count(%u), streamSets.current(%d),"
     "mediaTime(%llu), presentationTime(%llu)\n",
     (long unsigned int)status->generic.flags, (long unsigned int)status->generic.mode.flags,
     status->generic.elapsedTime, status->generic.statistics.bufferFullness, status->generic.statistics.crtBitrate,
+    status->lpb.streamSets.count, status->lpb.streamSets.current,
     mediaTime, presentationTime);
 
   // Elapsed time, in seconds
@@ -230,7 +232,7 @@ bool CSMPPlayer::IsPaused() const
 
 bool CSMPPlayer::HasVideo() const
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::HasVideo");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::HasVideo");
   return true;
 }
 
@@ -269,7 +271,7 @@ void CSMPPlayer::SeekPercentage(float fPercent)
 
 float CSMPPlayer::GetPercentage()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetPercentage");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPercentage");
   return 0.0f;
 }
 
@@ -303,18 +305,25 @@ void CSMPPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioInfo");
   CSingleLock lock(m_StateSection);
+  
+  // LPBCmd_GET_STREAM_INFO
+  // LPBCmd_GET_AUDIO_STREAM_INFO
 }
 
 void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoInfo");
   CSingleLock lock(m_StateSection);
+
+  // LPBCmd_GET_STREAM_INFO
+  // LPBCmd_GET_VIDEO_STREAM_INFO
 }
 
 void CSMPPlayer::GetGeneralInfo(CStdString &strVideoInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetGeneralInfo");
   CSingleLock lock(m_StateSection);
+  //LPBCmd_GET_SUBTITLE_STREAM_INFO
 }
 
 void CSMPPlayer::Update(bool bPauseDrawing)
@@ -344,14 +353,14 @@ void CSMPPlayer::SeekTime(__int64 iTime)
 
 __int64 CSMPPlayer::GetTime()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetTime");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetTime");
   // return the time in milliseconds
   return 0;
 }
 
 int CSMPPlayer::GetTotalTime()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetTotalTime");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetTotalTime");
   // return total length in seconds
   return 0;
 }
@@ -575,6 +584,29 @@ void CSMPPlayer::Process()
     if (WaitForAmpPlaying(20000))
     {
       m_callback.OnPlayBackStarted();
+
+      // get stream info testing
+      SLPBCommand cmd;
+      cmd.cmd = LPBCmd_GET_VIDEO_STREAM_INFO;
+      cmd.param1.streamIndex = 0;
+      cmd.dataSize = sizeof(cmd);
+      cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+      SLPBResult  res;
+      res.dataSize = sizeof(res);
+      res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+      CSingleLock lock(m_StateSection);
+      if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+        CLog::Log(LOGDEBUG, "LPBCmd_GET_VIDEO_STREAM_INFO command failed!");
+      else
+        CLog::Log(LOGDEBUG, "LPBCmd_GET_VIDEO_STREAM_INFO:"
+          "streamInfo.index(%d), width(%d), height(%d), name(%s)",
+          res.value.streamInfo.index,
+          res.value.streamInfo.format.format.image.width,
+          res.value.streamInfo.format.format.image.height,
+          res.value.streamInfo.name);
+
       while (!m_bStop && !m_StopPlaying)
       {
         // AMP monitoring loop for automatic playback termination (100ms wait)
@@ -593,7 +625,7 @@ void CSMPPlayer::Process()
           {
             m_StopPlaying = true;
           }
-          //dump_status_info(m_amp, &status);
+          dump_status_info(m_amp, &status);
         }
       }
       m_callback.OnPlayBackEnded();
@@ -630,7 +662,7 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
       m_amp_event->GetEvent(m_amp_event, &event);
 
 
-      //dump_status_info(m_amp, &status);
+      dump_status_info(m_amp, &status);
       if ((status.generic.flags & SSTATUS_MODE) && 
           (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
       {
