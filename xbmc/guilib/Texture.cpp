@@ -32,6 +32,8 @@
 #include "osx/DarwinUtils.h"
 #endif
 #if defined (HAVE_SIGMASMP)
+#include "filesystem/File.h"
+#include "threads/SingleLock.h"
 #include "directfb.h"
 #endif
 
@@ -173,6 +175,12 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     return false;
   }
 
+  if (URIUtils::GetExtension(texturePath).Equals(".jpg"))
+  {
+    if (LoadHWAccelerated(texturePath))
+      return true;
+  }
+
 #if defined(__APPLE__) && defined(__arm__)
   XFILE::CFile file;
   UInt8 *imageBuff      = NULL;
@@ -298,54 +306,6 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
   CGImageRelease(image);
   CFRelease(cfdata);
   delete [] imageBuff;
-#elif 0
-//crashy, disable for now
-//#elif defined (HAVE_SIGMASMP)
-  IDirectFB                 *dfb;
-  DFBSurfaceDescription     dsc;
-  DFBResult                 err;
-  IDirectFBDataBuffer       *buffer = NULL;
-  IDirectFBImageProvider    *provider = NULL;
-  IDirectFBSurface          *imagesurface = NULL;
-  const unsigned char       *src = NULL;
-  char                      image_filename[1024];
-  int                       gotpitch = 0;
-  DFBDataBufferDescription  dbd = {DBDESC_FILE, image_filename};
-
-  dfb = g_Windowing.GetIDirectFB();
- 
-  strcpy(image_filename, CSpecialProtocol::TranslatePath(texturePath).c_str());
-  if ((err = dfb->CreateDataBuffer(dfb, &dbd, &buffer )) != DFB_OK)
-  {
-    CLog::Log(LOGERROR,"Error reading %s into buffer:%x",image_filename, err);
-    return false;
-  }
-  buffer->SeekTo(buffer, 0);
-  if ((err = buffer->CreateImageProvider(buffer, &provider )) != DFB_OK)
-  {
-    CLog::Log(LOGERROR, "Could not create image %s. Error:%x", 
-      CSpecialProtocol::TranslatePath(texturePath).c_str(), err);
-    return false;
-  }
-  provider->GetSurfaceDescription (provider, &dsc);
-
-  dsc.flags = DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT;
-  dsc.caps = (DFBSurfaceCapabilities)(dsc.caps | DSCAPS_VIDEOONLY);
-  dsc.caps = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
-  dsc.pixelformat = DSPF_ARGB;
-
-  CLog::Log(LOGDEBUG, "directfb: Loading image %s, size: %ix%i", image_filename, dsc.width, dsc.height);
-  Allocate(dsc.width, dsc.height, XB_FMT_A8R8G8B8);
-
-  dfb->CreateSurface(dfb, &dsc, &imagesurface);
-  provider->RenderTo(provider, imagesurface, NULL);
-  provider->Release(provider);
-  buffer->Release(buffer);
-
-  imagesurface->Lock(imagesurface, DSLF_READ , &src, &gotpitch);
-  memcpy(m_pixels, src, GetPitch() * dsc.height);
-  imagesurface->Unlock(imagesurface);
-  imagesurface->Release(imagesurface);
 
 #else
   DllImageLib dll;
@@ -497,3 +457,124 @@ bool CBaseTexture::HasAlpha() const
 {
   return m_hasAlpha;
 }
+
+bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
+{
+#if defined (HAVE_SIGMASMP)
+  CSingleLock lock(m_StateSection);
+
+  if (!g_Windowing.IsCreated())
+    return false;
+
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:begin");
+
+  XFILE::CFile file;
+  uint8_t *imageBuff = NULL;
+  int64_t imageBuffSize = 0;
+
+  //open path and read data to buffer
+  //this handles advancedsettings.xml pathsubstitution
+  //and resulting networking
+  if (file.Open(texturePath, 0))
+  {
+    imageBuffSize =file.GetLength();
+    imageBuff = new uint8_t[imageBuffSize];
+    imageBuffSize = file.Read(imageBuff, imageBuffSize);
+    file.Close();
+    if (imageBuffSize <= 0)
+    {
+      delete [] imageBuff;
+      return false;
+    }
+  }
+  else
+  {
+    return false;
+  }
+
+  DFBResult err;
+  IDirectFB *dfb = g_Windowing.GetIDirectFB();
+  if (!dfb)
+  {
+    delete [] imageBuff;
+    return false;
+  }
+
+  // create a directfb data buffer for memory
+  DFBDataBufferDescription dbd ={ (DFBDataBufferDescriptionFlags)0, 0 };
+  dbd.flags         = DBDESC_MEMORY;
+  dbd.memory.data   = imageBuff;
+  dbd.memory.length = imageBuffSize;
+
+  IDirectFBDataBuffer *buffer = NULL;
+  err = dfb->CreateDataBuffer(dfb, &dbd, &buffer);
+  if (err != DFB_OK)
+  {
+    CLog::Log(LOGERROR,"CBaseTexture::LoadFromFile:dfb->CreateDataBuffer failed");
+    delete [] imageBuff;
+    return false;
+  }
+
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:CreateImageProvider");
+  IDirectFBImageProvider *provider = NULL;
+  err = buffer->CreateImageProvider(buffer, &provider);
+  if (err != DFB_OK)
+  {
+    CLog::Log(LOGERROR,"CBaseTexture::LoadFromFile:buffer->CreateImageProvider failed");
+    buffer->Release(buffer);
+    delete [] imageBuff;
+    return false;
+  }
+
+  // get the surface description, from the incoming compressed image.
+  DFBSurfaceDescription dsc;
+  provider->GetSurfaceDescription(provider, &dsc);
+
+  // set caps to DSCAPS_VIDEOONLY so we get hw decode.
+  dsc.flags = (DFBSurfaceDescriptionFlags)(DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT);
+  dsc.caps  = DSCAPS_VIDEOONLY;
+  dsc.pixelformat = DSPF_ARGB;
+
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:CreateSurface");
+
+  // create the surface and render the compressed image to it.
+  // once we render to it, we can release/delete most dfb objects.
+  IDirectFBSurface *imagesurface = NULL;
+  dfb->CreateSurface(dfb, &dsc, &imagesurface);
+  if (!imagesurface)
+  {
+    // sometimes, during startup, we get a null surface back.
+    CLog::Log(LOGERROR, "CBaseTexture::LoadFromFile:dfb->CreateSurface failed");
+    provider->Release(provider);
+    buffer->Release(buffer);
+    delete [] imageBuff;
+    return false;
+  }
+  provider->RenderTo(provider, imagesurface, NULL);
+  provider->Release(provider);
+  buffer->Release(buffer);
+  delete [] imageBuff;
+
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:memcpy to m_pixels");
+
+  Allocate(dsc.width, dsc.height, XB_FMT_A8R8G8B8);
+  // lock the rendered surface, get a read pointer to it
+  // and memcpy the contents into our m_pixels.
+  int gotpitch = 0;
+  void *src = NULL;
+  imagesurface->Lock(imagesurface, DSLF_READ , &src, &gotpitch);
+  memcpy(m_pixels, src, GetPitch() * dsc.height);
+  imagesurface->Unlock(imagesurface);
+  imagesurface->Release(imagesurface);
+
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:done");
+
+  ClampToEdge();
+
+  return true;
+#else
+  return false;
+#endif
+}
+
+

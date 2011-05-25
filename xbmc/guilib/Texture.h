@@ -30,6 +30,9 @@
 #include "gui3d.h"
 #include "utils/StdString.h"
 #include "XBTF.h"
+#if defined (HAVE_SIGMASMP)
+#include "threads/CriticalSection.h"
+#endif
 
 #pragma pack(1)
 struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
@@ -91,6 +94,7 @@ public:
   static unsigned int PadPow2(unsigned int x);
 
 protected:
+  bool  LoadHWAccelerated(const CStdString& texturePath);
   // helpers for computation of texture parameters for compressed textures
   unsigned int GetPitch(unsigned int width) const;
   unsigned int GetRows(unsigned int height) const;
@@ -110,6 +114,9 @@ protected:
   unsigned int m_format;
   int m_orientation;
   bool m_hasAlpha;
+#if defined (HAVE_SIGMASMP)
+  CCriticalSection m_StateSection;
+#endif
 };
 
 #if defined(HAS_GL) || defined(HAS_GLES)
