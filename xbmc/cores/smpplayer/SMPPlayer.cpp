@@ -325,6 +325,16 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_item = file;
     m_options = options;
+    m_elapsed_ms  =  0;
+    m_duration_ms =  0;
+    m_audio_index = -1;
+    m_audio_count =  0;
+    m_video_index = -1;
+    m_video_count =  0;
+    m_subtitle_index = -1;
+    m_subtitle_count =  0;
+    m_video_width  = 0;
+    m_video_height = 0;
 
     IDirectFB *dfb = g_Windowing.GetIDirectFB();
     DFBResult res = dfb->GetInterface(dfb, "IAdvancedMediaProvider", "EM8630", (void*)m_ampID, (void **)&m_amp);
@@ -343,7 +353,6 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     DFBAdvancedMediaProviderDescription desc;
     memset(&desc, 0, sizeof(desc));
-
 		m_amp->GetDescription(m_amp, &desc);
     //SGlobals *ampGlobals = (SGlobals*)desc.privateInfo;
 
@@ -460,34 +469,28 @@ bool CSMPPlayer::CanSeek()
 
 void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
 {
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
-  {
-    int step;
-	
-    if (bLargeStep)
-      step = 5 * 60;
-    else
-      step = 10;
-    if (!bPlus)
-      step *= -1;
-	
-    //printf("Seeking to %d seconds\n", ((UMSStatus*)m_status)->generic.elapsedTime + step);
-	
-    SLPBCommand cmd;
-    cmd.cmd = LPBCmd_SEEK;
-    cmd.param1.seekMode = SM_BY_TIME;
-    memset(&cmd.param2.time, 0, sizeof(cmd.param2.time));
-    cmd.param2.time.Second = ((UMSStatus*)m_status)->generic.elapsedTime + step;
-    cmd.dataSize = sizeof(cmd);
-    cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+  int step = 10;
 
-    SLPBResult res;
-    res.dataSize = sizeof(res);
-    res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+  if (bLargeStep)
+    step = 5 * 60;
 
-    CSingleLock lock(m_StateSection);
-    m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
-  }
+  if (!bPlus)
+    step *= -1;
+
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_SEEK;
+  cmd.param1.seekMode = SM_BY_TIME;
+  memset(&cmd.param2.time, 0, sizeof(cmd.param2.time));
+  cmd.param2.time.Second = (m_elapsed_ms/1000) + step;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
 bool CSMPPlayer::SeekScene(bool bPlus)
@@ -498,13 +501,27 @@ bool CSMPPlayer::SeekScene(bool bPlus)
 
 void CSMPPlayer::SeekPercentage(float fPercent)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekPercentage");
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_SEEK;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+  cmd.param1.seekMode   = SM_BY_PERCENTAGE;
+  cmd.param2.percentage = fPercent;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
 float CSMPPlayer::GetPercentage()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPercentage");
-  return 0.0f;
+  if (m_duration_ms)
+    return 100.0f * (float)m_elapsed_ms/(float)m_duration_ms;
+  else
+    return 0.0f;
 }
 
 void CSMPPlayer::SetVolume(long nVolume)
@@ -537,7 +554,7 @@ void CSMPPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioInfo");
   
-  // Get current audio stream index
+  // Get current audio stream info
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
     strAudioInfo.Format("Audio stream (%d) [%s] of type %s",
       ((UMSStatus*)m_status)->lpb.audio.index,
@@ -551,7 +568,7 @@ void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoInfo");
   
-  // Get current audio stream index
+  // Get current video stream info
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
     strVideoInfo.Format("Video stream (%d) [%s] of type %s",
       ((UMSStatus*)m_status)->lpb.video.index,
@@ -563,31 +580,13 @@ void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 
 int CSMPPlayer::GetAudioStreamCount()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamCount");
-  
-  int stream_count = 0;
-  // Get current audio stream index
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-  {
-    //printf("SIGMA: there are %d audio streams\n", ((UMSStatus*)m_status)->lpb.media.audio_streams);
-    stream_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
-  }
-
-  return stream_count;
+  return m_audio_count;
 }
 
 int CSMPPlayer::GetAudioStream()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStream");
-  
-  int current_stream = -1;
-  // Get current audio stream index
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-    current_stream = ((UMSStatus*)m_status)->lpb.audio.index;
-
-	return current_stream;
+	return m_audio_index;
 }
-
 
 void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 {
@@ -630,31 +629,13 @@ void CSMPPlayer::SetAudioStream(int SetAudioStream)
 
 int CSMPPlayer::GetSubtitleCount()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleCount");
-  
-  int stream_count = 0;
-  // Get current audio stream index
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-  {
-    //printf("SIGMA: there are %d subtitle streams\n", ((UMSStatus*)m_status)->lpb.media.subtitle_streams);
-    stream_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
-  }    
-
-	return stream_count;
+	return m_subtitle_count;
 }
 
 int CSMPPlayer::GetSubtitle()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitle");
-  
-  int current_stream = -1;
-  // Get current audio stream index
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-    current_stream = ((UMSStatus*)m_status)->lpb.subtitle.index;
-
-	return current_stream;
+	return m_subtitle_index;
 }
-
 
 void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 {
@@ -695,7 +676,6 @@ void CSMPPlayer::SetSubtitle(int iStream)
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
-
 void CSMPPlayer::Update(bool bPauseDrawing)
 {
   g_renderManager.Update(bPauseDrawing);
@@ -713,22 +693,20 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 
 void CSMPPlayer::SeekTime(__int64 iTime)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime");
   SLPBCommand cmd;
-	
   cmd.cmd = LPBCmd_SEEK;
-  cmd.param1.seekMode = SM_BY_TIME;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   #ifdef HAS_SM_BY_TIME_MS
-    cmd.param1.seekMode = SM_BY_TIME_MS;
-    cmd.param2.timems = (uint32_t)iTime;
+    cmd.param1.seekMode    = SM_BY_TIME_MS;
+    cmd.param2.timems      = (uint32_t)iTime;
   #else
+    cmd.param1.seekMode    = SM_BY_TIME;
     cmd.param2.time.Hour   = 0;
     cmd.param2.time.Minute = 0;
     cmd.param2.time.Second = (uint32_t)iTime / 1000;
     cmd.param2.time.Frame  = 0;
   #endif
-  cmd.dataSize = sizeof(cmd);
-  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
   SLPBResult res;
   res.dataSize = sizeof(res);
@@ -737,30 +715,18 @@ void CSMPPlayer::SeekTime(__int64 iTime)
   CSingleLock lock(m_StateSection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 
-  int seekOffset = (int)(iTime - GetTime());
+  int seekOffset = (int)(iTime - m_elapsed_ms);
   m_callback.OnPlayBackSeek((int)iTime, seekOffset);
 }
 
 __int64 CSMPPlayer::GetTime()
 {
-  __int64 current_time = 0;
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
-    #ifdef HAS_SM_BY_TIME_MS
-      current_time = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
-    #else
-      current_time = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
-    #endif
-      
-  return current_time;
+  return m_elapsed_ms;
 }
 
 int CSMPPlayer::GetTotalTime()
 {
-  int total_time = 0;
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
-    total_time = ((UMSStatus*)m_status)->lpb.media.duration;
-
-	return total_time;
+	return m_duration_ms / 1000;
 }
 
 int CSMPPlayer::GetAudioBitrate()
@@ -783,7 +749,8 @@ int CSMPPlayer::GetSourceBitrate()
 int CSMPPlayer::GetChannels()
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetChannels");
-  return 0;
+  // returns number of audio channels
+  return 6;
 }
 
 int CSMPPlayer::GetBitsPerSample()
@@ -812,14 +779,12 @@ CStdString CSMPPlayer::GetVideoCodecName()
 
 int CSMPPlayer::GetPictureWidth()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureWidth");
-  return 0;
+  return m_video_width;
 }
 
 int CSMPPlayer::GetPictureHeight()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureHeight");
-  return 0;
+  return m_video_height;
 }
 
 bool CSMPPlayer::GetStreamDetails(CStreamDetails &details)
@@ -938,10 +903,9 @@ void CSMPPlayer::Process()
   
   // Setup open parameters
   struct SLPBOpenParams parameters = {0, };
-  
   parameters.zero = 0;
   parameters.a1b2c3d4 = 0xa1b2c3d4;
-  
+  //
   parameters.maxPrebufferSize = 1;
   parameters.stcOffset = -200;
   
@@ -956,7 +920,7 @@ void CSMPPlayer::Process()
   
   // wait 10 seconds and check the confirmation event
   if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 40, 0) == DFB_OK) &&
-      (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK) &&
+      (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK) &&
       (((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
          IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
   {
@@ -1013,11 +977,33 @@ void CSMPPlayer::Process()
           m_amp_event->GetEvent(m_amp_event, &event);
 
           //status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-          if ((m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK) &&
-              (((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
-              (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+          if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
           {
-            m_StopPlaying = true;
+            if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
+                (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+            {
+              m_StopPlaying = true;
+            }
+              
+            m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
+            m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
+
+            #ifdef HAS_SM_BY_TIME_MS
+            m_elapsed_ms  = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
+            #else
+            m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+            #endif
+            m_duration_ms = 1000 * ((UMSStatus*)m_status)->lpb.media.duration;
+            m_audio_index = ((UMSStatus*)m_status)->lpb.audio.index;
+            m_audio_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
+            m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
+            m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+            m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
+            m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
+          }
+          else
+          {
+            usleep(100*1000);
           }
         }
       }

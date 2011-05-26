@@ -149,6 +149,16 @@ private:
   IDirectFBEventBuffer    *m_amp_event;
   int                     m_ampID;
 
+  uint64_t                m_elapsed_ms;
+  uint64_t                m_duration_ms;
+  int                     m_audio_index;
+  int                     m_audio_count;
+  int                     m_video_index;
+  int                     m_video_count;
+  int                     m_subtitle_index;
+  int                     m_subtitle_count;
+  int                     m_video_width;
+  int                     m_video_height;
   // opaque smp global status
   void*                   m_status;
 
