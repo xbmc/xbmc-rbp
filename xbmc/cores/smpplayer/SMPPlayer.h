@@ -56,7 +56,7 @@ public:
   virtual void  SetDynamicRangeCompression(long drc)              {}
   virtual void  GetAudioInfo(CStdString &strAudioInfo);
   virtual void  GetVideoInfo(CStdString &strVideoInfo);
-  virtual void  GetGeneralInfo(CStdString &strVideoInfo);
+  virtual void  GetGeneralInfo(CStdString &strVideoInfo) {};
   virtual void  Update(bool bPauseDrawing);
   virtual void  GetVideoRect(CRect& SrcRect, CRect& DestRect);
   virtual void  GetVideoAspectRatio(float &fAR);
@@ -69,19 +69,19 @@ public:
 
   virtual void  SetSubTitleDelay(float fValue = 0.0f)             {};
   virtual float GetSubTitleDelay()                                {return 0.0f;}
-  virtual int   GetSubtitleCount()                                {return 0;}
-  virtual int   GetSubtitle()                                     {return -1;}
-  virtual void  GetSubtitleName(int iStream, CStdString &strStreamName) {};
-  virtual void  SetSubtitle(int iStream)                          {};
+  virtual int   GetSubtitleCount();
+  virtual int   GetSubtitle();
+  virtual void  GetSubtitleName(int iStream, CStdString &strStreamName);
+  virtual void  SetSubtitle(int iStream);
   virtual bool  GetSubtitleVisible()                              {return false;};
   virtual void  SetSubtitleVisible(bool bVisible)                 {};
   virtual bool  GetSubtitleExtension(CStdString &strSubtitleExtension){return false;};
   virtual int   AddSubtitle(const CStdString& strSubPath)         {return -1;};
 
-  virtual int   GetAudioStreamCount()                             {return 0;}
-  virtual int   GetAudioStream()                                  {return -1;}
-  virtual void  GetAudioStreamName(int iStream, CStdString &strStreamName) {};
-  virtual void  SetAudioStream(int iStream)                       {};
+  virtual int   GetAudioStreamCount();
+  virtual int   GetAudioStream();
+  virtual void  GetAudioStreamName(int iStream, CStdString &strStreamName);
+  virtual void  SetAudioStream(int iStream);
   virtual void  GetAudioStreamLanguage(int iStream, CStdString &strLanguage) {};
 
   virtual TextCacheStruct_t* GetTeletextCache()                   {return NULL;};
@@ -148,5 +148,7 @@ private:
   IAdvancedMediaProvider  *m_amp;
   IDirectFBEventBuffer    *m_amp_event;
   int                     m_ampID;
+  
+  void*                   m_status;
 
 };

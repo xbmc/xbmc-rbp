@@ -37,7 +37,6 @@
 
 #include <directfb/directfb.h>
 #include <directfb/iadvancedmediaprovider.h>
-//#include <globals.h>
 #include <cdefs_lpb.h>
 
 union UMSStatus
@@ -62,29 +61,228 @@ struct SIdsData
 	void *ch;
 };
 
-void dump_status_info(IAdvancedMediaProvider *pAmp, UMSStatus *status)
+static const char *mediaType2String(TMediaType type)
 {
-	uint64_t mediaTime = 0;
-	uint64_t presentationTime = 0;
-	
-  if (status->generic.getMediaAndPresentationTime)
-    status->generic.getMediaAndPresentationTime(status->generic.presentationId, &mediaTime, &presentationTime);
+  const char *text = NULL;
 
-  fprintf(stderr,
-    "status->flags(0x%08lx), status.mode->flags(0x%08lx), "
-    "elapsedTime(%u), bufferFullness(%d), crtBitrate(%d),"
-    "streamSets.count(%u), streamSets.current(%d),"
-    "mediaTime(%llu), presentationTime(%llu)\n",
-    (long unsigned int)status->generic.flags, (long unsigned int)status->generic.mode.flags,
-    status->generic.elapsedTime, status->generic.statistics.bufferFullness, status->generic.statistics.crtBitrate,
-    status->lpb.streamSets.count, status->lpb.streamSets.current,
-    mediaTime, presentationTime);
+  switch (type)
+  {
+    case MTYPE_ELEM_NONE:
+      // 0x0000
+      // no elementary data exists or the format is irrelevant
+      text = "none";
+    break;
 
-  // Elapsed time, in seconds
-  //status->generic.elapsedTime
-  //status->generic.statistics.bufferFullness >> 10 (KB)
-  //status->generic.statistics.crtBitrate/(1024*1024) (Mbps)
+    case MTYPE_ELEM_UNKNOWN:
+      // 0x00FF
+      // elementary data exists, is relevant but the format is unknown
+      text = "unknown";
+    break;
+
+    case MTYPE_ELEM_MPEG1:
+      // 0x0011
+      text = "MPEG1 video";
+    break;
+
+    case MTYPE_ELEM_MPEG2:
+      // 0x0012
+      text = "MPEG2 video";
+    break;
+
+    case MTYPE_ELEM_MPEG4:
+      // 0x0014
+      text = "MPEG4 video";
+    break;
+
+    case MTYPE_ELEM_AVC:
+      // 0x001A
+      text = "MPEG4 AVC video";
+    break;
+
+    case MTYPE_ELEM_VC1:
+      // 0x0020
+      text = "VC1 video";
+    break;
+
+    case MTYPE_ELEM_DIVX3:
+      // 0x0033
+      text = "DIVX 3 video";
+    break;
+
+    case MTYPE_ELEM_DIVX4:
+      // 0x0034
+      text = "DIVX 4 video";
+    break;
+/*
+    case MTYPE_ELEM_MPA:
+      // 0x0040
+      // any MPEG audio
+      text = "MPEG audio";
+    break;
+*/
+
+    case MTYPE_ELEM_MP1:
+      // 0x0041
+      text = "MPEG1 Layer 1-2 audio";
+    break;
+
+/*
+    case MTYPE_ELEM_MP2:
+      // 0x0042
+      text = "MPEG1 Layer 2 audio";
+    break;
+*/
+
+    case MTYPE_ELEM_MP3:
+      // 0x0043
+      text = "MPEG1 Layer 3 (MP3) audio";
+    break;
+
+    case MTYPE_ELEM_MP2MC:
+      // 0x0044
+      text = "MPEG2 (MC) audio";
+    break;
+
+    case MTYPE_ELEM_AAC:
+      // 0x0045
+      text = "MPEG2 AAC audio";
+    break;
+
+    case MTYPE_ELEM_AACP:
+      // 0x0046
+      text = "MPEG2 AAC+ audio";
+    break;
+
+    case MTYPE_ELEM_AC3:
+      // 0x0053
+      text = "Dolby Digital (AC3) audio";
+    break;
+
+    case MTYPE_ELEM_DDP:
+      // 0x0054
+      text = "Dolby Digital Plus audio";
+    break;
+
+    case MTYPE_ELEM_DLLS:
+      // 0x0055
+      text = "? audio";
+    break;
+
+    case MTYPE_ELEM_DTS:
+      // 0x0060
+      text = "DTS audio";
+    break;
+
+    case MTYPE_ELEM_DTSHD:
+      // 0x0061
+      text = "DTS-HD audio";
+    break;
+
+    case MTYPE_ELEM_PCM:
+      // 0x0070
+      text = "PCM audio";
+    break;
+
+    case MTYPE_ELEM_WMA:
+      // 0x0080
+      text = "WMA";
+    break;
+
+    case MTYPE_ELEM_WMAPRO:
+      // 0x0081
+      text = "WMA-PRO";
+    break;
+
+    case MTYPE_ELEM_SPU:
+      // 0x0090
+      text = "SD graphic subtitles";
+    break;
+
+    case MTYPE_ELEM_PG:
+      // 0x0091
+      text = "HD graphic subtitles";
+    break;
+
+    case MTYPE_ELEM_IG:
+      // 0x00A0
+      text = "Interactive graphics";
+    break;
+
+    case MTYPE_ELEM_TS:
+      // 0x00A2
+      text = "Text subtitles";
+    break;
+
+    case MTYPE_ELEM_JPEG:
+      // 0x00B0
+      text = "JPEG graphics";
+    break;
+
+    case MTYPE_ELEM_GIF:
+      // 0x00B1
+      text = "GIF graphics";
+    break;
+
+    case MTYPE_ELEM_PNG:
+      // 0x00B2
+      text = "PNG graphics";
+    break;
+
+    case MTYPE_ELEM_BMP:
+      // 0x00B3
+      text = "BMP graphics";
+    break;
+
+    case MTYPE_ELEM_TIFF:
+      // 0x00B4
+      text = "TIFF graphics";
+    break;
+
+    case MTYPE_ELEM_PIXMAP:
+      // 0x00BF  ///< uncompressed pixel map
+      text = "RAW graphics";
+    break;
+
+    case MTYPE_ELEM_ASCII:
+      // 0x00C1
+      text = "ASCII text";
+    break;
+
+    case MTYPE_ELEM_FONT:
+      // 0x00C2  ///< TrueType font data
+      text = "Font data";
+    break;
+
+    case MTYPE_ELEM_VIDEO:
+      // 0x00F1  ///< any video type
+      text = "video";
+    break;
+
+    case MTYPE_ELEM_AUDIO:
+      // 0x00F2  ///< any audio type
+      text = "audio";
+    break;
+
+    case MTYPE_ELEM_GRAPHICS:
+      // 0x00F3  ///< any graphics type
+      text = "graphics";
+    break;
+
+    case MTYPE_CONT_ASF:
+      text = "asf";
+    break;
+
+    case MTYPE_CONT_AVI:
+      text = "avi";
+    break;
+
+  default:
+      text = "invalid value";
+      break;
+  }
+  return text;
 }
+
 
 CSMPPlayer::CSMPPlayer(IPlayerCallback &callback) 
   : IPlayer(callback),
@@ -98,11 +296,18 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
   m_speed = 1;
   m_paused = false;
   m_StopPlaying = false;
+  
+  m_status = malloc(sizeof(union UMSStatus));
+  memset(m_status, 0, sizeof(union UMSStatus));
+  ((UMSStatus*)m_status)->generic.size = sizeof(union UMSStatus);
+  ((UMSStatus*)m_status)->generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 }
 
 CSMPPlayer::~CSMPPlayer()
 {
   CloseFile();
+  
+  free(m_status);
 }
 
 bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
@@ -256,6 +461,35 @@ bool CSMPPlayer::CanSeek()
 void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::Seek");
+  
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
+  {
+    int step;
+	
+    if (bLargeStep)
+      step = 5 * 60;
+    else
+      step = 10;
+    if (!bPlus)
+      step *= -1;
+	
+    printf("Seeking to %d seconds\n", ((UMSStatus*)m_status)->generic.elapsedTime + step);
+	
+    SLPBCommand cmd;
+    cmd.cmd = LPBCmd_SEEK;
+    cmd.param1.seekMode = SM_BY_TIME;
+    memset(&cmd.param2.time, 0, sizeof(cmd.param2.time));
+    cmd.param2.time.Second = ((UMSStatus*)m_status)->generic.elapsedTime + step;
+    cmd.dataSize = sizeof(cmd);
+    cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+    SLPBResult res;
+    res.dataSize = sizeof(res);
+    res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+    CSingleLock lock(m_StateSection);
+    m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+  }
 }
 
 bool CSMPPlayer::SeekScene(bool bPlus)
@@ -304,27 +538,165 @@ void CSMPPlayer::SetVolume(long nVolume)
 void CSMPPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioInfo");
-  CSingleLock lock(m_StateSection);
   
-  // LPBCmd_GET_STREAM_INFO
-  // LPBCmd_GET_AUDIO_STREAM_INFO
+  // Get current audio stream index
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
+    strAudioInfo.Format("Audio stream (%d) [%s] of type %s",
+      ((UMSStatus*)m_status)->lpb.audio.index,
+      ((UMSStatus*)m_status)->lpb.audio.name,
+      mediaType2String(((UMSStatus*)m_status)->lpb.audio.format.mediaType));
+  else
+    strAudioInfo.Format("Could not get audio info");
 }
 
 void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoInfo");
-  CSingleLock lock(m_StateSection);
-
-  // LPBCmd_GET_STREAM_INFO
-  // LPBCmd_GET_VIDEO_STREAM_INFO
+  
+  // Get current audio stream index
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
+    strVideoInfo.Format("Video stream (%d) [%s] of type %s",
+      ((UMSStatus*)m_status)->lpb.video.index,
+      ((UMSStatus*)m_status)->lpb.video.name,
+      mediaType2String(((UMSStatus*)m_status)->lpb.video.format.mediaType));
+  else
+    strVideoInfo.Format("Could not get video info");
 }
 
-void CSMPPlayer::GetGeneralInfo(CStdString &strVideoInfo)
+int CSMPPlayer::GetAudioStreamCount()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetGeneralInfo");
-  CSingleLock lock(m_StateSection);
-  //LPBCmd_GET_SUBTITLE_STREAM_INFO
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamCount");
+  
+  int stream_count = 0;
+  // Get current audio stream index
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
+  {
+    printf("SIGMA: there are %d audio streams\n", ((UMSStatus*)m_status)->lpb.media.audio_streams);
+    stream_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
+  }
+
+  return stream_count;
 }
+
+int CSMPPlayer::GetAudioStream()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStream");
+  
+  int current_stream = -1;
+  // Get current audio stream index
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
+    current_stream = ((UMSStatus*)m_status)->lpb.audio.index;
+
+	return current_stream;
+}
+
+
+void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamName");
+  
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_GET_AUDIO_STREAM_INFO;
+  cmd.param1.streamIndex = iStream;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
+    strStreamName.Format("%s", res.value.streamInfo.name);
+  else
+    strStreamName.Format("Undefined");
+}
+ 
+void CSMPPlayer::SetAudioStream(int SetAudioStream)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::SetAudioStream");
+  
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_SELECT_AUDIO_STREAM;
+  cmd.param1.streamIndex = SetAudioStream;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+}
+
+int CSMPPlayer::GetSubtitleCount()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleCount");
+  
+  int stream_count = 0;
+  // Get current audio stream index
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
+  {
+     printf("SIGMA: there are %d subtitle streams\n", ((UMSStatus*)m_status)->lpb.media.subtitle_streams);
+	 stream_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
+  }    
+
+	return stream_count;
+}
+
+int CSMPPlayer::GetSubtitle()
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitle");
+  
+  int current_stream = -1;
+  // Get current audio stream index
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
+    current_stream = ((UMSStatus*)m_status)->lpb.subtitle.index;
+
+	return current_stream;
+}
+
+
+void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleName");
+  
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_GET_SUBTITLE_STREAM_INFO;
+  cmd.param1.streamIndex = iStream;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
+    strStreamName.Format("%s", res.value.streamInfo.name);
+  else
+    strStreamName.Format("Undefined");
+}
+ 
+void CSMPPlayer::SetSubtitle(int iStream)
+{
+  CLog::Log(LOGDEBUG, "CSMPPlayer::SetSubtitle");
+  
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_SELECT_SUBTITLE_STREAM;
+  cmd.param1.streamIndex = iStream;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+}
+
 
 void CSMPPlayer::Update(bool bPauseDrawing)
 {
@@ -344,25 +716,44 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 void CSMPPlayer::SeekTime(__int64 iTime)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime");
-  int seekOffset = (int)(iTime - GetTime());
+  SLPBCommand cmd;
+	
+  cmd.cmd = LPBCmd_SEEK;
+  cmd.param1.seekMode = SM_BY_TIME_MS;
+  cmd.param2.timems = (uint32_t)iTime;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  // seek here
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  m_callback.OnPlayBackSeek((int)iTime, seekOffset);
+  CSingleLock lock(m_StateSection);
+  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+
+  //m_callback.OnPlayBackSeek((int)iTime, seekOffset);
 }
 
 __int64 CSMPPlayer::GetTime()
 {
   //CLog::Log(LOGDEBUG, "CSMPPlayer::GetTime");
-  // return the time in milliseconds
-  return 0;
+
+  __int64 current_time = 0;
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
+      current_time = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
+      
+  return current_time;
 }
 
 int CSMPPlayer::GetTotalTime()
 {
   //CLog::Log(LOGDEBUG, "CSMPPlayer::GetTotalTime");
-  // return total length in seconds
-  return 0;
+
+  int total_time = 0;
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
+    total_time = ((UMSStatus*)m_status)->lpb.media.duration;
+
+	return total_time;
 }
 
 int CSMPPlayer::GetAudioBitrate()
@@ -500,7 +891,6 @@ void CSMPPlayer::OnExit()
 void CSMPPlayer::Process()
 {
   DFBResult     res;
-  UMSStatus     status;
   SMediaFormat  format;
   CStdString    url;
 
@@ -525,8 +915,18 @@ void CSMPPlayer::Process()
     snprintf(c_str, sizeof(c_str)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
     url = c_str;
   }
+  
+  // Setup open parameters
+  struct SLPBOpenParams parameters = {0, };
+  
+  parameters.zero = 0;
+  parameters.a1b2c3d4 = 0xa1b2c3d4;
+  
+  parameters.maxPrebufferSize = 1;
+  parameters.stcOffset = -200;
+  
   // open the media using the IAdvancedMediaProvider
-  res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, NULL);
+  res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, &parameters);
   if (res != DFB_OK)
   {
     CLog::Log(LOGDEBUG, "OpenMedia() failed");
@@ -534,13 +934,11 @@ void CSMPPlayer::Process()
     goto _exit;
   }
   
-  memset(&status, 0, sizeof(status));
-  status.generic.size = sizeof(SStatus);
-  status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   // wait 10 seconds and check the confirmation event
-  if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 10, 0) == DFB_OK) &&
-      (m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE)   == DFB_OK) &&
-      (status.generic.flags & SSTATUS_COMMAND) && IS_SUCCESS(status.generic.lastCmd.result))
+  if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 40, 0) == DFB_OK) &&
+      (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK) &&
+      (((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
+         IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
   {
     // eat the event
     DFBEvent event;
@@ -585,28 +983,6 @@ void CSMPPlayer::Process()
     {
       m_callback.OnPlayBackStarted();
 
-      // get stream info testing
-      SLPBCommand cmd;
-      cmd.cmd = LPBCmd_GET_VIDEO_STREAM_INFO;
-      cmd.param1.streamIndex = 0;
-      cmd.dataSize = sizeof(cmd);
-      cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-
-      SLPBResult  res;
-      res.dataSize = sizeof(res);
-      res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-
-      CSingleLock lock(m_StateSection);
-      if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
-        CLog::Log(LOGDEBUG, "LPBCmd_GET_VIDEO_STREAM_INFO command failed!");
-      else
-        CLog::Log(LOGDEBUG, "LPBCmd_GET_VIDEO_STREAM_INFO:"
-          "streamInfo.index(%d), width(%d), height(%d), name(%s)",
-          res.value.streamInfo.index,
-          res.value.streamInfo.format.format.image.width,
-          res.value.streamInfo.format.format.image.height,
-          res.value.streamInfo.name);
-
       while (!m_bStop && !m_StopPlaying)
       {
         // AMP monitoring loop for automatic playback termination (100ms wait)
@@ -616,24 +992,22 @@ void CSMPPlayer::Process()
           DFBEvent event;
           m_amp_event->GetEvent(m_amp_event, &event);
 
-          memset(&status, 0, sizeof(status));
-          status.generic.size = sizeof(status);
-          status.generic.mediaSpace = MEDIA_SPACE_UNKNOWN;
           //status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-          if ((m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE) == DFB_OK) &&
-              (status.generic.flags & SSTATUS_MODE) && (status.generic.mode.flags & SSTATUS_MODE_STOPPED))
+          if ((m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK) &&
+              (((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
+              (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
           {
             m_StopPlaying = true;
           }
-          dump_status_info(m_amp, &status);
         }
       }
       m_callback.OnPlayBackEnded();
     }
     else
     {
-      CLog::Log(LOGDEBUG, "StartPresentation() failed, status.flags(0x%08lx), status.mode.flags(0x%08lx)",
-        (long unsigned int)status.generic.flags, (long unsigned int)status.generic.mode.flags);
+      CLog::Log(LOGDEBUG, "StartPresentation() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
+        (long unsigned int)((UMSStatus*)m_status)->generic.flags,
+        (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
     }
   }
  
@@ -647,24 +1021,18 @@ _exit:
 bool CSMPPlayer::WaitForAmpPlaying(int timeout)
 {
   bool        rtn = false;
-  UMSStatus   status;
 
   while (!m_bStop && timeout > 0)
   {
-    memset(&status, 0, sizeof(status));
-    status.generic.size = sizeof(status);
-    status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
     if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK) &&
-        (m_amp->UploadStatusChanges(m_amp, (SStatus*)&status, DFB_TRUE) == DFB_OK))
+        (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK))
     {
       // eat the event
       DFBEvent event;
       m_amp_event->GetEvent(m_amp_event, &event);
 
-
-      dump_status_info(m_amp, &status);
-      if ((status.generic.flags & SSTATUS_MODE) && 
-          (status.generic.mode.flags & SSTATUS_MODE_PLAYING))
+      if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) && 
+          (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_PLAYING))
       {
         rtn = true;
         break;
