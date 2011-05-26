@@ -39,6 +39,8 @@
 #include <directfb/iadvancedmediaprovider.h>
 #include <cdefs_lpb.h>
 
+//#define HAS_SM_BY_TIME_MS
+
 union UMSStatus
 {
   struct SStatus      generic;
@@ -437,13 +439,11 @@ bool CSMPPlayer::IsPaused() const
 
 bool CSMPPlayer::HasVideo() const
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::HasVideo");
   return true;
 }
 
 bool CSMPPlayer::HasAudio() const
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::HasAudio");
   return true;
 }
 
@@ -454,14 +454,11 @@ void CSMPPlayer::ToggleFrameDrop()
 
 bool CSMPPlayer::CanSeek()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::CanSeek");
   return true;
 }
 
 void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::Seek");
-  
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
   {
     int step;
@@ -473,7 +470,7 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
     if (!bPlus)
       step *= -1;
 	
-    printf("Seeking to %d seconds\n", ((UMSStatus*)m_status)->generic.elapsedTime + step);
+    //printf("Seeking to %d seconds\n", ((UMSStatus*)m_status)->generic.elapsedTime + step);
 	
     SLPBCommand cmd;
     cmd.cmd = LPBCmd_SEEK;
@@ -571,7 +568,7 @@ int CSMPPlayer::GetAudioStreamCount()
   // Get current audio stream index
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
   {
-    printf("SIGMA: there are %d audio streams\n", ((UMSStatus*)m_status)->lpb.media.audio_streams);
+    //printf("SIGMA: there are %d audio streams\n", ((UMSStatus*)m_status)->lpb.media.audio_streams);
     stream_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
   }
 
@@ -638,8 +635,8 @@ int CSMPPlayer::GetSubtitleCount()
   // Get current audio stream index
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
   {
-     printf("SIGMA: there are %d subtitle streams\n", ((UMSStatus*)m_status)->lpb.media.subtitle_streams);
-	 stream_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
+    //printf("SIGMA: there are %d subtitle streams\n", ((UMSStatus*)m_status)->lpb.media.subtitle_streams);
+    stream_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
   }    
 
 	return stream_count;
@@ -719,8 +716,16 @@ void CSMPPlayer::SeekTime(__int64 iTime)
   SLPBCommand cmd;
 	
   cmd.cmd = LPBCmd_SEEK;
-  cmd.param1.seekMode = SM_BY_TIME_MS;
-  cmd.param2.timems = (uint32_t)iTime;
+  cmd.param1.seekMode = SM_BY_TIME;
+  #ifdef HAS_SM_BY_TIME_MS
+    cmd.param1.seekMode = SM_BY_TIME_MS;
+    cmd.param2.timems = (uint32_t)iTime;
+  #else
+    cmd.param2.time.Hour   = 0;
+    cmd.param2.time.Minute = 0;
+    cmd.param2.time.Second = (uint32_t)iTime / 1000;
+    cmd.param2.time.Frame  = 0;
+  #endif
   cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
@@ -731,24 +736,25 @@ void CSMPPlayer::SeekTime(__int64 iTime)
   CSingleLock lock(m_StateSection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 
-  //m_callback.OnPlayBackSeek((int)iTime, seekOffset);
+  int seekOffset = (int)(iTime - GetTime());
+  m_callback.OnPlayBackSeek((int)iTime, seekOffset);
 }
 
 __int64 CSMPPlayer::GetTime()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetTime");
-
   __int64 current_time = 0;
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
+    #ifdef HAS_SM_BY_TIME_MS
       current_time = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
+    #else
+      current_time = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+    #endif
       
   return current_time;
 }
 
 int CSMPPlayer::GetTotalTime()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetTotalTime");
-
   int total_time = 0;
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE)   == DFB_OK)
     total_time = ((UMSStatus*)m_status)->lpb.media.duration;

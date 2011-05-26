@@ -148,7 +148,8 @@ private:
   IAdvancedMediaProvider  *m_amp;
   IDirectFBEventBuffer    *m_amp_event;
   int                     m_ampID;
-  
+
+  // opaque smp global status
   void*                   m_status;
 
 };
