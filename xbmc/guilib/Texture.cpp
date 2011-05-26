@@ -472,6 +472,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   uint8_t *imageBuff = NULL;
   int64_t imageBuffSize = 0;
 
+#if 0
   //open path and read data to buffer
   //this handles advancedsettings.xml pathsubstitution
   //and resulting networking
@@ -505,6 +506,19 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   dbd.flags         = DBDESC_MEMORY;
   dbd.memory.data   = imageBuff;
   dbd.memory.length = imageBuffSize;
+#else
+  DFBResult err;
+  IDirectFB *dfb = g_Windowing.GetIDirectFB();
+  if (!dfb)
+  {
+    delete [] imageBuff;
+    return false;
+  }
+
+  char image_filename[1024];
+  DFBDataBufferDescription dbd = {DBDESC_FILE, image_filename};
+  strcpy(image_filename, CSpecialProtocol::TranslatePath(texturePath).c_str());
+#endif
 
   IDirectFBDataBuffer *buffer = NULL;
   err = dfb->CreateDataBuffer(dfb, &dbd, &buffer);
@@ -532,7 +546,8 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
 
   // set caps to DSCAPS_VIDEOONLY so we get hw decode.
   dsc.flags = (DFBSurfaceDescriptionFlags)(DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT);
-  dsc.caps  = DSCAPS_VIDEOONLY;
+  dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps | DSCAPS_VIDEOONLY);
+  dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
   dsc.pixelformat = DSPF_ARGB;
 
   //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:CreateSurface");
