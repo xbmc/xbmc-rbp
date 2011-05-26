@@ -32,6 +32,7 @@
 #include "windowing/WindowingFactory.h"
 #include "utils/log.h"
 #include "utils/TimeUtils.h"
+#include "utils/URIUtils.h"
 
 #include "FileIDataSource.h"
 
@@ -897,14 +898,27 @@ void CSMPPlayer::OnExit()
 void CSMPPlayer::Process()
 {
   DFBResult     res;
-  SMediaFormat  format;
+  SMediaFormat  format = { 0 };
   CStdString    url;
 
   CLog::Log(LOGDEBUG, "CSMPPlayer: Thread started");
 
-  // default to autodetection
-  memset(&format, 0, sizeof(format));
-  format.mediaType = MTYPE_APP_UNKNOWN;
+  // default to hinting container type
+  CStdString extension;
+  extension = URIUtils::GetExtension(m_item.m_strPath);
+  if (extension.Equals(".mkv"))
+    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
+  else if (extension.Equals(".avi"))
+    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_AVI;
+  else if (extension.Equals(".mov"))
+    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
+  else if (extension.Equals(".mpg"))
+    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+  else if (extension.Equals(".m2ts"))
+    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+  else
+    format.mediaType = MTYPE_APP_UNKNOWN;
+
 /*
   if (m_item.m_strPath.Left(7).Equals("http://"))
   {
