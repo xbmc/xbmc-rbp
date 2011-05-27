@@ -242,7 +242,8 @@ static const char *mediaType2String(TMediaType type)
     break;
 
     case MTYPE_ELEM_PIXMAP:
-      // 0x00BF  ///< uncompressed pixel map
+      // 0x00BF
+      // uncompressed pixel map
       text = "RAW graphics";
     break;
 
@@ -252,22 +253,26 @@ static const char *mediaType2String(TMediaType type)
     break;
 
     case MTYPE_ELEM_FONT:
-      // 0x00C2  ///< TrueType font data
+      // 0x00C2
+      // TrueType font data
       text = "Font data";
     break;
 
     case MTYPE_ELEM_VIDEO:
-      // 0x00F1  ///< any video type
+      // 0x00F1
+      // any video type
       text = "video";
     break;
 
     case MTYPE_ELEM_AUDIO:
-      // 0x00F2  ///< any audio type
+      // 0x00F2
+      // any audio type
       text = "audio";
     break;
 
     case MTYPE_ELEM_GRAPHICS:
-      // 0x00F3  ///< any graphics type
+      // 0x00F3
+      // any graphics type
       text = "graphics";
     break;
 
@@ -299,7 +304,7 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
   m_speed = 1;
   m_paused = false;
   m_StopPlaying = false;
-  
+
   m_status = malloc(sizeof(union UMSStatus));
   memset(m_status, 0, sizeof(union UMSStatus));
   ((UMSStatus*)m_status)->generic.size = sizeof(union UMSStatus);
@@ -309,7 +314,7 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
 CSMPPlayer::~CSMPPlayer()
 {
   CloseFile();
-  
+
   free(m_status);
 }
 
@@ -424,7 +429,7 @@ void CSMPPlayer::Pause()
   SLPBCommand cmd;
   cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-  
+
   if (m_paused)
   {
     cmd.cmd = LPBCmd_PAUSE_OFF;
@@ -577,7 +582,7 @@ int CSMPPlayer::GetAudioStream()
 void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamName");
-  
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_GET_AUDIO_STREAM_INFO;
   cmd.param1.streamIndex = iStream;
@@ -598,7 +603,7 @@ void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 void CSMPPlayer::SetAudioStream(int SetAudioStream)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::SetAudioStream");
-  
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_AUDIO_STREAM;
   cmd.param1.streamIndex = SetAudioStream;
@@ -626,7 +631,7 @@ int CSMPPlayer::GetSubtitle()
 void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleName");
-  
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_GET_SUBTITLE_STREAM_INFO;
   cmd.param1.streamIndex = iStream;
@@ -647,7 +652,7 @@ void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 void CSMPPlayer::SetSubtitle(int iStream)
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::SetSubtitle");
-  
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_SUBTITLE_STREAM;
   cmd.param1.streamIndex = iStream;
@@ -765,7 +770,7 @@ CStdString CSMPPlayer::GetAudioCodecName()
 CStdString CSMPPlayer::GetVideoCodecName()
 {
   CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoCodecName");
- return "";
+  return "";
 }
 
 int CSMPPlayer::GetPictureWidth()
@@ -890,7 +895,7 @@ void CSMPPlayer::Process()
     snprintf(c_str, sizeof(c_str)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
     url = c_str;
   }
-  
+
   // Setup open parameters
   struct SLPBOpenParams parameters = {0, };
   parameters.zero = 0;
@@ -898,7 +903,7 @@ void CSMPPlayer::Process()
   //
   parameters.maxPrebufferSize = 1;
   parameters.stcOffset = -200;
-  
+
   // open the media using the IAdvancedMediaProvider
   res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, &parameters);
   if (res != DFB_OK)
@@ -907,7 +912,7 @@ void CSMPPlayer::Process()
     m_ready.Set();
     goto _exit;
   }
-  
+
   // wait 10 seconds and check the confirmation event
   if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 40, 0) == DFB_OK) &&
       (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK) &&
@@ -923,7 +928,7 @@ void CSMPPlayer::Process()
     int displayWidth  = width;
     int displayHeight = height;
     double fFrameRate = 24;
-    
+
     unsigned int flags = 0;
     flags |= CONF_FLAGS_FORMAT_BYPASS;
     flags |= CONF_FLAGS_FULLSCREEN;
@@ -973,7 +978,7 @@ void CSMPPlayer::Process()
             {
               m_StopPlaying = true;
             }
-              
+
             #ifdef HAS_SM_BY_TIME_MS
               m_elapsed_ms= ((UMSStatus*)m_status)->generic.elapsedTimeMs;
             #else
@@ -1019,17 +1024,17 @@ void CSMPPlayer::Process()
         (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
     }
   }
- 
+
 _exit:
   if (m_amp)
     m_amp->CloseMedia(m_amp);
-  
+
   CLog::Log(LOGDEBUG, "CSMPPlayer: Thread end");
 }
 
 bool CSMPPlayer::WaitForAmpPlaying(int timeout)
 {
-  bool        rtn = false;
+  bool rtn = false;
 
   while (!m_bStop && timeout > 0)
   {
@@ -1049,7 +1054,7 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
     }
     timeout -= 100;
   }
-  
+
   return rtn;
 }
 
