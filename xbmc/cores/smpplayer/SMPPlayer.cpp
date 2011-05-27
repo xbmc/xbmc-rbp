@@ -918,20 +918,20 @@ void CSMPPlayer::Process()
     DFBEvent event;
     m_amp_event->GetEvent(m_amp_event, &event);
 
-    int m_width = g_graphicsContext.GetWidth();
-    int m_height= g_graphicsContext.GetHeight();
-    int m_displayWidth  = m_width;
-    int m_displayHeight = m_height;
-    double m_fFrameRate = 24;
+    int width = g_graphicsContext.GetWidth();
+    int height= g_graphicsContext.GetHeight();
+    int displayWidth  = width;
+    int displayHeight = height;
+    double fFrameRate = 24;
     
     unsigned int flags = 0;
     flags |= CONF_FLAGS_FORMAT_BYPASS;
     flags |= CONF_FLAGS_FULLSCREEN;
     CStdString formatstr = "BYPASS";
     CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
-      __FUNCTION__, m_width, m_height, m_fFrameRate, formatstr.c_str());
+      __FUNCTION__, width, height, fFrameRate, formatstr.c_str());
     g_renderManager.IsConfigured();
-    if(!g_renderManager.Configure(m_width, m_height, m_displayWidth, m_displayHeight, m_fFrameRate, flags))
+    if(!g_renderManager.Configure(width, height, displayWidth, displayHeight, fFrameRate, flags))
     {
       CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
     }
