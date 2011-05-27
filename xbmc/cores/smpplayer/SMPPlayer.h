@@ -92,7 +92,7 @@ public:
   virtual void  GetChapterName(CStdString& strChapterName)        {return; }
   virtual int   SeekChapter(int iChapter)                         {return -1;}
 
-  virtual float GetActualFPS()                                    {return 0.0f;};
+  virtual float GetActualFPS();
   virtual void  SeekTime(__int64 iTime = 0);
   virtual __int64 GetTime();
   virtual int   GetTotalTime();
@@ -160,6 +160,7 @@ private:
   int                     m_subtitle_index;
   int                     m_subtitle_count;
   CStdString              m_subtitle_info;
+  float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;
   // opaque smp global status

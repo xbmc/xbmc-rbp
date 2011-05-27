@@ -336,6 +336,7 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_subtitle_index = -1;
     m_subtitle_count =  0;
     m_subtitle_info  = "none";
+    m_video_fps = 0.0;
     m_video_width  = 0;
     m_video_height = 0;
 
@@ -676,6 +677,11 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
   fAR = g_renderManager.GetAspectRatio();
 }
 
+float CSMPPlayer::GetActualFPS()
+{
+  return m_video_fps;
+}
+
 void CSMPPlayer::SeekTime(__int64 iTime)
 {
   SLPBCommand cmd;
@@ -960,7 +966,6 @@ void CSMPPlayer::Process()
           DFBEvent event;
           m_amp_event->GetEvent(m_amp_event, &event);
 
-          //status.generic.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
           if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
           {
             if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
@@ -969,13 +974,10 @@ void CSMPPlayer::Process()
               m_StopPlaying = true;
             }
               
-            m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
-            m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
-
             #ifdef HAS_SM_BY_TIME_MS
-            m_elapsed_ms  = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
+              m_elapsed_ms= ((UMSStatus*)m_status)->generic.elapsedTimeMs;
             #else
-            m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+              m_elapsed_ms= 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
             #endif
             m_duration_ms = 1000 * ((UMSStatus*)m_status)->lpb.media.duration;
 
@@ -990,9 +992,17 @@ void CSMPPlayer::Process()
             m_video_info.Format("Video stream (%d) [%s] of type %s",
               ((UMSStatus*)m_status)->lpb.video.index, ((UMSStatus*)m_status)->lpb.video.name,
               mediaType2String(((UMSStatus*)m_status)->lpb.video.format.mediaType));
+            m_video_fps   = ((UMSStatus*)m_status)->lpb.video.format.format.image.rateN;
+            if (m_video_fps > 0.0)
+              m_video_fps = (float)((UMSStatus*)m_status)->lpb.video.format.format.image.rateM / m_video_fps;
+            m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
+            m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
 
             m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
             m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
+            m_subtitle_info.Format("Subtitle stream (%d) [%s] of type %s",
+              ((UMSStatus*)m_status)->lpb.subtitle.index, ((UMSStatus*)m_status)->lpb.subtitle.name,
+              mediaType2String(((UMSStatus*)m_status)->lpb.subtitle.format.mediaType));
           }
           else
           {
