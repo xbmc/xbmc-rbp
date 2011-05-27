@@ -34,7 +34,13 @@
 #if defined (HAVE_SIGMASMP)
 #include "filesystem/File.h"
 #include "threads/SingleLock.h"
+#include "threads/CriticalSection.h"
 #include "directfb.h"
+#endif
+
+#if defined (HAVE_SIGMASMP)
+// we need this to serialize access to hw image decoder.
+static CCriticalSection gHWLoaderSection;
 #endif
 
 /************************************************************************/
@@ -461,12 +467,12 @@ bool CBaseTexture::HasAlpha() const
 bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
 {
 #if defined (HAVE_SIGMASMP)
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(gHWLoaderSection);
 
   if (!g_Windowing.IsCreated())
     return false;
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:begin");
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:begin");
 
   XFILE::CFile file;
   uint8_t *imageBuff = NULL;
@@ -480,6 +486,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   {
     imageBuffSize =file.GetLength();
     imageBuff = new uint8_t[imageBuffSize];
+    uint64_t tmp_size = imageBuffSize;
     imageBuffSize = file.Read(imageBuff, imageBuffSize);
     file.Close();
     if (imageBuffSize <= 0)
@@ -487,6 +494,9 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
       delete [] imageBuff;
       return false;
     }
+    if (tmp_size != imageBuffSize)
+      CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:tmp_size(%llu), imageBuffSize(%llu)",
+        tmp_size, imageBuffSize);
   }
   else
   {
@@ -524,17 +534,17 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   err = dfb->CreateDataBuffer(dfb, &dbd, &buffer);
   if (err != DFB_OK)
   {
-    CLog::Log(LOGERROR,"CBaseTexture::LoadFromFile:dfb->CreateDataBuffer failed");
+    CLog::Log(LOGERROR,"CBaseTexture::LoadHWAccelerated:dfb->CreateDataBuffer failed");
     delete [] imageBuff;
     return false;
   }
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:CreateImageProvider");
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:CreateImageProvider");
   IDirectFBImageProvider *provider = NULL;
   err = buffer->CreateImageProvider(buffer, &provider);
   if (err != DFB_OK)
   {
-    CLog::Log(LOGERROR,"CBaseTexture::LoadFromFile:buffer->CreateImageProvider failed");
+    CLog::Log(LOGERROR,"CBaseTexture::LoadHWAccelerated:buffer->CreateImageProvider failed");
     buffer->Release(buffer);
     delete [] imageBuff;
     return false;
@@ -550,7 +560,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
   dsc.pixelformat = DSPF_ARGB;
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:CreateSurface");
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:CreateSurface");
 
   // create the surface and render the compressed image to it.
   // once we render to it, we can release/delete most dfb objects.
@@ -559,7 +569,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   if (!imagesurface)
   {
     // sometimes, during startup, we get a null surface back.
-    CLog::Log(LOGERROR, "CBaseTexture::LoadFromFile:dfb->CreateSurface failed");
+    CLog::Log(LOGERROR, "CBaseTexture::LoadHWAccelerated:dfb->CreateSurface failed");
     provider->Release(provider);
     buffer->Release(buffer);
     delete [] imageBuff;
@@ -570,7 +580,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   buffer->Release(buffer);
   delete [] imageBuff;
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:memcpy to m_pixels");
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:memcpy to m_pixels");
 
   Allocate(dsc.width, dsc.height, XB_FMT_A8R8G8B8);
   // lock the rendered surface, get a read pointer to it
@@ -582,7 +592,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   imagesurface->Unlock(imagesurface);
   imagesurface->Release(imagesurface);
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadFromFile:done");
+  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:done");
 
   ClampToEdge();
 

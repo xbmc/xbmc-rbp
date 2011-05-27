@@ -30,9 +30,6 @@
 #include "gui3d.h"
 #include "utils/StdString.h"
 #include "XBTF.h"
-#if defined (HAVE_SIGMASMP)
-#include "threads/CriticalSection.h"
-#endif
 
 #pragma pack(1)
 struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
@@ -114,9 +111,6 @@ protected:
   unsigned int m_format;
   int m_orientation;
   bool m_hasAlpha;
-#if defined (HAVE_SIGMASMP)
-  CCriticalSection m_StateSection;
-#endif
 };
 
 #if defined(HAS_GL) || defined(HAS_GLES)
