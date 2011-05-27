@@ -329,10 +329,13 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_duration_ms =  0;
     m_audio_index = -1;
     m_audio_count =  0;
+    m_audio_info  = "none";
     m_video_index = -1;
     m_video_count =  0;
+    m_video_info  = "none";
     m_subtitle_index = -1;
     m_subtitle_count =  0;
+    m_subtitle_info  = "none";
     m_video_width  = 0;
     m_video_height = 0;
 
@@ -552,30 +555,12 @@ void CSMPPlayer::SetVolume(long nVolume)
 
 void CSMPPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioInfo");
-  
-  // Get current audio stream info
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-    strAudioInfo.Format("Audio stream (%d) [%s] of type %s",
-      ((UMSStatus*)m_status)->lpb.audio.index,
-      ((UMSStatus*)m_status)->lpb.audio.name,
-      mediaType2String(((UMSStatus*)m_status)->lpb.audio.format.mediaType));
-  else
-    strAudioInfo.Format("Could not get audio info");
+  strAudioInfo = m_audio_info;
 }
 
 void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoInfo");
-  
-  // Get current video stream info
-  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-    strVideoInfo.Format("Video stream (%d) [%s] of type %s",
-      ((UMSStatus*)m_status)->lpb.video.index,
-      ((UMSStatus*)m_status)->lpb.video.name,
-      mediaType2String(((UMSStatus*)m_status)->lpb.video.format.mediaType));
-  else
-    strVideoInfo.Format("Could not get video info");
+  strVideoInfo = m_video_info;
 }
 
 int CSMPPlayer::GetAudioStreamCount()
@@ -795,7 +780,6 @@ bool CSMPPlayer::GetStreamDetails(CStreamDetails &details)
 
 void CSMPPlayer::ToFFRW(int iSpeed)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW, iSpeed(%d)", iSpeed);
   if (!m_amp && m_StopPlaying)
     return;
 
@@ -994,10 +978,19 @@ void CSMPPlayer::Process()
             m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
             #endif
             m_duration_ms = 1000 * ((UMSStatus*)m_status)->lpb.media.duration;
+
             m_audio_index = ((UMSStatus*)m_status)->lpb.audio.index;
             m_audio_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
+            m_audio_info.Format("Audio stream (%d) [%s] of type %s",
+              ((UMSStatus*)m_status)->lpb.audio.index, ((UMSStatus*)m_status)->lpb.audio.name,
+              mediaType2String(((UMSStatus*)m_status)->lpb.audio.format.mediaType));
+
             m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
             m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+            m_video_info.Format("Video stream (%d) [%s] of type %s",
+              ((UMSStatus*)m_status)->lpb.video.index, ((UMSStatus*)m_status)->lpb.video.name,
+              mediaType2String(((UMSStatus*)m_status)->lpb.video.format.mediaType));
+
             m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
             m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
           }

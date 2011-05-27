@@ -153,10 +153,13 @@ private:
   uint64_t                m_duration_ms;
   int                     m_audio_index;
   int                     m_audio_count;
+  CStdString              m_audio_info;
   int                     m_video_index;
   int                     m_video_count;
+  CStdString              m_video_info;
   int                     m_subtitle_index;
   int                     m_subtitle_count;
+  CStdString              m_subtitle_info;
   int                     m_video_width;
   int                     m_video_height;
   // opaque smp global status
