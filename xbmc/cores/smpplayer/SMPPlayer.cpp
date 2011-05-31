@@ -28,6 +28,8 @@
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIWindowManager.h"
 #include "settings/AdvancedSettings.h"
+#include "settings/GUISettings.h"
+#include "settings/Settings.h"
 #include "threads/SingleLock.h"
 #include "windowing/WindowingFactory.h"
 #include "utils/log.h"
@@ -341,6 +343,10 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_subtitle_index = -1;
     m_subtitle_count =  0;
     m_subtitle_info  = "none";
+    if ((g_settings.m_currentVideoSettings.m_SubtitleOn) && !m_options.video_only)
+      m_subtitle_show = true;
+    else
+      m_subtitle_show = false;
     m_video_fps = 0.0;
     m_video_width  = 0;
     m_video_height = 0;
@@ -667,6 +673,43 @@ void CSMPPlayer::SetSubtitle(int iStream)
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
+bool CSMPPlayer::GetSubtitleVisible()
+{
+  return m_subtitle_show;
+}
+
+void CSMPPlayer::SetSubtitleVisible(bool bVisible)
+{
+  m_subtitle_show = bVisible;
+  g_settings.m_currentVideoSettings.m_SubtitleOn = m_subtitle_show;
+
+  SLPBCommand cmd;
+  cmd.cmd = LPBCmd_SELECT_SUBTITLE_STREAM;
+  if (bVisible)
+    cmd.param1.streamIndex = m_subtitle_index;
+  else
+    cmd.param1.streamIndex = -1;
+  cmd.dataSize = sizeof(cmd);
+  cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  SLPBResult res;
+  res.dataSize = sizeof(res);
+  res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+  CSingleLock lock(m_StateSection);
+  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+}
+
+bool CSMPPlayer::GetSubtitleExtension(CStdString &strSubtitleExtension)
+{
+  return false;
+}
+
+int CSMPPlayer::AddSubtitle(const CStdString& strSubPath)
+{
+  return -1;
+}
+
 void CSMPPlayer::Update(bool bPauseDrawing)
 {
   g_renderManager.Update(bPauseDrawing);
@@ -744,9 +787,9 @@ int CSMPPlayer::GetSourceBitrate()
 
 int CSMPPlayer::GetChannels()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetChannels");
-  // returns number of audio channels
-  return 6;
+  // returns number of audio channels (ie 5.1 = 6)
+    m_audio_channels);
+  return m_audio_channels;
 }
 
 int CSMPPlayer::GetBitsPerSample()
@@ -991,6 +1034,8 @@ void CSMPPlayer::Process()
             m_audio_info.Format("Audio stream (%d) [%s] of type %s",
               ((UMSStatus*)m_status)->lpb.audio.index, ((UMSStatus*)m_status)->lpb.audio.name,
               mediaType2String(((UMSStatus*)m_status)->lpb.audio.format.mediaType));
+            m_audio_channels  = ((UMSStatus*)m_status)->lpb.audio.format.format.sound.channels;
+            m_audio_channels += ((UMSStatus*)m_status)->lpb.audio.format.format.sound.lfe;
 
             m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
             m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
@@ -1003,7 +1048,8 @@ void CSMPPlayer::Process()
             m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
             m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
 
-            m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
+            if (((UMSStatus*)m_status)->lpb.subtitle.index >= 0)
+              m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
             m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
             m_subtitle_info.Format("Subtitle stream (%d) [%s] of type %s",
               ((UMSStatus*)m_status)->lpb.subtitle.index, ((UMSStatus*)m_status)->lpb.subtitle.name,

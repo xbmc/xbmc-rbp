@@ -73,10 +73,10 @@ public:
   virtual int   GetSubtitle();
   virtual void  GetSubtitleName(int iStream, CStdString &strStreamName);
   virtual void  SetSubtitle(int iStream);
-  virtual bool  GetSubtitleVisible()                              {return false;};
-  virtual void  SetSubtitleVisible(bool bVisible)                 {};
-  virtual bool  GetSubtitleExtension(CStdString &strSubtitleExtension){return false;};
-  virtual int   AddSubtitle(const CStdString& strSubPath)         {return -1;};
+  virtual bool  GetSubtitleVisible();
+  virtual void  SetSubtitleVisible(bool bVisible);
+  virtual bool  GetSubtitleExtension(CStdString &strSubtitleExtension);
+  virtual int   AddSubtitle(const CStdString& strSubPath);
 
   virtual int   GetAudioStreamCount();
   virtual int   GetAudioStream();
@@ -154,12 +154,14 @@ private:
   int                     m_audio_index;
   int                     m_audio_count;
   CStdString              m_audio_info;
+  uint32_t                m_audio_channels;
   int                     m_video_index;
   int                     m_video_count;
   CStdString              m_video_info;
   int                     m_subtitle_index;
   int                     m_subtitle_count;
   CStdString              m_subtitle_info;
+  bool                    m_subtitle_show;
   float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;
