@@ -75,7 +75,7 @@ public:
   virtual void  SetSubtitle(int iStream);
   virtual bool  GetSubtitleVisible();
   virtual void  SetSubtitleVisible(bool bVisible);
-  virtual bool  GetSubtitleExtension(CStdString &strSubtitleExtension);
+  virtual bool  GetSubtitleExtension(CStdString &strSubtitleExtension) { return false; }
   virtual int   AddSubtitle(const CStdString& strSubPath);
 
   virtual int   GetAudioStreamCount();
@@ -136,6 +136,8 @@ protected:
   
 private:
   bool          WaitForAmpPlaying(int timeout);
+  bool          WaitForAmpStopped(int timeout);
+  bool          GetAmpStatus();
 
   int                     m_speed;
   bool                    m_paused;
@@ -143,11 +145,12 @@ private:
   CEvent                  m_ready;
   CFileItem               m_item;
   CPlayerOptions          m_options;
-  CCriticalSection        m_StateSection;
+  CCriticalSection        m_amp_command_csection;
   
   IAdvancedMediaProvider  *m_amp;
   IDirectFBEventBuffer    *m_amp_event;
   int                     m_ampID;
+  CCriticalSection        m_amp_status_csection;
 
   uint64_t                m_elapsed_ms;
   uint64_t                m_duration_ms;
@@ -155,12 +158,11 @@ private:
   int                     m_audio_count;
   CStdString              m_audio_info;
   uint32_t                m_audio_channels;
-  int                     m_video_index;
-  int                     m_video_count;
+  //int                   m_video_index;
+  //int                   m_video_count;
   CStdString              m_video_info;
   int                     m_subtitle_index;
   int                     m_subtitle_count;
-  CStdString              m_subtitle_info;
   bool                    m_subtitle_show;
   
   int                     m_chapter_index;

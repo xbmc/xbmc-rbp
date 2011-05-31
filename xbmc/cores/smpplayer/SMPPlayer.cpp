@@ -337,28 +337,23 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_audio_index = -1;
     m_audio_count =  0;
     m_audio_info  = "none";
-    m_video_index = -1;
-    m_video_count =  0;
+    //m_video_index = -1;
+    //m_video_count =  0;
     m_video_info  = "none";
     m_subtitle_index = -1;
     m_subtitle_count =  0;
-    m_subtitle_info  = "none";
-    m_chapter_index  = 0;
-    m_chapter_count  = 0;
+    m_chapter_index  =  0;
+    m_chapter_count  =  0;
 
-    if ((g_settings.m_currentVideoSettings.m_SubtitleOn) && !m_options.video_only)
-      m_subtitle_show = true;
-    else
-      m_subtitle_show = false;
-    m_video_fps = 0.0;
-    m_video_width  = 0;
-    m_video_height = 0;
+    m_video_fps      =  0.0;
+    m_video_width    =  0;
+    m_video_height   =  0;
 
     IDirectFB *dfb = g_Windowing.GetIDirectFB();
     DFBResult res = dfb->GetInterface(dfb, "IAdvancedMediaProvider", "EM8630", (void*)m_ampID, (void **)&m_amp);
     if (res != DFB_OK)
     {
-      CLog::Log(LOGDEBUG, "Could not instantiate the AMP interface");
+      CLog::Log(LOGDEBUG, "Could not get IAdvancedMediaProvider");
       return false;
     }
     // The event buffer must be retrieved BEFORE the OpenMedia() call
@@ -372,7 +367,6 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     DFBAdvancedMediaProviderDescription desc;
     memset(&desc, 0, sizeof(desc));
 		m_amp->GetDescription(m_amp, &desc);
-    //SGlobals *ampGlobals = (SGlobals*)desc.privateInfo;
 
     m_StopPlaying = false;
     m_ready.Reset();
@@ -385,6 +379,7 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
         g_windowManager.Process(false);
       dialog->Close();
     }
+    m_ready.Set();
 
     // Playback might have been stopped due to some error
     if (m_bStop || m_StopPlaying)
@@ -405,7 +400,7 @@ bool CSMPPlayer::CloseFile()
   m_bStop = true;
   m_StopPlaying = true;
 
-  CLog::Log(LOGNOTICE, "CSMPPlayer: waiting for threads to exit");
+  CLog::Log(LOGDEBUG, "CSMPPlayer: waiting for threads to exit");
   // wait for the main thread to finish up
   // since this main thread cleans up all other resources and threads
   // we are done after the StopThread call
@@ -419,7 +414,7 @@ bool CSMPPlayer::CloseFile()
     m_amp_event->Release(m_amp_event);
   m_amp_event = NULL;
 
-  CLog::Log(LOGNOTICE, "CSMPPlayer: finished waiting");
+  CLog::Log(LOGDEBUG, "CSMPPlayer: finished waiting");
   g_renderManager.UnInit();
 
   return true;
@@ -455,9 +450,9 @@ void CSMPPlayer::Pause()
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
-    CLog::Log(LOGDEBUG, "CSMPPlayer::Pause:AMP command failed!");
+    CLog::Log(LOGERROR, "CSMPPlayer::Pause:AMP command failed!");
 }
 
 bool CSMPPlayer::IsPaused() const
@@ -495,6 +490,7 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
   if (!bPlus)
     step *= -1;
 
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::Seek:step(%d), m_elapsed_s(%llu)", step, m_elapsed_ms/1000);
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SEEK;
   cmd.param1.seekMode = SM_BY_TIME;
@@ -507,7 +503,7 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
@@ -530,12 +526,13 @@ void CSMPPlayer::SeekPercentage(float fPercent)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
 float CSMPPlayer::GetPercentage()
 {
+  GetTotalTime();
   if (m_duration_ms)
     return 100.0f * (float)m_elapsed_ms/(float)m_duration_ms;
   else
@@ -563,35 +560,58 @@ void CSMPPlayer::SetVolume(long nVolume)
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   cmd.control.adjustment = &adjustment;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   if (m_amp->PostPresentationCmd(m_amp, (SCommand*)&cmd) != DFB_OK)
     CLog::Log(LOGDEBUG, "CSMPPlayer::SetVolume:AMP command failed!");
 }
 
 void CSMPPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioInfo");
+  if (GetAmpStatus())
+  {
+    m_audio_info.Format("Audio stream (%d) [%s] of type %s",
+      ((UMSStatus*)m_status)->lpb.audio.index,
+      ((UMSStatus*)m_status)->lpb.audio.name,
+      mediaType2String(((UMSStatus*)m_status)->lpb.audio.format.mediaType));
+  }
   strAudioInfo = m_audio_info;
 }
 
 void CSMPPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoInfo");
+  if (GetAmpStatus())
+  {
+    m_video_info.Format("Video stream (%d) [%s] of type %s",
+      ((UMSStatus*)m_status)->lpb.video.index,
+      ((UMSStatus*)m_status)->lpb.video.name,
+      mediaType2String(((UMSStatus*)m_status)->lpb.video.format.mediaType));
+  }
   strVideoInfo = m_video_info;
 }
 
 int CSMPPlayer::GetAudioStreamCount()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamCount");
+  if (GetAmpStatus())
+    m_audio_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
+
   return m_audio_count;
 }
 
 int CSMPPlayer::GetAudioStream()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStream");
+  if (GetAmpStatus())
+    m_audio_index = ((UMSStatus*)m_status)->lpb.audio.index;
+
 	return m_audio_index;
 }
 
 void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamName");
-
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamName");
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_GET_AUDIO_STREAM_INFO;
   cmd.param1.streamIndex = iStream;
@@ -602,7 +622,7 @@ void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
     strStreamName.Format("%s", res.value.streamInfo.name);
   else
@@ -611,8 +631,7 @@ void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
  
 void CSMPPlayer::SetAudioStream(int SetAudioStream)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::SetAudioStream");
-
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::SetAudioStream");
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_AUDIO_STREAM;
   cmd.param1.streamIndex = SetAudioStream;
@@ -623,24 +642,31 @@ void CSMPPlayer::SetAudioStream(int SetAudioStream)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
 int CSMPPlayer::GetSubtitleCount()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleCount");
+  if (GetAmpStatus())
+    m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
+
 	return m_subtitle_count;
 }
 
 int CSMPPlayer::GetSubtitle()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitle");
+  if (GetAmpStatus())
+    m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
+
 	return m_subtitle_index;
 }
 
 void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleName");
-
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleName");
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_GET_SUBTITLE_STREAM_INFO;
   cmd.param1.streamIndex = iStream;
@@ -651,7 +677,7 @@ void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
     strStreamName.Format("%s", res.value.streamInfo.name);
   else
@@ -660,8 +686,7 @@ void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
  
 void CSMPPlayer::SetSubtitle(int iStream)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::SetSubtitle");
-
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::SetSubtitle");
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_SUBTITLE_STREAM;
   cmd.param1.streamIndex = iStream;
@@ -672,7 +697,7 @@ void CSMPPlayer::SetSubtitle(int iStream)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
@@ -684,12 +709,12 @@ bool CSMPPlayer::GetSubtitleVisible()
 void CSMPPlayer::SetSubtitleVisible(bool bVisible)
 {
   m_subtitle_show = bVisible;
-  g_settings.m_currentVideoSettings.m_SubtitleOn = m_subtitle_show;
+  g_settings.m_currentVideoSettings.m_SubtitleOn = bVisible;
 
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_SUBTITLE_STREAM;
   if (bVisible)
-    cmd.param1.streamIndex = m_subtitle_index;
+    cmd.param1.streamIndex = GetSubtitle();
   else
     cmd.param1.streamIndex = -1;
   cmd.dataSize = sizeof(cmd);
@@ -699,17 +724,13 @@ void CSMPPlayer::SetSubtitleVisible(bool bVisible)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
-}
-
-bool CSMPPlayer::GetSubtitleExtension(CStdString &strSubtitleExtension)
-{
-  return false;
 }
 
 int CSMPPlayer::AddSubtitle(const CStdString& strSubPath)
 {
+  // not sure we can add a subtitle file on the fly.
   return -1;
 }
 
@@ -730,6 +751,19 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 
 int CSMPPlayer::GetChapterCount()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetChapterCount");
+#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
+  // check for mkv chapters
+  if (GetAmpStatus() && ((UMSStatus*)m_status)->lpb.media.nb_chapters > 0)
+  {
+    m_chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
+    for (int i = 0; i < m_chapter_count; i++)
+    {
+      m_chapters[i].name = ((UMSStatus*)m_status)->lpb.media.chapterList[i].pName;
+      m_chapters[i].seekto_ms = ((UMSStatus*)m_status)->lpb.media.chapterList[i].time_ms;
+    }
+  }
+#endif
   return m_chapter_count;
 }
 
@@ -772,31 +806,42 @@ int CSMPPlayer::SeekChapter(int iChapter)
 
 float CSMPPlayer::GetActualFPS()
 {
+  if (GetAmpStatus())
+  {
+    float rateN = ((UMSStatus*)m_status)->lpb.video.format.format.image.rateN;
+    if (rateN > 0.0)
+    {
+      float rateM = ((UMSStatus*)m_status)->lpb.video.format.format.image.rateM;
+      m_video_fps = rateM / rateN;
+    }
+  }
+  CLog::Log(LOGDEBUG, "CSMPPlayer::GetActualFPS:m_video_fps(%f)", m_video_fps);
   return m_video_fps;
 }
 
 void CSMPPlayer::SeekTime(__int64 iTime)
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime:time(%llu), elapsed(%llu)", iTime/1000, m_elapsed_ms/1000);
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SEEK;
   cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-  #ifdef HAS_SM_BY_TIME_MS
-    cmd.param1.seekMode    = SM_BY_TIME_MS;
-    cmd.param2.timems      = (uint32_t)iTime;
-  #else
-    cmd.param1.seekMode    = SM_BY_TIME;
-    cmd.param2.time.Hour   = 0;
-    cmd.param2.time.Minute = 0;
-    cmd.param2.time.Second = (uint32_t)iTime / 1000;
-    cmd.param2.time.Frame  = 0;
-  #endif
+#ifdef HAS_SM_BY_TIME_MS
+  cmd.param1.seekMode    = SM_BY_TIME_MS;
+  cmd.param2.timems      = (uint32_t)iTime;
+#else
+  cmd.param1.seekMode    = SM_BY_TIME;
+  cmd.param2.time.Hour   = 0;
+  cmd.param2.time.Minute = 0;
+  cmd.param2.time.Second = (uint32_t)iTime / 1000;
+  cmd.param2.time.Frame  = 0;
+#endif
 
   SLPBResult res;
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_StateSection);
+  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 
   int seekOffset = (int)(iTime - m_elapsed_ms);
@@ -810,6 +855,8 @@ __int64 CSMPPlayer::GetTime()
 
 int CSMPPlayer::GetTotalTime()
 {
+  if (GetAmpStatus())
+    m_duration_ms = 1000 * ((UMSStatus*)m_status)->lpb.media.duration;
 	return m_duration_ms / 1000;
 }
 
@@ -832,7 +879,14 @@ int CSMPPlayer::GetSourceBitrate()
 
 int CSMPPlayer::GetChannels()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetActualFPS");
   // returns number of audio channels (ie 5.1 = 6)
+  if (GetAmpStatus())
+  {
+    m_audio_channels  = ((UMSStatus*)m_status)->lpb.audio.format.format.sound.channels;
+    m_audio_channels += ((UMSStatus*)m_status)->lpb.audio.format.format.sound.lfe;
+  }
+
   return m_audio_channels;
 }
 
@@ -850,23 +904,31 @@ int CSMPPlayer::GetSampleRate()
 
 CStdString CSMPPlayer::GetAudioCodecName()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioCodecName");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioCodecName");
+  // return the 4c name
   return "";
 }
 
 CStdString CSMPPlayer::GetVideoCodecName()
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoCodecName");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoCodecName");
+  // return the 4c name
   return "";
 }
 
 int CSMPPlayer::GetPictureWidth()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureWidth");
+  if (GetAmpStatus())
+    m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
   return m_video_width;
 }
 
 int CSMPPlayer::GetPictureHeight()
 {
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureHeight");
+  if (GetAmpStatus())
+    m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
   return m_video_height;
 }
 
@@ -913,7 +975,7 @@ void CSMPPlayer::ToFFRW(int iSpeed)
     res.dataSize = sizeof(res);
     res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-    CSingleLock lock(m_StateSection);
+    CSingleLock lock(m_amp_command_csection);
     if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
       CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command failed!");
 
@@ -930,7 +992,7 @@ void CSMPPlayer::OnStartup()
 
 void CSMPPlayer::OnExit()
 {
-  CLog::Log(LOGNOTICE, "CSMPPlayer::OnExit()");
+  //CLog::Log(LOGNOTICE, "CSMPPlayer::OnExit()");
   m_bStop = true;
   // if we didn't stop playing, advance to the next item in xbmc's playlist
   if(m_options.identify == false)
@@ -946,37 +1008,41 @@ void CSMPPlayer::Process()
 {
   DFBResult     res;
   SMediaFormat  format = { 0 };
-  CStdString    url;
+  std::string   url;
 
-  CLog::Log(LOGDEBUG, "CSMPPlayer: Thread started");
-
-  // default to hinting container type
-  CStdString extension;
-  extension = URIUtils::GetExtension(m_item.m_strPath);
-  if (extension.Equals(".mkv"))
-    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
-  else if (extension.Equals(".avi"))
-    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_AVI;
-  else if (extension.Equals(".mov"))
-    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
-  else if (extension.Equals(".mpg"))
-    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
-  else if (extension.Equals(".m2ts"))
-    format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
-  else
-    format.mediaType = MTYPE_APP_UNKNOWN;
-
-/*
+  //CLog::Log(LOGDEBUG, "CSMPPlayer: Thread started");
+#if 0
   if (m_item.m_strPath.Left(7).Equals("http://"))
   {
+    format.mediaType = MTYPE_APP_UNKNOWN;
+    // strip user agent that we append
     url = m_item.m_strPath;
+    url = url.erase(url.rfind('|'), url.size());
   }
   else
-*/
+#endif
   {
+    // default to hinting container type
+    CStdString extension;
+    extension = URIUtils::GetExtension(m_item.m_strPath);
+    if (extension.Equals(".mkv"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
+    else if (extension.Equals(".avi"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_AVI;
+    else if (extension.Equals(".mov"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
+    else if (extension.Equals(".mpg"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+    else if (extension.Equals(".ts"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+    else if (extension.Equals(".m2ts"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+    else
+      format.mediaType = MTYPE_APP_UNKNOWN;
+
     // local source only for now, smb is failing to read
-    SIdsData      ids;
-    char          c_str[64];
+    SIdsData ids;
+    char     c_str[64];
     // setup the IDataSource cookie, CloseMedia will delete it
     ids.src = new CFileIDataSource(m_item.m_strPath.c_str());
     snprintf(c_str, sizeof(c_str)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
@@ -988,150 +1054,136 @@ void CSMPPlayer::Process()
   parameters.zero = 0;
   parameters.a1b2c3d4 = 0xa1b2c3d4;
   //
-  parameters.maxPrebufferSize = 1;
   parameters.stcOffset = -200;
+  parameters.maxPrebufferSize = 1;
 
-  // open the media using the IAdvancedMediaProvider
-  res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, &parameters);
-  if (res != DFB_OK)
+#if 0
+  // find any available external subtitles
+  std::vector<CStdString> filenames;
+  CUtil::ScanForExternalSubtitles( m_item.m_strPath, filenames );
+  for(unsigned int i=0;i<filenames.size();i++)
   {
-    CLog::Log(LOGDEBUG, "OpenMedia() failed");
-    m_ready.Set();
+    if (URIUtils::GetExtension(filenames[i]) == ".idx")
+    {
+      CStdString strSubFile;
+      if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )
+        AddSubtitleFile(filenames[i], strSubFile);
+    }
+    if (URIUtils::GetExtension(filenames[i]) == ".sub")
+    {
+      CStdString strSubFile;
+      if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )
+        AddSubtitleFile(filenames[i], strSubFile);
+    }
+  } // end loop over all subtitle files    
+#endif
+
+  try
+  {
+    // open the media using the IAdvancedMediaProvider
+    res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, &parameters);
+    if (res != DFB_OK)
+    {
+      CLog::Log(LOGDEBUG, "OpenMedia() failed");
+      throw;
+    }
+
+    // wait 40 seconds and check the confirmation event
+    if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 40, 0) == DFB_OK) &&
+        GetAmpStatus() && (((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
+           IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
+    {
+      // eat the event
+      DFBEvent event;
+      m_amp_event->GetEvent(m_amp_event, &event);
+
+
+      // big fake out here, we do not know the video width, height yet
+      // so setup renderer to full display size and tell it we are doing
+      // bypass. This tell it to get out of the way as amp will be doing
+      // the actual video rendering in a video plane that is under the GUI
+      // layer.
+      int width = g_graphicsContext.GetWidth();
+      int height= g_graphicsContext.GetHeight();
+      int displayWidth  = width;
+      int displayHeight = height;
+      double fFrameRate = 24;
+      unsigned int flags = 0;
+
+      flags |= CONF_FLAGS_FORMAT_BYPASS;
+      flags |= CONF_FLAGS_FULLSCREEN;
+      CStdString formatstr = "BYPASS";
+      CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
+        __FUNCTION__, width, height, fFrameRate, formatstr.c_str());
+      g_renderManager.IsConfigured();
+      if(!g_renderManager.Configure(width, height, displayWidth, displayHeight, fFrameRate, flags))
+      {
+        CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
+      }
+      if (!g_renderManager.IsStarted()) {
+        CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
+      }
+
+      // start the playback
+      res = m_amp->StartPresentation(m_amp, DFB_TRUE);
+      if (res != DFB_OK)
+      {
+        CLog::Log(LOGDEBUG,"Could not issue StartPresentation()");
+        throw;
+      }
+    }
+  }
+  catch(...)
+  {
+    CLog::Log(LOGERROR, "CSMPPlayer::Process: Exception thrown");
     goto _exit;
   }
 
-  // wait 10 seconds and check the confirmation event
-  if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 40, 0) == DFB_OK) &&
-      (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK) &&
-      (((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
-         IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
+  // we are done initializing now, set the readyevent which will
+  // drop CGUIDialogBusy, and release the hold in OpenFile
+  m_ready.Set();
+
+  // wait for playback to start with 2 second timeout
+  if (WaitForAmpPlaying(20000))
   {
-    // eat the event
-    DFBEvent event;
-    m_amp_event->GetEvent(m_amp_event, &event);
+    // get our initial status.
+    GetAmpStatus();
 
-    int width = g_graphicsContext.GetWidth();
-    int height= g_graphicsContext.GetHeight();
-    int displayWidth  = width;
-    int displayHeight = height;
-    double fFrameRate = 24;
+    // once playback starts, we can turn on/off subs
+    SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
 
-    unsigned int flags = 0;
-    flags |= CONF_FLAGS_FORMAT_BYPASS;
-    flags |= CONF_FLAGS_FULLSCREEN;
-    CStdString formatstr = "BYPASS";
-    CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
-      __FUNCTION__, width, height, fFrameRate, formatstr.c_str());
-    g_renderManager.IsConfigured();
-    if(!g_renderManager.Configure(width, height, displayWidth, displayHeight, fFrameRate, flags))
+    m_callback.OnPlayBackStarted();
+    while (!m_bStop && !m_StopPlaying)
     {
-      CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
-    }
-    if (!g_renderManager.IsStarted()) {
-      CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
-    }
-
-    // start the playback
-    res = m_amp->StartPresentation(m_amp, DFB_TRUE);
-    if (res != DFB_OK)
-    {
-      CLog::Log(LOGDEBUG,"Could not issue StartPresentation()");
-      m_ready.Set();
-      goto _exit;
-    }
-
-    // we are done initializing now, set the readyevent,
-    // drop CGUIDialogBusy, and release the hold in OpenFile
-    m_ready.Set();
-
-    // wait for playback to start with 2 second timeout
-    if (WaitForAmpPlaying(20000))
-    {
-      m_callback.OnPlayBackStarted();
-
-      while (!m_bStop && !m_StopPlaying)
+      // AMP monitoring loop for automatic playback termination (250ms wait)
+      if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 250) == DFB_OK)
       {
-        // AMP monitoring loop for automatic playback termination (100ms wait)
-        if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK)
-        {
-          // eat the event
-          DFBEvent event;
-          m_amp_event->GetEvent(m_amp_event, &event);
+        // eat the event
+        DFBEvent event;
+        m_amp_event->GetEvent(m_amp_event, &event);
 
-          if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK)
-          {
-            if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
-                (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
-            {
-              m_StopPlaying = true;
-            }
-
-#ifdef HAS_SM_BY_TIME_MS
-            m_elapsed_ms  = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
-#else
-            m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
-#endif
-            m_duration_ms = 1000 * ((UMSStatus*)m_status)->lpb.media.duration;
-
-            m_audio_index = ((UMSStatus*)m_status)->lpb.audio.index;
-            m_audio_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
-            m_audio_info.Format("Audio stream (%d) [%s] of type %s",
-              ((UMSStatus*)m_status)->lpb.audio.index, ((UMSStatus*)m_status)->lpb.audio.name,
-              mediaType2String(((UMSStatus*)m_status)->lpb.audio.format.mediaType));
-            m_audio_channels  = ((UMSStatus*)m_status)->lpb.audio.format.format.sound.channels;
-            m_audio_channels += ((UMSStatus*)m_status)->lpb.audio.format.format.sound.lfe;
-
-            m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
-            m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
-            m_video_info.Format("Video stream (%d) [%s] of type %s",
-              ((UMSStatus*)m_status)->lpb.video.index, ((UMSStatus*)m_status)->lpb.video.name,
-              mediaType2String(((UMSStatus*)m_status)->lpb.video.format.mediaType));
-            m_video_fps   = ((UMSStatus*)m_status)->lpb.video.format.format.image.rateN;
-            if (m_video_fps > 0.0)
-              m_video_fps = (float)((UMSStatus*)m_status)->lpb.video.format.format.image.rateM / m_video_fps;
-            m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
-            m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
-            
-#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
-            // check for mkv chapters (one time check)
-            if (m_chapter_count == 0 && ((UMSStatus*)m_status)->lpb.media.nb_chapters > 0)
-            {
-              m_chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
-              for (int i = 0; i < m_chapter_count; i++)
-              {
-                m_chapters[i].name = ((UMSStatus*)m_status)->lpb.media.chapterList[i].pName;
-                m_chapters[i].seekto_ms = ((UMSStatus*)m_status)->lpb.media.chapterList[i].time_ms;
-              }
-            }
-#endif
-            if (((UMSStatus*)m_status)->lpb.subtitle.index >= 0)
-              m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
-            m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
-            m_subtitle_info.Format("Subtitle stream (%d) [%s] of type %s",
-              ((UMSStatus*)m_status)->lpb.subtitle.index, ((UMSStatus*)m_status)->lpb.subtitle.name,
-              mediaType2String(((UMSStatus*)m_status)->lpb.subtitle.format.mediaType));
-          }
-          else
-          {
-            usleep(100*1000);
-          }
-        }
+        if (GetAmpStatus() && (((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
+          (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+            m_StopPlaying = true;
       }
-      m_callback.OnPlayBackEnded();
+      else
+      {
+        // we should never get here but just in case.
+        usleep(250*1000);
+      }
     }
-    else
-    {
-      CLog::Log(LOGDEBUG, "StartPresentation() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
-        (long unsigned int)((UMSStatus*)m_status)->generic.flags,
-        (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
-    }
+    m_callback.OnPlayBackEnded();
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "StartPresentation() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
+      (long unsigned int)((UMSStatus*)m_status)->generic.flags,
+      (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
   }
 
 _exit:
   if (m_amp)
     m_amp->CloseMedia(m_amp);
-
-  CLog::Log(LOGDEBUG, "CSMPPlayer: Thread end");
 }
 
 bool CSMPPlayer::WaitForAmpPlaying(int timeout)
@@ -1140,19 +1192,26 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
 
   while (!m_bStop && timeout > 0)
   {
-    if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK) &&
-        (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_TRUE) == DFB_OK))
+    if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK)
     {
       // eat the event
       DFBEvent event;
       m_amp_event->GetEvent(m_amp_event, &event);
 
-      if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) && 
-          (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_PLAYING))
+      if (GetAmpStatus())
       {
-        rtn = true;
-        break;
+        if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) && 
+            (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_PLAYING))
+        {
+          rtn = true;
+          break;
+        }
       }
+    }
+    else
+    {
+      // we should never get here but just in case.
+      usleep(100*1000);
     }
     timeout -= 100;
   }
@@ -1160,4 +1219,59 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
   return rtn;
 }
 
+bool CSMPPlayer::WaitForAmpStopped(int timeout)
+{
+  bool rtn = false;
+  while (!m_bStop && timeout > 0)
+  {
+    if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK)
+    {
+      // eat the event
+      DFBEvent event;
+      m_amp_event->GetEvent(m_amp_event, &event);
+
+      if (GetAmpStatus())
+      {
+        if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) && 
+            (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+        {
+          rtn = true;
+          break;
+        }
+      }
+    }
+    else
+    {
+      // we should never get here but just in case.
+      usleep(100*1000);
+    }
+    timeout -= 100;
+  }
+
+  return rtn;
+}
+
+bool CSMPPlayer::GetAmpStatus()
+{
+  CSingleLock lock(m_amp_status_csection);
+
+  // get status, only update what has changed (DFB_FALSE).
+  if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_FALSE) == DFB_OK)
+  {
+#ifdef HAS_SM_BY_TIME_MS
+    m_elapsed_ms  = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
+#else
+    m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+#endif
+    //m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
+    //m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+      
+    return true;
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "CSMPPlayer::GetAmpStatus:UploadStatusChanges return is not DFB_OK");
+    return false;
+  }
+}
 #endif
