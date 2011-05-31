@@ -87,10 +87,10 @@ public:
   virtual TextCacheStruct_t* GetTeletextCache()                   {return NULL;};
   virtual void  LoadPage(int p, int sp, unsigned char* buffer)    {};
 
-  virtual int   GetChapterCount()                                 {return 0;}
-  virtual int   GetChapter()                                      {return -1;}
-  virtual void  GetChapterName(CStdString& strChapterName)        {return; }
-  virtual int   SeekChapter(int iChapter)                         {return -1;}
+  virtual int   GetChapterCount();
+  virtual int   GetChapter();
+  virtual void  GetChapterName(CStdString& strChapterName);
+  virtual int   SeekChapter(int iChapter);
 
   virtual float GetActualFPS();
   virtual void  SeekTime(__int64 iTime = 0);
@@ -162,6 +162,15 @@ private:
   int                     m_subtitle_count;
   CStdString              m_subtitle_info;
   bool                    m_subtitle_show;
+  
+  int                     m_chapter_index;
+  int                     m_chapter_count;
+  struct chapters
+  {
+    std::string name;
+    uint64_t    seekto_ms;
+  }                       m_chapters[64];
+
   float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;

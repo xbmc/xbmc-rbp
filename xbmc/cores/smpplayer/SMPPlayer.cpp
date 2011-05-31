@@ -343,6 +343,9 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_subtitle_index = -1;
     m_subtitle_count =  0;
     m_subtitle_info  = "none";
+    m_chapter_index  = 0;
+    m_chapter_count  = 0;
+
     if ((g_settings.m_currentVideoSettings.m_SubtitleOn) && !m_options.video_only)
       m_subtitle_show = true;
     else
@@ -725,6 +728,48 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
   fAR = g_renderManager.GetAspectRatio();
 }
 
+int CSMPPlayer::GetChapterCount()
+{
+  return m_chapter_count;
+}
+
+int CSMPPlayer::GetChapter()
+{
+  return m_chapter_index;
+}
+
+void CSMPPlayer::GetChapterName(CStdString& strChapterName)
+{
+  if (m_chapter_index > 0)
+    strChapterName = m_chapters[m_chapter_index].name;
+}
+
+int CSMPPlayer::SeekChapter(int iChapter)
+{
+#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
+  if (m_chapter_count > 0)
+  {
+    if (iChapter < 0)
+      iChapter = 0;
+    if (iChapter > m_chapter_count)
+      return 0;
+
+    m_chapter_index = iChapter;
+    // Seek to the chapter.
+    SeekTime(m_chapters[m_chapter_index].seekto_ms);
+  }
+  else
+#endif
+  {
+    // Do a regular big jump.
+    if (m_chapter_index > 0 && iChapter > m_chapter_index)
+      Seek(true,  true);
+    else
+      Seek(false, true);
+  }
+  return 0;
+}
+
 float CSMPPlayer::GetActualFPS()
 {
   return m_video_fps;
@@ -788,7 +833,6 @@ int CSMPPlayer::GetSourceBitrate()
 int CSMPPlayer::GetChannels()
 {
   // returns number of audio channels (ie 5.1 = 6)
-    m_audio_channels);
   return m_audio_channels;
 }
 
@@ -1022,11 +1066,11 @@ void CSMPPlayer::Process()
               m_StopPlaying = true;
             }
 
-            #ifdef HAS_SM_BY_TIME_MS
-              m_elapsed_ms= ((UMSStatus*)m_status)->generic.elapsedTimeMs;
-            #else
-              m_elapsed_ms= 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
-            #endif
+#ifdef HAS_SM_BY_TIME_MS
+            m_elapsed_ms  = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
+#else
+            m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+#endif
             m_duration_ms = 1000 * ((UMSStatus*)m_status)->lpb.media.duration;
 
             m_audio_index = ((UMSStatus*)m_status)->lpb.audio.index;
@@ -1047,7 +1091,19 @@ void CSMPPlayer::Process()
               m_video_fps = (float)((UMSStatus*)m_status)->lpb.video.format.format.image.rateM / m_video_fps;
             m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
             m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
-
+            
+#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
+            // check for mkv chapters (one time check)
+            if (m_chapter_count == 0 && ((UMSStatus*)m_status)->lpb.media.nb_chapters > 0)
+            {
+              m_chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
+              for (int i = 0; i < m_chapter_count; i++)
+              {
+                m_chapters[i].name = ((UMSStatus*)m_status)->lpb.media.chapterList[i].pName;
+                m_chapters[i].seekto_ms = ((UMSStatus*)m_status)->lpb.media.chapterList[i].time_ms;
+              }
+            }
+#endif
             if (((UMSStatus*)m_status)->lpb.subtitle.index >= 0)
               m_subtitle_index = ((UMSStatus*)m_status)->lpb.subtitle.index;
             m_subtitle_count = ((UMSStatus*)m_status)->lpb.media.subtitle_streams;
