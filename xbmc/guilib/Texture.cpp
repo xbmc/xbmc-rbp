@@ -472,8 +472,6 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   if (!g_Windowing.IsCreated())
     return false;
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:begin");
-
   XFILE::CFile file;
   uint8_t *imageBuff = NULL;
   int64_t imageBuffSize = 0;
@@ -484,19 +482,21 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   //and resulting networking
   if (file.Open(texturePath, 0))
   {
-    imageBuffSize =file.GetLength();
-    imageBuff = new uint8_t[imageBuffSize];
-    uint64_t tmp_size = imageBuffSize;
-    imageBuffSize = file.Read(imageBuff, imageBuffSize);
+    int64_t imgsize;
+    imgsize = file.GetLength();
+    imageBuff = new uint8_t[imgsize];
+    imageBuffSize = file.Read(imageBuff, imgsize);                                                           
     file.Close();
+
+    if (imgsize != imageBuffSize)
+      CLog::Log(LOGERROR,"CBaseTexture::LoadHWAccelerated:imgsize(%llu) != imageBuffSize(%llu)",
+        imgsize, imageBuffSize);
+
     if (imageBuffSize <= 0)
     {
       delete [] imageBuff;
       return false;
     }
-    if (tmp_size != imageBuffSize)
-      CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:tmp_size(%llu), imageBuffSize(%llu)",
-        tmp_size, imageBuffSize);
   }
   else
   {
@@ -539,7 +539,6 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
     return false;
   }
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:CreateImageProvider");
   IDirectFBImageProvider *provider = NULL;
   err = buffer->CreateImageProvider(buffer, &provider);
   if (err != DFB_OK)
@@ -560,8 +559,6 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
   dsc.pixelformat = DSPF_ARGB;
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:CreateSurface");
-
   // create the surface and render the compressed image to it.
   // once we render to it, we can release/delete most dfb objects.
   IDirectFBSurface *imagesurface = NULL;
@@ -580,8 +577,6 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   buffer->Release(buffer);
   delete [] imageBuff;
 
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:memcpy to m_pixels");
-
   Allocate(dsc.width, dsc.height, XB_FMT_A8R8G8B8);
   // lock the rendered surface, get a read pointer to it
   // and memcpy the contents into our m_pixels.
@@ -591,8 +586,6 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   memcpy(m_pixels, src, GetPitch() * dsc.height);
   imagesurface->Unlock(imagesurface);
   imagesurface->Release(imagesurface);
-
-  //CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:done");
 
   ClampToEdge();
 
