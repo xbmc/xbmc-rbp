@@ -72,227 +72,82 @@ static const char *mediaType2String(TMediaType type)
 
   switch (type)
   {
-    case MTYPE_ELEM_NONE:
-      // 0x0000
-      // no elementary data exists or the format is irrelevant
-      text = "none";
-    break;
-
-    case MTYPE_ELEM_UNKNOWN:
-      // 0x00FF
-      // elementary data exists, is relevant but the format is unknown
-      text = "unknown";
-    break;
-
-    case MTYPE_ELEM_MPEG1:
-      // 0x0011
-      text = "MPEG1 video";
-    break;
-
-    case MTYPE_ELEM_MPEG2:
-      // 0x0012
-      text = "MPEG2 video";
-    break;
-
-    case MTYPE_ELEM_MPEG4:
-      // 0x0014
-      text = "MPEG4 video";
-    break;
-
-    case MTYPE_ELEM_AVC:
-      // 0x001A
-      text = "MPEG4 AVC video";
-    break;
-
-    case MTYPE_ELEM_VC1:
-      // 0x0020
-      text = "VC1 video";
-    break;
-
-    case MTYPE_ELEM_DIVX3:
-      // 0x0033
-      text = "DIVX 3 video";
-    break;
-
-    case MTYPE_ELEM_DIVX4:
-      // 0x0034
-      text = "DIVX 4 video";
-    break;
-/*
-    case MTYPE_ELEM_MPA:
-      // 0x0040
-      // any MPEG audio
-      text = "MPEG audio";
-    break;
-*/
-
-    case MTYPE_ELEM_MP1:
-      // 0x0041
-      text = "MPEG1 Layer 1-2 audio";
-    break;
-
-/*
-    case MTYPE_ELEM_MP2:
-      // 0x0042
-      text = "MPEG1 Layer 2 audio";
-    break;
-*/
-
-    case MTYPE_ELEM_MP3:
-      // 0x0043
-      text = "MPEG1 Layer 3 (MP3) audio";
-    break;
-
-    case MTYPE_ELEM_MP2MC:
-      // 0x0044
-      text = "MPEG2 (MC) audio";
-    break;
-
-    case MTYPE_ELEM_AAC:
-      // 0x0045
-      text = "MPEG2 AAC audio";
-    break;
-
-    case MTYPE_ELEM_AACP:
-      // 0x0046
-      text = "MPEG2 AAC+ audio";
-    break;
-
-    case MTYPE_ELEM_AC3:
-      // 0x0053
-      text = "Dolby Digital (AC3) audio";
-    break;
-
-    case MTYPE_ELEM_DDP:
-      // 0x0054
-      text = "Dolby Digital Plus audio";
-    break;
-
-    case MTYPE_ELEM_DLLS:
-      // 0x0055
-      text = "? audio";
-    break;
-
-    case MTYPE_ELEM_DTS:
-      // 0x0060
-      text = "DTS audio";
-    break;
-
-    case MTYPE_ELEM_DTSHD:
-      // 0x0061
-      text = "DTS-HD audio";
-    break;
-
-    case MTYPE_ELEM_PCM:
-      // 0x0070
-      text = "PCM audio";
-    break;
-
-    case MTYPE_ELEM_WMA:
-      // 0x0080
-      text = "WMA";
-    break;
-
-    case MTYPE_ELEM_WMAPRO:
-      // 0x0081
-      text = "WMA-PRO";
-    break;
-
-    case MTYPE_ELEM_SPU:
-      // 0x0090
-      text = "SD graphic subtitles";
-    break;
-
-    case MTYPE_ELEM_PG:
-      // 0x0091
-      text = "HD graphic subtitles";
-    break;
-
-    case MTYPE_ELEM_IG:
-      // 0x00A0
-      text = "Interactive graphics";
-    break;
-
-    case MTYPE_ELEM_TS:
-      // 0x00A2
-      text = "Text subtitles";
-    break;
-
-    case MTYPE_ELEM_JPEG:
-      // 0x00B0
-      text = "JPEG graphics";
-    break;
-
-    case MTYPE_ELEM_GIF:
-      // 0x00B1
-      text = "GIF graphics";
-    break;
-
-    case MTYPE_ELEM_PNG:
-      // 0x00B2
-      text = "PNG graphics";
-    break;
-
-    case MTYPE_ELEM_BMP:
-      // 0x00B3
-      text = "BMP graphics";
-    break;
-
-    case MTYPE_ELEM_TIFF:
-      // 0x00B4
-      text = "TIFF graphics";
-    break;
-
-    case MTYPE_ELEM_PIXMAP:
-      // 0x00BF
-      // uncompressed pixel map
-      text = "RAW graphics";
-    break;
-
-    case MTYPE_ELEM_ASCII:
-      // 0x00C1
-      text = "ASCII text";
-    break;
-
-    case MTYPE_ELEM_FONT:
-      // 0x00C2
-      // TrueType font data
-      text = "Font data";
-    break;
-
-    case MTYPE_ELEM_VIDEO:
-      // 0x00F1
-      // any video type
-      text = "video";
-    break;
-
-    case MTYPE_ELEM_AUDIO:
-      // 0x00F2
-      // any audio type
-      text = "audio";
-    break;
-
-    case MTYPE_ELEM_GRAPHICS:
-      // 0x00F3
-      // any graphics type
-      text = "graphics";
-    break;
-
-    case MTYPE_CONT_ASF:
-      text = "asf";
-    break;
-
-    case MTYPE_CONT_AVI:
-      text = "avi";
-    break;
-
-  default:
-      text = "invalid value";
-      break;
+    case MTYPE_ELEM_NONE:     text = "none";                      break;
+    case MTYPE_ELEM_UNKNOWN:  text = "unknown";                   break;
+    case MTYPE_ELEM_MPEG1:    text = "MPEG1 video";               break;
+    case MTYPE_ELEM_MPEG2:    text = "MPEG2 video";               break;
+    case MTYPE_ELEM_MPEG4:    text = "MPEG4 video";               break;
+    case MTYPE_ELEM_AVC:      text = "MPEG4 AVC video";           break;
+    case MTYPE_ELEM_VC1:      text = "VC1 video";                 break;
+    case MTYPE_ELEM_DIVX3:    text = "DIVX 3 video";              break;
+    case MTYPE_ELEM_DIVX4:    text = "DIVX 4 video";              break;
+    //case MTYPE_ELEM_MPA:    text = "MPEG audio";                break;
+    case MTYPE_ELEM_MP1:      text = "MPEG1 Layer 1-2 audio";     break;
+    //case MTYPE_ELEM_MP2:    text = "MPEG1 Layer 2 audio";       break;
+    case MTYPE_ELEM_MP3:      text = "MPEG1 Layer 3 (MP3) audio"; break;
+    case MTYPE_ELEM_MP2MC:    text = "MPEG2 (MC) audio";          break;
+    case MTYPE_ELEM_AAC:      text = "MPEG2 AAC audio";           break;
+    case MTYPE_ELEM_AACP:     text = "MPEG2 AAC+ audio";          break;
+    case MTYPE_ELEM_AC3:      text = "Dolby Digital (AC3) audio"; break;
+    case MTYPE_ELEM_DDP:      text = "Dolby Digital Plus audio";  break;
+    case MTYPE_ELEM_DLLS:     text = "? audio";                   break;
+    case MTYPE_ELEM_DTS:      text = "DTS audio";                 break;
+    case MTYPE_ELEM_DTSHD:    text = "DTS-HD audio";              break;
+    case MTYPE_ELEM_PCM:      text = "PCM audio";                 break;
+    case MTYPE_ELEM_WMA:      text = "WMA";                       break;
+    case MTYPE_ELEM_WMAPRO:   text = "WMA-PRO";                   break;
+    case MTYPE_ELEM_SPU:      text = "SD graphic subtitles";      break;
+    case MTYPE_ELEM_PG:       text = "HD graphic subtitles";      break;
+    case MTYPE_ELEM_IG:       text = "Interactive graphics";      break;
+    case MTYPE_ELEM_TS:       text = "Text subtitles";            break;
+    case MTYPE_ELEM_JPEG:     text = "JPEG graphics";             break;
+    case MTYPE_ELEM_GIF:      text = "GIF graphics";              break;
+    case MTYPE_ELEM_PNG:      text = "PNG graphics";              break;
+    case MTYPE_ELEM_BMP:      text = "BMP graphics";              break;
+    case MTYPE_ELEM_TIFF:     text = "TIFF graphics";             break;
+    case MTYPE_ELEM_PIXMAP:   text = "RAW graphics";              break;
+    case MTYPE_ELEM_ASCII:    text = "ASCII text";                break;
+    case MTYPE_ELEM_FONT:     text = "Font data";                 break;
+    case MTYPE_ELEM_VIDEO:    text = "video";                     break;
+    case MTYPE_ELEM_AUDIO:    text = "audio";                     break;
+    case MTYPE_ELEM_GRAPHICS: text = "graphics";                  break;
+    case MTYPE_CONT_ASF:      text = "asf";                       break;
+    case MTYPE_CONT_AVI:      text = "avi";                       break;
+    default:                  text = "invalid value";             break;
   }
   return text;
 }
 
+static const char *mediaTypeToCodecName(TMediaType type)
+{
+  const char *text = NULL;
+
+  switch (type)
+  {
+    case MTYPE_ELEM_MPEG1:    text = "mpeg1video";  break;
+    case MTYPE_ELEM_MPEG2:    text = "mpeg2video";  break;
+    case MTYPE_ELEM_MPEG4:    text = "mpeg4";       break;
+    case MTYPE_ELEM_AVC:      text = "avc1";        break;
+    case MTYPE_ELEM_VC1:      text = "vc-1";        break;
+    case MTYPE_ELEM_DIVX3:    text = "divx";        break;
+    case MTYPE_ELEM_DIVX4:    text = "divx";        break;
+    case MTYPE_ELEM_MP1:      text = "mp1";         break;
+    //case MTYPE_ELEM_MP2:    text = "mp2";         break;
+    case MTYPE_ELEM_MP3:      text = "mp3";         break;
+    case MTYPE_ELEM_MP2MC:    text = "mp2";         break;
+    case MTYPE_ELEM_AAC:      text = "aac";         break;
+    case MTYPE_ELEM_AACP:     text = "aac";         break;
+    case MTYPE_ELEM_AC3:      text = "ac3";         break;
+    case MTYPE_ELEM_DDP:      text = "dca";         break;
+    case MTYPE_ELEM_DTS:      text = "dts";         break;
+    case MTYPE_ELEM_DTSHD:    text = "dtshd-ma";    break;
+    case MTYPE_ELEM_PCM:      text = "pcm";         break;
+    case MTYPE_ELEM_WMA:      text = "wma";         break;
+    case MTYPE_ELEM_WMAPRO:   text = "wmapro";      break;
+    default:                  text = "";            break;
+  }
+  return text;
+}
 
 CSMPPlayer::CSMPPlayer(IPlayerCallback &callback) 
   : IPlayer(callback),
@@ -904,16 +759,18 @@ int CSMPPlayer::GetSampleRate()
 
 CStdString CSMPPlayer::GetAudioCodecName()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioCodecName");
-  // return the 4c name
-  return "";
+  CStdString strAudioCodec;
+  if (GetAmpStatus())
+    strAudioCodec = mediaTypeToCodecName(((UMSStatus*)m_status)->lpb.audio.format.mediaType);
+  return strAudioCodec;
 }
 
 CStdString CSMPPlayer::GetVideoCodecName()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoCodecName");
-  // return the 4c name
-  return "";
+  CStdString strVideoCodec;
+  if (GetAmpStatus())
+    strVideoCodec = mediaTypeToCodecName(((UMSStatus*)m_status)->lpb.audio.format.mediaType);
+  return strVideoCodec;
 }
 
 int CSMPPlayer::GetPictureWidth()
