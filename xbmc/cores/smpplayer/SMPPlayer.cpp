@@ -42,8 +42,6 @@
 #include <directfb/iadvancedmediaprovider.h>
 #include <cdefs_lpb.h>
 
-//#define HAS_SM_BY_TIME_MS
-
 union UMSStatus
 {
   struct SStatus      generic;
@@ -234,6 +232,7 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
         g_windowManager.Process(false);
       dialog->Close();
     }
+    // just in case process thread throws.
     m_ready.Set();
 
     // Playback might have been stopped due to some error
@@ -264,7 +263,7 @@ bool CSMPPlayer::CloseFile()
   if (m_amp)
     m_amp->Release(m_amp);
   m_amp = NULL;
-  //  The event buffer must be released after the CloseMedia()/Release call
+  //  The event buffer must be released after the Release call
   if (m_amp_event)
     m_amp_event->Release(m_amp_event);
   m_amp_event = NULL;
@@ -681,16 +680,11 @@ void CSMPPlayer::SeekTime(__int64 iTime)
   cmd.cmd = LPBCmd_SEEK;
   cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-#ifdef HAS_SM_BY_TIME_MS
-  cmd.param1.seekMode    = SM_BY_TIME_MS;
-  cmd.param2.timems      = (uint32_t)iTime;
-#else
   cmd.param1.seekMode    = SM_BY_TIME;
   cmd.param2.time.Hour   = 0;
   cmd.param2.time.Minute = 0;
   cmd.param2.time.Second = (uint32_t)iTime / 1000;
   cmd.param2.time.Frame  = 0;
-#endif
 
   SLPBResult res;
   res.dataSize = sizeof(res);
@@ -882,13 +876,19 @@ void CSMPPlayer::Process()
     // default to hinting container type
     CStdString extension;
     extension = URIUtils::GetExtension(m_item.m_strPath);
-    if (extension.Equals(".mkv"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
+    if (extension.Equals(".wmv"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_ASF;
     else if (extension.Equals(".avi"))
       format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_AVI;
+    else if (extension.Equals(".mkv"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
+    else if (extension.Equals(".mp4"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
     else if (extension.Equals(".mov"))
       format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
     else if (extension.Equals(".mpg"))
+      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+    else if (extension.Equals(".vob"))
       format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
     else if (extension.Equals(".ts"))
       format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
@@ -915,6 +915,8 @@ void CSMPPlayer::Process()
   parameters.maxPrebufferSize = 1;
 
 #if 0
+//#if defined(SLPBPARAMS_MAX_TEXT_SUBS)
+  // SRT, SSA, ASS, SUB/IDX or SMI
   // find any available external subtitles
   std::vector<CStdString> filenames;
   CUtil::ScanForExternalSubtitles( m_item.m_strPath, filenames );
@@ -1115,11 +1117,7 @@ bool CSMPPlayer::GetAmpStatus()
   // get status, only update what has changed (DFB_FALSE).
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_FALSE) == DFB_OK)
   {
-#ifdef HAS_SM_BY_TIME_MS
-    m_elapsed_ms  = ((UMSStatus*)m_status)->generic.elapsedTimeMs;
-#else
     m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
-#endif
     //m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
     //m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
       
