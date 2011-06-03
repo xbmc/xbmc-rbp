@@ -152,8 +152,8 @@ private:
   int                     m_ampID;
   CCriticalSection        m_amp_status_csection;
 
-  uint64_t                m_elapsed_ms;
-  uint64_t                m_duration_ms;
+  int64_t                 m_elapsed_ms;
+  int64_t                 m_duration_ms;
   int                     m_audio_index;
   int                     m_audio_count;
   CStdString              m_audio_info;
@@ -165,12 +165,11 @@ private:
   int                     m_subtitle_count;
   bool                    m_subtitle_show;
   
-  int                     m_chapter_index;
   int                     m_chapter_count;
   struct chapters
   {
     std::string name;
-    uint64_t    seekto_ms;
+    int64_t     seekto_ms;
   }                       m_chapters[64];
 
   float                   m_video_fps;
