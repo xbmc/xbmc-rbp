@@ -798,6 +798,14 @@ void CGUISettings::Initialize()
   AddInt(NULL, "window.height", 0, 480, 10, 1, INT_MAX, SPIN_CONTROL_INT);
 
   AddPath(NULL,"system.playlistspath",20006,"set default",BUTTON_CONTROL_PATH_INPUT,false);
+
+#if defined (HAVE_SIGMASMP)
+  g_guiSettings.SetBool("services.webserver", true);
+  g_guiSettings.SetBool("services.esallinterfaces", true);
+  g_guiSettings.SetBool("input.enablemouse", false);
+  g_guiSettings.SetBool("lookandfeel.enablerssfeeds", false);
+
+#endif
 }
 
 CGUISettings::~CGUISettings(void)
