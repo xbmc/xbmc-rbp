@@ -200,6 +200,7 @@
 #undef HAS_SDL_AUDIO
 #undef HAS_DBUS
 #undef HAS_DBUS_SERVER
+#undef HAS_LIRC
 #endif
 
 // EGL detected. Dont use GLX!

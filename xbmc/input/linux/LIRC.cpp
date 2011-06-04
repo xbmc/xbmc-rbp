@@ -19,6 +19,10 @@
 *
 */
 
+#include "system.h"
+
+#if defined (HAS_LIRC)
+
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -352,3 +356,4 @@ void CRemoteControl::AddSendCommand(const CStdString& command)
   m_sendData += '\n';
 }
 
+#endif
