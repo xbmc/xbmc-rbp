@@ -22,9 +22,10 @@
 #include "system.h"
 
 #if defined (HAVE_SIGMASMP)
+#include "SMPPlayer.h"
 #include "Application.h"
 #include "FileItem.h"
-#include "SMPPlayer.h"
+#include "GUIInfoManager.h"
 #include "cores/VideoRenderers/RenderManager.h"
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIWindowManager.h"
@@ -196,6 +197,7 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_video_info  = "none";
     m_subtitle_index = -1;
     m_subtitle_count =  0;
+    m_chapter_index  =  0;
     m_chapter_count  =  0;
 
     m_video_fps      =  0.0;
@@ -281,6 +283,8 @@ bool CSMPPlayer::IsPlaying() const
 
 void CSMPPlayer::Pause()
 {
+  CSingleLock lock(m_amp_command_csection);
+
   if (!m_amp && m_StopPlaying)
     return;
 
@@ -304,7 +308,6 @@ void CSMPPlayer::Pause()
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
     CLog::Log(LOGERROR, "CSMPPlayer::Pause:AMP command failed!");
 }
@@ -331,16 +334,19 @@ void CSMPPlayer::ToggleFrameDrop()
 
 bool CSMPPlayer::CanSeek()
 {
-  return true;
+  return GetTotalTime() > 0;
 }
 
 void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
 {
+  CSingleLock lock(m_amp_command_csection);
+
+  // try chapter seeking first, chapter_index is ones based.
   int chapter_index = GetChapter();
   if (bLargeStep)
   {
     // seek to next chapter
-    if (bPlus && chapter_index < m_chapter_count)
+    if (bPlus && (chapter_index < GetChapterCount()))
     {
       SeekChapter(chapter_index + 1);
       return;
@@ -409,17 +415,35 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
   cmd.param2.time.Frame  = 0;
   cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-  CLog::Log(LOGDEBUG, "CSMPPlayer::Seek:to Hour(%lu), Minute(%lu), Second(%lu)",
-    cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::Seek:to Hour(%lu), Minute(%lu), Second(%lu)",
+  //  cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
 
   SLPBResult res;
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
-  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+  // This will popup seek info dialog if skin supports it
+  //g_infoManager.SetDisplayAfterSeek(100000);
+  //m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
+  //g_windowManager.Process(false);
 
-  m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
+  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+    CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
+
+  if (IS_SUCCESS( ((SResult*)&res)->value ))
+  {
+    // wait until this seek starts playing
+    for (int timeout = 100; timeout > 0; timeout--)
+    {
+      usleep(10*1000);
+      // wait until this chapter starts playing
+      if (GetAmpStatus() && (GetTime() >= seek_ms))
+        break;
+      //g_windowManager.Process(false);
+      usleep(10*1000);
+    }
+  }
+  //g_infoManager.SetDisplayAfterSeek();
 }
 
 bool CSMPPlayer::SeekScene(bool bPlus)
@@ -430,6 +454,8 @@ bool CSMPPlayer::SeekScene(bool bPlus)
 
 void CSMPPlayer::SeekPercentage(float fPercent)
 {
+  CSingleLock lock(m_amp_command_csection);
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SEEK;
   cmd.dataSize = sizeof(cmd);
@@ -441,8 +467,8 @@ void CSMPPlayer::SeekPercentage(float fPercent)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
-  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+    CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
 }
 
 float CSMPPlayer::GetPercentage()
@@ -456,11 +482,11 @@ float CSMPPlayer::GetPercentage()
 
 void CSMPPlayer::SetVolume(long nVolume)
 {
+  CSingleLock lock(m_amp_command_csection);
   // nVolume is a milliBels from -6000 (-60dB or mute) to 0 (0dB or full volume)
   // 0db is represented by Volume = 0x10000000
   // bit shifts adjust by 6db.
   // Maximum gain is 0xFFFFFFFF ~=24db
-
   uint32_t volume = (1.0f + (nVolume / 6000.0f)) * (float)0x10000000;
 
   SAdjustment adjustment;
@@ -475,7 +501,6 @@ void CSMPPlayer::SetVolume(long nVolume)
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   cmd.control.adjustment = &adjustment;
 
-  CSingleLock lock(m_amp_command_csection);
   if (m_amp->PostPresentationCmd(m_amp, (SCommand*)&cmd) != DFB_OK)
     CLog::Log(LOGDEBUG, "CSMPPlayer::SetVolume:AMP command failed!");
 }
@@ -526,7 +551,8 @@ int CSMPPlayer::GetAudioStream()
 
 void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamName");
+  CSingleLock lock(m_amp_command_csection);
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_GET_AUDIO_STREAM_INFO;
   cmd.param1.streamIndex = iStream;
@@ -537,16 +563,17 @@ void CSMPPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
     strStreamName.Format("%s", res.value.streamInfo.name);
   else
     strStreamName.Format("Undefined");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetAudioStreamName");
 }
  
 void CSMPPlayer::SetAudioStream(int SetAudioStream)
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::SetAudioStream");
+  CSingleLock lock(m_amp_command_csection);
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_AUDIO_STREAM;
   cmd.param1.streamIndex = SetAudioStream;
@@ -557,8 +584,8 @@ void CSMPPlayer::SetAudioStream(int SetAudioStream)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::SetAudioStream");
 }
 
 int CSMPPlayer::GetSubtitleCount()
@@ -581,7 +608,8 @@ int CSMPPlayer::GetSubtitle()
 
 void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleName");
+  CSingleLock lock(m_amp_command_csection);
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_GET_SUBTITLE_STREAM_INFO;
   cmd.param1.streamIndex = iStream;
@@ -592,16 +620,17 @@ void CSMPPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) == DFB_OK)
     strStreamName.Format("%s", res.value.streamInfo.name);
   else
     strStreamName.Format("Undefined");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetSubtitleName");
 }
  
 void CSMPPlayer::SetSubtitle(int iStream)
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::SetSubtitle");
+  CSingleLock lock(m_amp_command_csection);
+
   SLPBCommand cmd;
   cmd.cmd = LPBCmd_SELECT_SUBTITLE_STREAM;
   cmd.param1.streamIndex = iStream;
@@ -612,8 +641,8 @@ void CSMPPlayer::SetSubtitle(int iStream)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::SetSubtitle");
 }
 
 bool CSMPPlayer::GetSubtitleVisible()
@@ -623,6 +652,8 @@ bool CSMPPlayer::GetSubtitleVisible()
 
 void CSMPPlayer::SetSubtitleVisible(bool bVisible)
 {
+  CSingleLock lock(m_amp_command_csection);
+
   m_subtitle_show = bVisible;
   g_settings.m_currentVideoSettings.m_SubtitleOn = bVisible;
 
@@ -639,13 +670,12 @@ void CSMPPlayer::SetSubtitleVisible(bool bVisible)
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
   m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
 }
 
 int CSMPPlayer::AddSubtitle(const CStdString& strSubPath)
 {
-  // not sure we can add a subtitle file on the fly.
+  // this waits until we can stop/restart amp stream.
   return -1;
 }
 
@@ -666,77 +696,92 @@ void CSMPPlayer::GetVideoAspectRatio(float &fAR)
 
 int CSMPPlayer::GetChapterCount()
 {
-#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
-  // check for avi/mkv chapters.
-  if (m_chapter_count == 0)
-  {
-    // we only do this if m_chapter_count is equal to zero,
-    // as once the chapter count gets updated it does not change unless
-    // the stream changes. In this case, m_chapter_count gets reset to zero.
-    if (GetAmpStatus() && ((UMSStatus*)m_status)->lpb.media.nb_chapters > 0)
-    {
-      m_chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
-      for (int i = 0; i < m_chapter_count; i++)
-      {
-        m_chapters[i].name = ((UMSStatus*)m_status)->lpb.media.chapterList[i].pName;
-        m_chapters[i].seekto_ms = ((UMSStatus*)m_status)->lpb.media.chapterList[i].time_ms;
-        //CLog::Log(LOGDEBUG, "CSMPPlayer::GetChapterCount:seekto_ms(%lld)", m_chapters[i].seekto_ms);
-      }
-    }
-  }
-#endif
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetChapterCount:m_chapter_count(%d)", m_chapter_count);
   return m_chapter_count;
 }
 
 int CSMPPlayer::GetChapter()
 {
   // returns a one based value.
-  // if we have a chapter list, we need to figure out which chapter we are in.
-  int chapter_index = 0;
-#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
-  // make sure we have a current m_elapsed_ms
-  GetAmpStatus();
-
-  for (int chapter_num = m_chapter_count; chapter_num > 0; chapter_num--)
-  {
-    chapter_index = chapter_num - 1;
-    if (m_elapsed_ms > m_chapters[chapter_index].seekto_ms)
-      break;
-  }
-#endif
-
+  int chapter_index = m_chapter_index + 1;
   //CLog::Log(LOGDEBUG, "CSMPPlayer::GetChapter:chapter_index(%d)", chapter_index);
-  return chapter_index + 1;
+  return chapter_index;
 }
 
 void CSMPPlayer::GetChapterName(CStdString& strChapterName)
 {
   if (m_chapter_count)
-    strChapterName = m_chapters[GetChapter() - 1].name;
+    strChapterName = m_chapters[m_chapter_index].name;
   //CLog::Log(LOGDEBUG, "CSMPPlayer::GetChapterName:strChapterName(%s)", strChapterName.c_str());
 }
 
 int CSMPPlayer::SeekChapter(int chapter_index)
 {
-  // chapter_index is a one based value.
-  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekChapter:chapter_index(%d)", chapter_index);
-#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
-  if (m_chapter_count > 0)
-  {
-    if (chapter_index < 0)
-      chapter_index = 0;
-    if (chapter_index > m_chapter_count)
-      return 0;
+  CSingleLock lock(m_amp_command_csection);
 
-    // Seek to the chapter.
-    SeekTime(m_chapters[chapter_index - 1].seekto_ms);
+  // chapter_index is a one based value.
+  int chapter_count = GetChapterCount();
+  if (chapter_count > 0)
+  {
+    if (chapter_index < 1)
+      chapter_index = 1;
+    if (chapter_index > chapter_count)
+      chapter_index = chapter_count;
+
+    // seek to the chapter.
+    // bugfix: dcchd forward seek is ok, backward seek can put us one
+    // second into previous chapter from the one we want.
+    int64_t seek_ms = m_chapters[chapter_index - 1].seekto_ms + 1000;
+
+    // bugfix: dcchd takes forever to seek to 0 and play
+    //  seek to 1 second and play is immediate.
+    if (seek_ms <= 0)
+      seek_ms = 1000;
+
+    SLPBCommand cmd;
+    cmd.cmd = LPBCmd_SEEK;
+    cmd.dataSize = sizeof(cmd);
+    cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+    cmd.param1.seekMode    = SM_BY_TIME;
+    cmd.param2.time.Hour   = (seek_ms / 3600000);
+    cmd.param2.time.Minute = (seek_ms / 60000) % 60;
+    cmd.param2.time.Second = (seek_ms / 1000)  % 60;
+    cmd.param2.time.Frame  = 0;
+    CLog::Log(LOGDEBUG, "CSMPPlayer::SeekChapter:to Hour(%lu), Minute(%lu), Second(%lu)",
+      cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
+
+    SLPBResult res;
+    res.dataSize = sizeof(res);
+    res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+    // This will popup seek info dialog if skin supports it.
+    //g_infoManager.SetDisplayAfterSeek(100000);
+    //m_callback.OnPlayBackSeekChapter(GetChapter());
+    //g_windowManager.Process(false);
+
+    if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+      CLog::Log(LOGERROR, "CSMPPlayer::SeekChapter:ExecutePresentationCmd failed!");
+
+    if (IS_SUCCESS( ((SResult*)&res)->value ))
+    {
+      for (int timeout = 100; timeout > 0; timeout--)
+      {
+        usleep(10*1000);
+        // wait until this chapter starts playing
+        if (GetAmpStatus() && (chapter_index == GetChapter()))
+          break;
+        //g_windowManager.Process(false);
+      }
+    }
+    else
+    {
+      CLog::Log(LOGDEBUG, "CSMPPlayer::SeekChapter:LPBCmd_SEEK failed");
+    }
+    //g_infoManager.SetDisplayAfterSeek();
   }
   else
-#endif
   {
     // we do not have a chapter list so do a regular big jump.
-    if (chapter_index > 0)
+    if (chapter_index > GetChapter())
       Seek(true,  true);
     else
       Seek(false, true);
@@ -761,6 +806,7 @@ float CSMPPlayer::GetActualFPS()
 
 void CSMPPlayer::SeekTime(__int64 seek_ms)
 {
+  CSingleLock lock(m_amp_command_csection);
   // bugfix, dcchd takes forever to seek to 0 and play
   //  seek to 1 second and play is immediate.
   if (seek_ms <= 0)
@@ -776,17 +822,34 @@ void CSMPPlayer::SeekTime(__int64 seek_ms)
   cmd.param2.time.Minute = (seek_ms / 60000) % 60;
   cmd.param2.time.Second = (seek_ms / 1000)  % 60;
   cmd.param2.time.Frame  = 0;
-  CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime:to Hour(%lu), Minute(%lu), Second(%lu)",
-    cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime:to Hour(%lu), Minute(%lu), Second(%lu)",
+  //  cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
 
   SLPBResult res;
   res.dataSize = sizeof(res);
   res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-  CSingleLock lock(m_amp_command_csection);
-  m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res);
+  // This will popup seek info dialog if skin supports it.
+  //g_infoManager.SetDisplayAfterSeek(100000);
+  //m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - GetTime()));
+  //g_windowManager.Process(false);
 
-  m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
+  if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+    CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
+
+  if (IS_SUCCESS( ((SResult*)&res)->value ))
+  {
+    // wait until this seek starts playing
+    for (int timeout = 100; timeout > 0; timeout--)
+    {
+      usleep(10*1000);
+      // wait until this chapter starts playing
+      if (GetAmpStatus() && (GetTime() >= seek_ms))
+        break;
+      //g_windowManager.Process(false);
+    }
+  }
+  //g_infoManager.SetDisplayAfterSeek();
 }
 
 __int64 CSMPPlayer::GetTime()
@@ -883,6 +946,8 @@ bool CSMPPlayer::GetStreamDetails(CStreamDetails &details)
 
 void CSMPPlayer::ToFFRW(int iSpeed)
 {
+  CSingleLock lock(m_amp_command_csection);
+
   if (!m_amp && m_StopPlaying)
     return;
 
@@ -918,9 +983,8 @@ void CSMPPlayer::ToFFRW(int iSpeed)
     res.dataSize = sizeof(res);
     res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
 
-    CSingleLock lock(m_amp_command_csection);
     if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
-      CLog::Log(LOGDEBUG, "CSMPPlayer::ToFFRW:AMP command failed!");
+      CLog::Log(LOGERROR, "CSMPPlayer::ToFFRW:AMP command failed!");
 
     m_speed = iSpeed;
   }
@@ -1001,10 +1065,15 @@ void CSMPPlayer::Process()
   // Setup open parameters
   struct SLPBOpenParams parameters = {0, };
   parameters.zero = 0;
+  // magic cookie to indicate this is binary params
   parameters.a1b2c3d4 = 0xa1b2c3d4;
-  //
+  // audio offset time from video in milliseconds 
+  parameters.audioOffset = 0;
+  // system time clock offset in milliseconds.
+  // negative values will delay start of presentation.
   parameters.stcOffset = -200;
-  parameters.maxPrebufferSize = 1;
+  // max prebuffersize in bytes, 0 for default
+  parameters.maxPrebufferSize = 100 * 1024;
 
 #if 0
 //#if defined(SLPBPARAMS_MAX_TEXT_SUBS)
@@ -1100,6 +1169,10 @@ void CSMPPlayer::Process()
     // get our initial status.
     GetAmpStatus();
 
+    // starttime has units of seconds
+    if (m_options.starttime > 0)
+      SeekTime(m_options.starttime * 1000);
+
     // once playback starts, we can turn on/off subs
     SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
 
@@ -1115,7 +1188,10 @@ void CSMPPlayer::Process()
 
         if (GetAmpStatus() && (((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
           (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
-            m_StopPlaying = true;
+        {
+          m_StopPlaying = true;
+          break;
+        }
       }
       else
       {
@@ -1127,7 +1203,7 @@ void CSMPPlayer::Process()
   }
   else
   {
-    CLog::Log(LOGDEBUG, "StartPresentation() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
+    CLog::Log(LOGDEBUG, "CSMPPlayer::Process: WaitForAmpPlaying() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
       (long unsigned int)((UMSStatus*)m_status)->generic.flags,
       (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
   }
@@ -1209,7 +1285,67 @@ bool CSMPPlayer::GetAmpStatus()
   // get status, only update what has changed (DFB_FALSE).
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_FALSE) == DFB_OK)
   {
-    m_elapsed_ms  = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+    int elapsed_ms    = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
+    int chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
+
+    if ((elapsed_ms != m_elapsed_ms) || (chapter_count != m_chapter_count))
+    {
+#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
+      if (m_chapter_count != chapter_count)
+      {
+        // update avi/mkv chapters.
+        for (int i = 0; i < chapter_count; i++)
+        {
+          m_chapters[i].name = ((UMSStatus*)m_status)->lpb.media.chapterList[i].pName;
+          m_chapters[i].seekto_ms = ((UMSStatus*)m_status)->lpb.media.chapterList[i].time_ms;
+        }
+        // update internal AFTER we update names/seekto_ms.
+        m_chapter_count = chapter_count;
+      }
+#endif
+
+      int chapter_index = 0;
+      // check for a chapter list and figure out which chapter we are in.
+      // chapter_index is zero based here.
+      for (int chapter_num = m_chapter_count; chapter_num > 0; chapter_num--)
+      {
+        chapter_index = chapter_num - 1;
+        // potential problem here, elapsedTime is seconds so
+        // it will take one second+ for us to see any chapter seeks.
+        if (elapsed_ms >= m_chapters[chapter_index].seekto_ms)
+          break;
+      }
+      m_elapsed_ms = elapsed_ms;
+      if (m_chapter_index != chapter_index)
+      {
+        CLog::Log(LOGDEBUG, "CSMPPlayer::GetAmpStatus: chapter changed to (%d)",
+          chapter_index + 1);
+      }
+      m_chapter_index = chapter_index;
+    }
+/*
+    if (flags != ((UMSStatus*)m_status)->generic.mode.flags)
+    {
+      static uint32_t flags = 0;
+      flags = ((UMSStatus*)m_status)->generic.mode.flags;
+      last_id = ((UMSStatus*)m_status)->generic.lastCmd.id;
+      last_result = ((UMSStatus*)m_status)->generic.lastCmd.result;
+      CLog::Log(LOGDEBUG,"CSMPPlayer::GetAmpStatus: flags(0x%08lx)",
+         (long unsigned int)flags);
+    }
+    if (last_id != ((UMSStatus*)m_status)->generic.lastCmd.id)
+    {
+      static uint32_t last_id = 0;
+      static uint32_t last_result = 0;
+      last_id = ((UMSStatus*)m_status)->generic.lastCmd.id;
+      last_result = ((UMSStatus*)m_status)->generic.lastCmd.result;
+      CLog::Log(LOGDEBUG,"CSMPPlayer::GetAmpStatus:"
+        "last_id(0x%08lx)"
+        "last_result(0x%08lx)",
+        (long unsigned int)last_id,
+        (long unsigned int)last_result);
+    }
+*/
     //m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
     //m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
       

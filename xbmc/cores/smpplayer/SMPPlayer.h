@@ -165,6 +165,7 @@ private:
   int                     m_subtitle_count;
   bool                    m_subtitle_show;
   
+  int                     m_chapter_index;
   int                     m_chapter_count;
   struct chapters
   {
