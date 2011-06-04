@@ -359,7 +359,7 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
     }
   }
 
-  // force updated to m_duration_ms.
+  // force updated to m_elapsed_ms, m_duration_ms.
   GetTotalTime();
 
   int64_t seek_ms;
@@ -430,19 +430,6 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
     CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
 
-  if (IS_SUCCESS( ((SResult*)&res)->value ))
-  {
-    // wait until this seek starts playing
-    for (int timeout = 100; timeout > 0; timeout--)
-    {
-      usleep(10*1000);
-      // wait until this chapter starts playing
-      if (GetAmpStatus() && (GetTime() >= seek_ms))
-        break;
-      //g_windowManager.Process(false);
-      usleep(10*1000);
-    }
-  }
   //g_infoManager.SetDisplayAfterSeek();
 }
 
@@ -718,6 +705,7 @@ int CSMPPlayer::SeekChapter(int chapter_index)
 {
   CSingleLock lock(m_amp_command_csection);
 
+  GetAmpStatus();
   // chapter_index is a one based value.
   int chapter_count = GetChapterCount();
   if (chapter_count > 0)
@@ -727,9 +715,8 @@ int CSMPPlayer::SeekChapter(int chapter_index)
     if (chapter_index > chapter_count)
       chapter_index = chapter_count;
 
-    // seek to the chapter.
-    // bugfix: dcchd forward seek is ok, backward seek can put us one
-    // second into previous chapter from the one we want.
+    // amp time units are seconds,
+    // so we add 1000ms to get into the chapter.
     int64_t seek_ms = m_chapters[chapter_index - 1].seekto_ms + 1000;
 
     // bugfix: dcchd takes forever to seek to 0 and play
@@ -746,8 +733,8 @@ int CSMPPlayer::SeekChapter(int chapter_index)
     cmd.param2.time.Minute = (seek_ms / 60000) % 60;
     cmd.param2.time.Second = (seek_ms / 1000)  % 60;
     cmd.param2.time.Frame  = 0;
-    CLog::Log(LOGDEBUG, "CSMPPlayer::SeekChapter:to Hour(%lu), Minute(%lu), Second(%lu)",
-      cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
+    //CLog::Log(LOGDEBUG, "CSMPPlayer::SeekChapter:to Hour(%lu), Minute(%lu), Second(%lu)",
+    //  cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
 
     SLPBResult res;
     res.dataSize = sizeof(res);
@@ -763,11 +750,12 @@ int CSMPPlayer::SeekChapter(int chapter_index)
 
     if (IS_SUCCESS( ((SResult*)&res)->value ))
     {
-      for (int timeout = 100; timeout > 0; timeout--)
+      for (int timeout = 10; timeout > 0; timeout--)
       {
-        usleep(10*1000);
+        usleep(100*1000);
         // wait until this chapter starts playing
-        if (GetAmpStatus() && (chapter_index == GetChapter()))
+        GetAmpStatus();
+        if (chapter_index == GetChapter())
           break;
         //g_windowManager.Process(false);
       }
@@ -837,18 +825,6 @@ void CSMPPlayer::SeekTime(__int64 seek_ms)
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
     CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
 
-  if (IS_SUCCESS( ((SResult*)&res)->value ))
-  {
-    // wait until this seek starts playing
-    for (int timeout = 100; timeout > 0; timeout--)
-    {
-      usleep(10*1000);
-      // wait until this chapter starts playing
-      if (GetAmpStatus() && (GetTime() >= seek_ms))
-        break;
-      //g_windowManager.Process(false);
-    }
-  }
   //g_infoManager.SetDisplayAfterSeek();
 }
 
@@ -1311,16 +1287,11 @@ bool CSMPPlayer::GetAmpStatus()
       {
         chapter_index = chapter_num - 1;
         // potential problem here, elapsedTime is seconds so
-        // it will take one second+ for us to see any chapter seeks.
-        if (elapsed_ms >= m_chapters[chapter_index].seekto_ms)
+        // it might take one second+ for us to see any chapter seeks.
+        if ((elapsed_ms/1000) >= (m_chapters[chapter_index].seekto_ms/1000))
           break;
       }
       m_elapsed_ms = elapsed_ms;
-      if (m_chapter_index != chapter_index)
-      {
-        CLog::Log(LOGDEBUG, "CSMPPlayer::GetAmpStatus: chapter changed to (%d)",
-          chapter_index + 1);
-      }
       m_chapter_index = chapter_index;
     }
 /*
