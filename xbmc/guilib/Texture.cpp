@@ -180,13 +180,13 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     }
     return false;
   }
-
+/*
   if (URIUtils::GetExtension(texturePath).Equals(".jpg"))
   {
     if (LoadHWAccelerated(texturePath))
       return true;
   }
-
+*/
 #if defined(__APPLE__) && defined(__arm__)
   XFILE::CFile file;
   UInt8 *imageBuff      = NULL;
