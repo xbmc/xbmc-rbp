@@ -135,8 +135,12 @@ protected:
   virtual void  Process();
   
 private:
-  bool          WaitForAmpPlaying(int timeout);
-  bool          WaitForAmpStopped(int timeout);
+  int           GetVideoStreamCount();
+  void          ShowAmpVideoLayer(bool show);
+  bool          WaitForAmpPlaying(int timeout_ms);
+  bool          WaitForAmpOpenMedia(int timeout_ms);
+  bool          WaitForAmpFormatValid(int timeout_ms);
+  bool          WaitForWindowFullScreenVideo(int timeout_ms);
   bool          GetAmpStatus();
 
   int                     m_speed;
@@ -158,8 +162,8 @@ private:
   int                     m_audio_count;
   CStdString              m_audio_info;
   uint32_t                m_audio_channels;
-  //int                   m_video_index;
-  //int                   m_video_count;
+  int                     m_video_index;
+  int                     m_video_count;
   CStdString              m_video_info;
   int                     m_subtitle_index;
   int                     m_subtitle_count;

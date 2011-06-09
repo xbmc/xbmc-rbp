@@ -158,7 +158,7 @@ CSMPPlayer::CSMPPlayer(IPlayerCallback &callback)
   // request video layer
   m_ampID = MAIN_VIDEO_AMP_ID;
   //m_ampID = SECONDARY_VIDEO_AMP_ID;
-  m_speed = 1;
+  m_speed = 0;
   m_paused = false;
   m_StopPlaying = false;
 
@@ -192,8 +192,8 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_audio_index = -1;
     m_audio_count =  0;
     m_audio_info  = "none";
-    //m_video_index = -1;
-    //m_video_count =  0;
+    m_video_index = -1;
+    m_video_count =  0;
     m_video_info  = "none";
     m_subtitle_index = -1;
     m_subtitle_count =  0;
@@ -208,36 +208,124 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     DFBResult res = dfb->GetInterface(dfb, "IAdvancedMediaProvider", "EM8630", (void*)m_ampID, (void **)&m_amp);
     if (res != DFB_OK)
     {
-      CLog::Log(LOGDEBUG, "Could not get IAdvancedMediaProvider");
+      CLog::Log(LOGDEBUG, "CSMPPlayer::OpenFile:Could not get IAdvancedMediaProvider");
       return false;
     }
     // The event buffer must be retrieved BEFORE the OpenMedia() call
     res = m_amp->GetEventBuffer(m_amp, &m_amp_event);
     if (res != DFB_OK)
     {
-      CLog::Log(LOGDEBUG, "Could not retrieve the AMP event buffer!!!");
+      CLog::Log(LOGDEBUG, "CSMPPlayer::OpenFile:Could not retrieve the AMP event buffer!!!");
       return false;
     }
 
-    DFBAdvancedMediaProviderDescription desc;
-    memset(&desc, 0, sizeof(desc));
-		m_amp->GetDescription(m_amp, &desc);
+    std::string  url;
+    SMediaFormat format = { 0 };
+#if 0
+    CStdString    protocol = m_item.GetProtocol();
+    if (protocol == "http")
+    {
+      format.mediaType = MTYPE_APP_UNKNOWN;
+      // strip user agent that we append
+      url = m_item.m_strPath;
+      url = url.erase(url.rfind('|'), url.size());
+    }
+    else
+#endif
+    {
+      // default to hinting container type
+      CStdString extension;
+      extension = URIUtils::GetExtension(m_item.m_strPath);
+      if (extension.Equals(".wmv"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_ASF;
+      else if (extension.Equals(".avi"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_AVI;
+      else if (extension.Equals(".mkv"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
+      else if (extension.Equals(".mp4"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
+      else if (extension.Equals(".mov"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
+      else if (extension.Equals(".mpg"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+      else if (extension.Equals(".vob"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+      else if (extension.Equals(".ts"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+      else if (extension.Equals(".m2ts"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+      else
+        format.mediaType = MTYPE_APP_UNKNOWN;
 
+      // local source only for now, smb is failing to read
+      SIdsData ids;
+      char     c_str[64];
+      // setup the IDataSource cookie, CloseMedia will delete it
+      ids.src = new CFileIDataSource(m_item.m_strPath.c_str());
+      snprintf(c_str, sizeof(c_str)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
+      url = c_str;
+    }
+
+    // Setup open parameters
+    struct SLPBOpenParams parameters = {0, };
+    parameters.zero = 0;
+    // magic cookie to indicate this is binary params
+    parameters.a1b2c3d4 = 0xa1b2c3d4;
+    // audio offset time from video in milliseconds 
+    parameters.audioOffset = 0;
+    // system time clock offset in milliseconds.
+    // negative values will delay start of presentation.
+    parameters.stcOffset = -200;
+    // max prebuffersize in bytes, 0 for default
+    parameters.maxPrebufferSize = 100 * 1024;
+
+#if 0
+//#if defined(SLPBPARAMS_MAX_TEXT_SUBS)
+    // SRT, SSA, ASS, SUB/IDX or SMI
+    // find any available external subtitles
+    std::vector<CStdString> filenames;
+    CUtil::ScanForExternalSubtitles( m_item.m_strPath, filenames );
+    for(unsigned int i=0;i<filenames.size();i++)
+    {
+      if (URIUtils::GetExtension(filenames[i]) == ".idx")
+      {
+        CStdString strSubFile;
+        if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )
+          AddSubtitleFile(filenames[i], strSubFile);
+      }
+      if (URIUtils::GetExtension(filenames[i]) == ".sub")
+      {
+        CStdString strSubFile;
+        if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )
+          AddSubtitleFile(filenames[i], strSubFile);
+      }
+    } // end loop over all subtitle files    
+#endif
+
+    // open the media using the IAdvancedMediaProvider
+    res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, &parameters);
+    if (res != DFB_OK)
+    {
+      CLog::Log(LOGDEBUG, "CSMPPlayer::OpenFile:OpenMedia() failed");
+      throw;
+    }
+
+
+    // create the playing thread
     m_StopPlaying = false;
-    m_ready.Reset();
     Create();
+    // spin the busy dialog until we are playing
+    m_ready.Reset();
     if(!m_ready.WaitMSec(100))
     {
-      CGUIDialogBusy* dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
+      CGUIDialogBusy *dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
       dialog->Show();
       while(!m_ready.WaitMSec(1))
         g_windowManager.Process(false);
       dialog->Close();
     }
-    // just in case process thread throws.
-    m_ready.Set();
 
-    // Playback might have been stopped due to some error
+    // Playback might have been stopped due to some error.
     if (m_bStop || m_StopPlaying)
       return false;
 
@@ -310,6 +398,7 @@ void CSMPPlayer::Pause()
 
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
     CLog::Log(LOGERROR, "CSMPPlayer::Pause:AMP command failed!");
+  CLog::Log(LOGDEBUG, "CSMPPlayer::Pause");
 }
 
 bool CSMPPlayer::IsPaused() const
@@ -319,12 +408,12 @@ bool CSMPPlayer::IsPaused() const
 
 bool CSMPPlayer::HasVideo() const
 {
-  return true;
+  return m_video_count > 0;
 }
 
 bool CSMPPlayer::HasAudio() const
 {
-  return true;
+  return m_audio_count > 0;
 }
 
 void CSMPPlayer::ToggleFrameDrop()
@@ -900,23 +989,23 @@ CStdString CSMPPlayer::GetVideoCodecName()
 
 int CSMPPlayer::GetPictureWidth()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureWidth");
   if (GetAmpStatus())
     m_video_width = ((UMSStatus*)m_status)->lpb.video.format.format.image.width;
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureWidth(%d)", m_video_width);
   return m_video_width;
 }
 
 int CSMPPlayer::GetPictureHeight()
 {
-  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureHeight");
   if (GetAmpStatus())
     m_video_height= ((UMSStatus*)m_status)->lpb.video.format.format.image.height;
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetPictureHeight(%)", m_video_height);
   return m_video_height;
 }
 
 bool CSMPPlayer::GetStreamDetails(CStreamDetails &details)
 {
-  CLog::Log(LOGDEBUG, "CSMPPlayer::GetStreamDetails");
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetStreamDetails");
   return false;
 }
 
@@ -968,8 +1057,7 @@ void CSMPPlayer::ToFFRW(int iSpeed)
 
 void CSMPPlayer::OnStartup()
 {
-  CThread::SetName("CSMPPlayer");
-
+  //CThread::SetName("CSMPPlayer");
   g_renderManager.PreInit();
 }
 
@@ -989,211 +1077,190 @@ void CSMPPlayer::OnExit()
 
 void CSMPPlayer::Process()
 {
-  DFBResult     res;
-  SMediaFormat  format = { 0 };
-  std::string   url;
-
-  //CLog::Log(LOGDEBUG, "CSMPPlayer: Thread started");
-#if 0
-  if (m_item.m_strPath.Left(7).Equals("http://"))
-  {
-    format.mediaType = MTYPE_APP_UNKNOWN;
-    // strip user agent that we append
-    url = m_item.m_strPath;
-    url = url.erase(url.rfind('|'), url.size());
-  }
-  else
-#endif
-  {
-    // default to hinting container type
-    CStdString extension;
-    extension = URIUtils::GetExtension(m_item.m_strPath);
-    if (extension.Equals(".wmv"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_ASF;
-    else if (extension.Equals(".avi"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_AVI;
-    else if (extension.Equals(".mkv"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MKV;
-    else if (extension.Equals(".mp4"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
-    else if (extension.Equals(".mov"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_MP4;
-    else if (extension.Equals(".mpg"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
-    else if (extension.Equals(".vob"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
-    else if (extension.Equals(".ts"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
-    else if (extension.Equals(".m2ts"))
-      format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
-    else
-      format.mediaType = MTYPE_APP_UNKNOWN;
-
-    // local source only for now, smb is failing to read
-    SIdsData ids;
-    char     c_str[64];
-    // setup the IDataSource cookie, CloseMedia will delete it
-    ids.src = new CFileIDataSource(m_item.m_strPath.c_str());
-    snprintf(c_str, sizeof(c_str)/sizeof(char), "ids://0x%08lx", (long unsigned int)&ids);
-    url = c_str;
-  }
-
-  // Setup open parameters
-  struct SLPBOpenParams parameters = {0, };
-  parameters.zero = 0;
-  // magic cookie to indicate this is binary params
-  parameters.a1b2c3d4 = 0xa1b2c3d4;
-  // audio offset time from video in milliseconds 
-  parameters.audioOffset = 0;
-  // system time clock offset in milliseconds.
-  // negative values will delay start of presentation.
-  parameters.stcOffset = -200;
-  // max prebuffersize in bytes, 0 for default
-  parameters.maxPrebufferSize = 100 * 1024;
-
-#if 0
-//#if defined(SLPBPARAMS_MAX_TEXT_SUBS)
-  // SRT, SSA, ASS, SUB/IDX or SMI
-  // find any available external subtitles
-  std::vector<CStdString> filenames;
-  CUtil::ScanForExternalSubtitles( m_item.m_strPath, filenames );
-  for(unsigned int i=0;i<filenames.size();i++)
-  {
-    if (URIUtils::GetExtension(filenames[i]) == ".idx")
-    {
-      CStdString strSubFile;
-      if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )
-        AddSubtitleFile(filenames[i], strSubFile);
-    }
-    if (URIUtils::GetExtension(filenames[i]) == ".sub")
-    {
-      CStdString strSubFile;
-      if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )
-        AddSubtitleFile(filenames[i], strSubFile);
-    }
-  } // end loop over all subtitle files    
-#endif
-
   try
   {
-    // open the media using the IAdvancedMediaProvider
-    res = m_amp->OpenMedia(m_amp, (char*)url.c_str(), &format, &parameters);
-    if (res != DFB_OK)
+    // hide the video layer so we can get stream info
+    // first, then do a nice transition away from gui.
+    ShowAmpVideoLayer(false);
+
+    // wait for media to open with 20 second timeout.
+    if (WaitForAmpOpenMedia(20000))
     {
-      CLog::Log(LOGDEBUG, "OpenMedia() failed");
-      throw;
-    }
-
-    // wait 40 seconds and check the confirmation event
-    if ((m_amp_event->WaitForEventWithTimeout(m_amp_event, 40, 0) == DFB_OK) &&
-        GetAmpStatus() && (((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
-           IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
-    {
-      // eat the event
-      DFBEvent event;
-      m_amp_event->GetEvent(m_amp_event, &event);
-
-
-      // big fake out here, we do not know the video width, height yet
-      // so setup renderer to full display size and tell it we are doing
-      // bypass. This tell it to get out of the way as amp will be doing
-      // the actual video rendering in a video plane that is under the GUI
-      // layer.
-      int width = g_graphicsContext.GetWidth();
-      int height= g_graphicsContext.GetHeight();
-      int displayWidth  = width;
-      int displayHeight = height;
-      double fFrameRate = 24;
-      unsigned int flags = 0;
-
-      flags |= CONF_FLAGS_FORMAT_BYPASS;
-      flags |= CONF_FLAGS_FULLSCREEN;
-      CStdString formatstr = "BYPASS";
-      CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
-        __FUNCTION__, width, height, fFrameRate, formatstr.c_str());
-      g_renderManager.IsConfigured();
-      if(!g_renderManager.Configure(width, height, displayWidth, displayHeight, fFrameRate, flags))
-      {
-        CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
-      }
-      if (!g_renderManager.IsStarted()) {
-        CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
-      }
-
-      // start the playback
+      DFBResult res;
+      // start the playback.
       res = m_amp->StartPresentation(m_amp, DFB_TRUE);
       if (res != DFB_OK)
       {
-        CLog::Log(LOGDEBUG,"Could not issue StartPresentation()");
+        CLog::Log(LOGDEBUG,"CSMPPlayer::Process:StartPresentation() failed");
         throw;
       }
     }
+    else
+    {
+      CLog::Log(LOGDEBUG, "CSMPPlayer::Process:WaitForAmpOpenMedia timeout");
+      throw;
+    }
+
+    // wait for playback to start with 2 second timeout
+    if (WaitForAmpPlaying(2000))
+    {
+      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
+      m_ready.Set();
+
+      // get our initial status.
+      GetAmpStatus();
+
+      // starttime has units of seconds
+      if (m_options.starttime > 0)
+      {
+        // BUGFIX: if we try to seek before amp renders 1st frame,
+        // bad things happen.
+        usleep(100*1000);
+        SeekTime(m_options.starttime * 1000);
+        WaitForAmpPlaying(1000);
+      }
+      
+      // wait until video.format.formatValid or audio.format.formatValid
+      WaitForAmpFormatValid(2000);
+
+      // we are playing but hidden and all stream fields are valid.
+      // check for video
+      if (GetVideoStreamCount() > 0)
+      {
+        // turn on/off subs
+        SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
+
+        // big fake out here, we do not know the video width, height yet
+        // so setup renderer to full display size and tell it we are doing
+        // bypass. This tell it to get out of the way as amp will be doing
+        // the actual video rendering in a video plane that is under the GUI
+        // layer.
+        int width = g_graphicsContext.GetWidth();
+        int height= g_graphicsContext.GetHeight();
+        int displayWidth  = width;
+        int displayHeight = height;
+        double fFrameRate = 24;
+        unsigned int flags = 0;
+
+        flags |= CONF_FLAGS_FORMAT_BYPASS;
+        flags |= CONF_FLAGS_FULLSCREEN;
+        CStdString formatstr = "BYPASS";
+        CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
+          __FUNCTION__, GetPictureWidth(), GetPictureHeight(), GetActualFPS(), formatstr.c_str());
+        g_renderManager.IsConfigured();
+        if(!g_renderManager.Configure(width, height, displayWidth, displayHeight, fFrameRate, flags))
+        {
+          CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
+        }
+        if (!g_renderManager.IsStarted())
+        {
+          CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
+        }
+      }
+      m_speed = 1;
+      m_callback.OnPlayBackStarted();
+      WaitForWindowFullScreenVideo(2000);
+      // now we can show the video playback layer.
+      ShowAmpVideoLayer(true);
+
+      while (!m_bStop && !m_StopPlaying)
+      {
+        // AMP monitoring loop for automatic playback termination (250ms wait)
+        if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 250) == DFB_OK)
+        {
+          // eat the event
+          DFBEvent event;
+          m_amp_event->GetEvent(m_amp_event, &event);
+
+          if (GetAmpStatus() && (((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
+            (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+          {
+            m_StopPlaying = true;
+            break;
+          }
+        }
+        else
+        {
+          // we should never get here but just in case.
+          usleep(250*1000);
+        }
+      }
+      m_callback.OnPlayBackEnded();
+      
+      // have to stop if playing before CloseMedia or bad things happen.
+      if ((((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED) != SSTATUS_MODE_STOPPED)
+      {
+        SLPBCommand cmd;
+        cmd.dataSize = sizeof(cmd);
+        cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+        cmd.cmd = LPBCmd_STOP;
+
+        SLPBResult res;
+        res.dataSize = sizeof(res);
+        res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+        if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+          CLog::Log(LOGERROR, "CSMPPlayer::Process:AMP stop command failed!");
+        if (!IS_SUCCESS( ((SResult*)&res)->value ))
+        {
+          CLog::Log(LOGERROR, "CSMPPlayer::Process:AMP stop SResult(%d)", ((SResult*)&res)->value);
+        }
+      }
+    }
+    else
+    {
+      m_ready.Set();
+      m_StopPlaying = true;
+      CLog::Log(LOGERROR, "CSMPPlayer::Process: WaitForAmpPlaying() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
+        (long unsigned int)((UMSStatus*)m_status)->generic.flags,
+        (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
+      throw;
+    }
+
   }
   catch(...)
   {
-    CLog::Log(LOGERROR, "CSMPPlayer::Process: Exception thrown");
-    goto _exit;
+    CLog::Log(LOGERROR, "CSMPPlayer::Process Exception thrown");
   }
 
-  // we are done initializing now, set the readyevent which will
-  // drop CGUIDialogBusy, and release the hold in OpenFile
-  m_ready.Set();
-
-  // wait for playback to start with 2 second timeout
-  if (WaitForAmpPlaying(20000))
-  {
-    // get our initial status.
-    GetAmpStatus();
-
-    // starttime has units of seconds
-    if (m_options.starttime > 0)
-      SeekTime(m_options.starttime * 1000);
-
-    // once playback starts, we can turn on/off subs
-    SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
-
-    m_callback.OnPlayBackStarted();
-    while (!m_bStop && !m_StopPlaying)
-    {
-      // AMP monitoring loop for automatic playback termination (250ms wait)
-      if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 250) == DFB_OK)
-      {
-        // eat the event
-        DFBEvent event;
-        m_amp_event->GetEvent(m_amp_event, &event);
-
-        if (GetAmpStatus() && (((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) &&
-          (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
-        {
-          m_StopPlaying = true;
-          break;
-        }
-      }
-      else
-      {
-        // we should never get here but just in case.
-        usleep(250*1000);
-      }
-    }
-    m_callback.OnPlayBackEnded();
-  }
-  else
-  {
-    CLog::Log(LOGDEBUG, "CSMPPlayer::Process: WaitForAmpPlaying() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
-      (long unsigned int)((UMSStatus*)m_status)->generic.flags,
-      (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
-  }
-
-_exit:
   if (m_amp)
     m_amp->CloseMedia(m_amp);
 }
 
-bool CSMPPlayer::WaitForAmpPlaying(int timeout)
+int CSMPPlayer::GetVideoStreamCount()
+{
+  if (GetAmpStatus())
+    m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+  //CLog::Log(LOGDEBUG, "CSMPPlayer::GetVideoStreamCount(%d)", m_video_count);
+  return m_video_count;
+}
+
+void CSMPPlayer::ShowAmpVideoLayer(bool show)
+{
+  IDirectFBScreen *screen;
+
+  IDirectFB *dfb = g_Windowing.GetIDirectFB();
+  // enable background layer to hide video playback layer while we start up
+  if (dfb->GetScreen(dfb, 0, &screen) == DFB_OK)
+  {
+    DFBScreenMixerConfig mixcfg;
+    screen->GetMixerConfiguration(screen, 0, &mixcfg);
+    mixcfg.flags = DSMCONF_LAYERS;
+    // yes this is correct, to hide video we show background.
+    if (show)
+      DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, EM86LAYER_BKGND);
+    else
+      DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_BKGND);
+    screen->SetMixerConfiguration(screen, 0, &mixcfg);
+  }
+  //CLog::Log(LOGDEBUG,"CSMPPlayer::ShowAmpVideoLayer: show(%d)", show);
+}
+
+bool CSMPPlayer::WaitForAmpPlaying(int timeout_ms)
 {
   bool rtn = false;
 
-  while (!m_bStop && timeout > 0)
+  while (!m_bStop && (timeout_ms > 0))
   {
     if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK)
     {
@@ -1216,16 +1283,17 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout)
       // we should never get here but just in case.
       usleep(100*1000);
     }
-    timeout -= 100;
+    timeout_ms -= 100;
   }
 
   return rtn;
 }
 
-bool CSMPPlayer::WaitForAmpStopped(int timeout)
+bool CSMPPlayer::WaitForAmpOpenMedia(int timeout_ms)
 {
   bool rtn = false;
-  while (!m_bStop && timeout > 0)
+
+  while (!m_bStop && (timeout_ms > 0))
   {
     if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK)
     {
@@ -1235,27 +1303,72 @@ bool CSMPPlayer::WaitForAmpStopped(int timeout)
 
       if (GetAmpStatus())
       {
-        if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) && 
-            (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+        if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
+           IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
         {
           rtn = true;
           break;
         }
       }
+      g_windowManager.Process(false);
     }
     else
     {
       // we should never get here but just in case.
+      g_windowManager.Process(false);
       usleep(100*1000);
     }
-    timeout -= 100;
+    timeout_ms -= 100;
   }
 
   return rtn;
 }
 
+bool CSMPPlayer::WaitForAmpFormatValid(int timeout_ms)
+{
+  bool rtn = false;
+
+  while (!m_bStop && (timeout_ms > 0))
+  {
+    usleep(100*1000);
+    if (GetAmpStatus())
+    {
+      if (((UMSStatus*)m_status)->lpb.video.format.formatValid ||
+          ((UMSStatus*)m_status)->lpb.audio.format.formatValid)
+      {
+        rtn = true;
+        break;
+      }
+    }
+    timeout_ms -= 100;
+  }
+
+  return rtn;
+}
+
+bool CSMPPlayer::WaitForWindowFullScreenVideo(int timeout_ms)
+{
+  bool rtn = false;
+
+  while (!m_bStop && (timeout_ms > 0))
+  {
+    usleep(100*1000);
+    if (g_windowManager.GetActiveWindow() == WINDOW_FULLSCREEN_VIDEO)
+    {
+      rtn = true;
+      break;
+    }
+    timeout_ms -= 100;
+  }
+  usleep(500*1000);
+
+  return rtn;
+}
+
+
 bool CSMPPlayer::GetAmpStatus()
 {
+  static uint32_t flags = 0;
   CSingleLock lock(m_amp_status_csection);
 
   // get status, only update what has changed (DFB_FALSE).
@@ -1294,31 +1407,17 @@ bool CSMPPlayer::GetAmpStatus()
       m_elapsed_ms = elapsed_ms;
       m_chapter_index = chapter_index;
     }
-/*
+
+    m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
+    m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+
     if (flags != ((UMSStatus*)m_status)->generic.mode.flags)
     {
-      static uint32_t flags = 0;
+      CLog::Log(LOGDEBUG, "CSMPPlayer::GetAmpStatus: flags changed, old(%d), new(%d)",
+        flags, ((UMSStatus*)m_status)->generic.mode.flags);
       flags = ((UMSStatus*)m_status)->generic.mode.flags;
-      last_id = ((UMSStatus*)m_status)->generic.lastCmd.id;
-      last_result = ((UMSStatus*)m_status)->generic.lastCmd.result;
-      CLog::Log(LOGDEBUG,"CSMPPlayer::GetAmpStatus: flags(0x%08lx)",
-         (long unsigned int)flags);
     }
-    if (last_id != ((UMSStatus*)m_status)->generic.lastCmd.id)
-    {
-      static uint32_t last_id = 0;
-      static uint32_t last_result = 0;
-      last_id = ((UMSStatus*)m_status)->generic.lastCmd.id;
-      last_result = ((UMSStatus*)m_status)->generic.lastCmd.result;
-      CLog::Log(LOGDEBUG,"CSMPPlayer::GetAmpStatus:"
-        "last_id(0x%08lx)"
-        "last_result(0x%08lx)",
-        (long unsigned int)last_id,
-        (long unsigned int)last_result);
-    }
-*/
-    //m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
-    //m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+    
       
     return true;
   }
