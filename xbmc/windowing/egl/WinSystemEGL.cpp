@@ -20,7 +20,7 @@
  */
 #include "system.h"
 
-#ifdef HAS_EGL
+#if defined(HAS_EGL) && defined(HAS_SDL)
 
 #include "WinSystemEGL.h"
 #include "utils/log.h"
@@ -30,13 +30,12 @@
 #include "guilib/Texture.h"
 #include "windowing/X11/XRandR.h"
 #include <vector>
-#include <SDL/SDL_video.h>
 
 using namespace std;
 
 // Comment out one of the following defines to select the colourspace to use
-#define RGBA8888
-//#define RGB565
+//#define RGBA8888
+#define RGB565
 
 #if defined(RGBA8888)
 #define RSIZE	8
@@ -53,22 +52,6 @@ using namespace std;
 #define DEPTH	16
 #define BPP		16
 #endif
-
-#if defined(HAS_X11)
-#define M_EGL_WINDOW info.info.x11.window;
-#define M_WM_WINDOW info.info.x11.wmwindow;
-#define XOPENDISPLAY XOpenDisplay(NULL)
-#define M_DPY_NOCHECK false
-#define RESIZABLE_MW true
-#else
-#define M_EGL_WINDOW SDL_DirectFB_GetSurface()
-#define M_WM_WINDOW NULL
-#define XOPENDISPLAY NULL
-#define M_DPY_NOCHECK true
-#define RESIZABLE_MW false
-#endif
-
-
 
 static int configAttributes[] =
 {
@@ -115,9 +98,7 @@ bool CWinSystemEGL::InitWindowSystem()
 {
   EGLBoolean val = false;
   EGLint maj, min;
-  m_dpy = GetIDirectFB();
-  
-  if (m_dpy &&
+  if ((m_dpy = XOpenDisplay(NULL)) &&
       (m_eglDisplay = eglGetDisplay((EGLNativeDisplayType)m_dpy)) &&
       (val = eglInitialize(m_eglDisplay, &maj, &min)))
   {
@@ -154,7 +135,6 @@ bool CWinSystemEGL::DestroyWindowSystem()
     m_eglSurface = NULL;
   }
 
-#if defined(HAS_X11)
   // Needed???
   if (m_eglWindow)
   {
@@ -168,21 +148,19 @@ bool CWinSystemEGL::DestroyWindowSystem()
     XDestroyWindow(m_dpy, m_wmWindow);
     m_wmWindow = 0;
   }
-#endif
+
   if (m_eglDisplay)
   {
     eglTerminate(m_eglDisplay);
     m_eglDisplay = 0;
   }
 
-#if defined(HAS_X11)
   if (m_dpy)
   {
     XCloseDisplay(m_dpy);
     m_dpy = NULL;
   }
-#endif
-  SDL_VideoQuit();
+
   return true;
 }
 
@@ -230,8 +208,7 @@ bool CWinSystemEGL::ResizeWindow(int newWidth, int newHeight, int newLeft, int n
     else
       options |= SDL_RESIZABLE;
 
-    if ((RESIZABLE_MW || !m_SDLSurface) &&
-        (m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
+    if ((m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
     {
       RefreshEGLContext();
     }
@@ -276,8 +253,7 @@ bool CWinSystemEGL::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool bl
   else
     options |= SDL_RESIZABLE;
 
-  if ((RESIZABLE_MW || !m_SDLSurface) &&
-      (m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
+  if ((m_SDLSurface = SDL_SetVideoMode(m_nWidth, m_nHeight, 0, options)))
   {
     RefreshEGLContext();
   }
@@ -299,20 +275,13 @@ void CWinSystemEGL::UpdateResolutions()
     g_settings.m_ResInfo[RES_DESKTOP].strId     = mode.id;
     g_settings.m_ResInfo[RES_DESKTOP].strOutput = out.name;
   }
-#elif defined(HAS_X11)
+#else
   {
     int x11screen = DefaultScreen(m_dpy);
     int w = DisplayWidth(m_dpy, x11screen);
     int h = DisplayHeight(m_dpy, x11screen);
     UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
   }
-#else
-  {
-    int w=1280;
-    int h=720;
-    UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
-  }
-
 #endif
 
 #if defined(HAS_XRANDR)
@@ -381,20 +350,19 @@ bool CWinSystemEGL::RefreshEGLContext()
 {
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
-#if defined(HAS_X11)
   if (SDL_GetWMInfo(&info) <= 0)
   {
     CLog::Log(LOGERROR, "Failed to get window manager info from SDL");
     return false;
   }
-#endif
+
   if (!m_eglDisplay)
   {
     CLog::Log(LOGERROR, "EGL: No valid display!");
     return false;
   }
 
-  if ((m_eglWindow == M_EGL_WINDOW) && m_eglSurface && m_eglContext)
+  if ((m_eglWindow == info.info.x11.window) && m_eglSurface && m_eglContext)
   {
     CLog::Log(LOGWARNING, "EGL: Same window as before, refreshing context");
     eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -402,8 +370,8 @@ bool CWinSystemEGL::RefreshEGLContext()
     return true;
   }
 
-  m_eglWindow = M_EGL_WINDOW;
-  m_wmWindow  = M_WM_WINDOW;
+  m_eglWindow = info.info.x11.window;
+  m_wmWindow  = info.info.x11.wmwindow;
 
   EGLConfig eglConfig = NULL;
   EGLint num;
@@ -415,10 +383,7 @@ bool CWinSystemEGL::RefreshEGLContext()
   }
 
   if (m_eglContext)
-  {
     eglDestroyContext(m_eglDisplay, m_eglContext);
-    m_eglContext=NULL;
-  }
 
   if ((m_eglContext = eglCreateContext(m_eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttributes)) == EGL_NO_CONTEXT)
   {
@@ -433,10 +398,7 @@ bool CWinSystemEGL::RefreshEGLContext()
   }
 
   if (m_eglSurface)
-  {
     eglDestroySurface(m_eglDisplay, m_eglSurface);
-	m_eglSurface=NULL;
-  }
 
   if ((m_eglSurface = eglCreateWindowSurface(m_eglDisplay, eglConfig, (EGLNativeWindowType)m_eglWindow, NULL)) == EGL_NO_SURFACE)
   {
@@ -457,7 +419,6 @@ bool CWinSystemEGL::RefreshEGLContext()
 bool CWinSystemEGL::PresentRenderImpl()
 {
 //  glFinish();	// Needed???
-  eglWaitClient();
   eglSwapBuffers(m_eglDisplay, m_eglSurface);
 
   return true;
@@ -501,19 +462,15 @@ bool CWinSystemEGL::Restore()
 
 bool CWinSystemEGL::Hide()
 {
-#if defined(HAS_X11)
   XUnmapWindow(m_dpy, m_wmWindow);
   XSync(m_dpy, False);
-#endif
   return true;
 }
 
 bool CWinSystemEGL::Show(bool raise)
 {
-#if defined(HAS_X11)
   XMapWindow(m_dpy, m_wmWindow);
   XSync(m_dpy, False);
-#endif
   return true;
 }
 
@@ -525,11 +482,6 @@ EGLContext CWinSystemEGL::GetEGLContext() const
 EGLDisplay CWinSystemEGL::GetEGLDisplay() const
 {
   return m_eglDisplay;
-}
-
-IDirectFB* CWinSystemEGL::GetIDirectFB() const
-{
-  return (IDirectFB*)SDL_DirectFB_GetIDirectFB();
 }
 
 bool CWinSystemEGL::makeOMXCurrent()

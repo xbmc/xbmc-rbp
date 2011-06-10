@@ -1,0 +1,16 @@
+INCLUDES= -I. \
+	-I@abs_top_srcdir@/xbmc/linux \
+	-I@abs_top_srcdir@/xbmc/windowing
+
+CXXFLAGS+= \
+	-isystem@BUILDPREFIX@/include/directfb
+
+SRCS= \
+     WinSystemDFB.cpp \
+     WinEventsDFB.cpp \
+     WinBindingEGL.cpp
+     
+LIB=windowing_dfb.a
+
+include @abs_top_srcdir@/Makefile.include
+-include $(patsubst %.cpp,%.P,$(patsubst %.c,%.P,$(SRCS)))

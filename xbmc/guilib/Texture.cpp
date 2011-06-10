@@ -31,14 +31,14 @@
 #include "filesystem/File.h"
 #include "osx/DarwinUtils.h"
 #endif
-#if defined (HAVE_SIGMASMP)
+#if defined (HAVE_DIRECTFB)
 #include "filesystem/File.h"
 #include "threads/SingleLock.h"
 #include "threads/CriticalSection.h"
 #include "directfb.h"
 #endif
 
-#if defined (HAVE_SIGMASMP)
+#if defined (HAVE_DIRECTFB)
 // we need this to serialize access to hw image decoder.
 static CCriticalSection gHWLoaderSection;
 #endif
@@ -466,7 +466,7 @@ bool CBaseTexture::HasAlpha() const
 
 bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
 {
-#if defined (HAVE_SIGMASMP)
+#if defined (HAVE_DIRECTFB)
   CSingleLock lock(gHWLoaderSection);
 
   if (!g_Windowing.IsCreated())
@@ -551,6 +551,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
 
   // get the surface description, from the incoming compressed image.
   DFBSurfaceDescription dsc;
+  memset(&dsc, 0, sizeof(dsc));
   provider->GetSurfaceDescription(provider, &dsc);
 
   // set caps to DSCAPS_VIDEOONLY so we get hw decode.

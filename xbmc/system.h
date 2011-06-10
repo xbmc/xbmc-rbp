@@ -162,6 +162,48 @@
  * Additional platform specific includes
  ****************************************/
 
+// ARM does not support certain features... disable them here!
+#ifdef _ARMEL
+#undef HAS_AVAHI
+#undef HAS_ZEROCONF
+#undef HAS_VISUALISATION
+#undef HAS_FILESYSTEM_HTSP
+#endif
+
+// Sigma does not support certain features... disable them here!
+#ifdef HAVE_SIGMASMP
+#undef HAS_SDL
+#undef HAS_SDL_AUDIO
+#undef HAS_SDL_OPENGL
+#undef HAS_SDL_WIN_EVENTS
+#undef HAS_DBUS
+#undef HAS_DBUS_SERVER
+#undef HAS_LIRC
+#define HAS_DIRECTFB
+#endif
+
+// EGL detected. Dont use GLX!
+#ifdef HAVE_LIBEGL
+#undef HAS_GLX
+#define HAS_EGL
+#endif
+
+// GLES2.0 detected. Dont use GL!
+#ifdef HAVE_LIBGLESV2
+#undef HAS_GL
+#define HAS_GLES 2
+#endif
+
+// GLES1.0 detected. Dont use GL!
+#ifdef HAVE_LIBGLES
+#undef HAS_GL
+#define HAS_GLES 1
+#endif
+
+/****************************************
+ * Setup default includes based on defines
+ ****************************************/
+
 #ifdef _WIN32
 #include <windows.h>
 #define DIRECTINPUT_VERSION 0x0800
@@ -186,42 +228,6 @@
 #include <errno.h>
 #include "PlatformInclude.h"
 #endif
-
-// ARM does not support certain features... disable them here!
-#ifdef _ARMEL
-#undef HAS_AVAHI
-#undef HAS_ZEROCONF
-#undef HAS_VISUALISATION
-#undef HAS_FILESYSTEM_HTSP
-#endif
-
-// Sigma does not support certain features... disable them here!
-#ifdef HAVE_SIGMASMP
-#undef HAS_SDL_AUDIO
-#undef HAS_DBUS
-#undef HAS_DBUS_SERVER
-#undef HAS_LIRC
-#undef HAS_SDL_WIN_EVENTS
-#endif
-
-// EGL detected. Dont use GLX!
-#ifdef HAVE_LIBEGL
-#undef HAS_GLX
-#define HAS_EGL
-#endif
-
-// GLES2.0 detected. Dont use GL!
-#ifdef HAVE_LIBGLESV2
-#undef HAS_GL
-#define HAS_GLES 2
-#endif
-
-// GLES1.0 detected. Dont use GL!
-#ifdef HAVE_LIBGLES
-#undef HAS_GL
-#define HAS_GLES 1
-#endif
-
 
 #ifdef HAS_GL
 #ifdef _WIN32

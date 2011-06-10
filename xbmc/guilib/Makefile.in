@@ -87,6 +87,9 @@ SRCS+=TextureGL.cpp \
       GUIShader.cpp \
 
 endif
+ifeq (@USE_DIRECTFB@,1)
+CXXFLAGS+= -isystem@BUILDPREFIX@/include/directfb
+endif
 
 LIB=guilib.a
 

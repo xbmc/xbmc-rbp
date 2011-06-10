@@ -41,16 +41,20 @@ public:
 #endif
 
 #ifdef _LINUX
+
 #if defined(__APPLE__) && defined(__arm__)
 #include "osx/WinEventsIOS.h"
 #define CWinEvents CWinEventsIOS
-#elif defined(HAVE_SIGMASMP)
-#include "WinEventsDFB.h"
+
+#elif defined(HAS_DIRECTFB)
+#include "dfb/WinEventsDFB.h"
 #define CWinEvents CWinEventsDFB
+
 #else
 #include "WinEventsSDL.h"
 #define CWinEvents CWinEventsSDL
 #endif
+
 #endif
 
 

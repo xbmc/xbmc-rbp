@@ -1,5 +1,4 @@
 SRCS=WinEventsSDL.cpp \
-     WinEventsDFB.cpp \
      WinSystem.cpp \
      
 LIB=windowing.a

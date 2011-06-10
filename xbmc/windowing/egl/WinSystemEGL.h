@@ -23,20 +23,11 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#include "system.h"
 #include "windowing/WinSystem.h"
-// We have to define SUPPORT_DIRECTFB_WS before including egl.h so
-// that eglplatform.h (included in egl.h) will typedef the native
-// window system types:
-#define SUPPORT_DIRECTFB_WS
 #include <EGL/egl.h>
-#ifdef HAS_X11
 #include <X11/Xlib.h>
-#endif
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GlobalsHandling.h"
-
-typedef struct _IDirectFB IDirectFB;
 
 class CWinSystemEGL : public CWinSystemBase, public CRenderSystemGLES
 {
@@ -65,9 +56,8 @@ public:
 
   virtual bool makeOMXCurrent();
 
-  EGLContext  GetEGLContext() const;
-  EGLDisplay  GetEGLDisplay() const;
-  IDirectFB*  GetIDirectFB()  const;
+  EGLContext GetEGLContext() const;
+  EGLDisplay GetEGLDisplay() const;
 protected:
   bool RefreshEGLContext();
 
@@ -76,15 +66,9 @@ protected:
   EGLContext   m_eglContext;
   EGLContext   m_eglOMXContext;
   EGLSurface   m_eglSurface;
-#if defined(HAS_X11)
   Window       m_eglWindow;
   Window       m_wmWindow;
   Display*     m_dpy;
-#else
-  void*        m_eglWindow;
-  void*        m_wmWindow;
-  void*        m_dpy;
-#endif
 
   bool         m_bWasFullScreenBeforeMinimize;
 

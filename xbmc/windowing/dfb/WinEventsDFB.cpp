@@ -1,5 +1,5 @@
 /*
-*      Copyright (C) 2005-2008 Team XBMC
+*      Copyright (C) 2011 Team XBMC
 *      http://www.xbmc.org
 *
 *  This Program is free software; you can redistribute it and/or modify
@@ -20,21 +20,21 @@
 */
 
 #include "system.h"
-#if defined(HAVE_SIGMASMP)
+#if defined(HAS_DIRECTFB)
 
 #include "WinEvents.h"
 #include "Application.h"
 #include "WindowingFactory.h"
 
+#include <directfb.h>
 
 PHANDLE_EVENT_FUNC CWinEventsBase::m_pEventFunc = NULL;
 
-IDirectFB* dfb;
-IDirectFBEventBuffer* buffer=NULL;
-bool m_initialized = false;
-
 bool CWinEventsDFB::MessagePump()
 {
+  static IDirectFB *dfb;
+  static IDirectFBEventBuffer *buffer = NULL;
+  static bool m_initialized = false;
   if (!m_initialized)
   {
     dfb = g_Windowing.GetIDirectFB();
@@ -43,12 +43,11 @@ bool CWinEventsDFB::MessagePump()
       fprintf(stderr, "Could not create input event buffer!!!\n");
       return false;
     }
-  m_initialized=true;
+    m_initialized=true;
   }
 
   DFBEvent event;
   bool ret = false;
-  XBMC_Event newEvent;
 
   while (buffer->HasEvent(buffer) == DFB_OK)
   {
@@ -61,80 +60,82 @@ bool CWinEventsDFB::MessagePump()
     {
       case DIET_KEYPRESS:
         newEvent.type = XBMC_KEYDOWN;
-        break;
+      break;
       case DIET_KEYRELEASE:
         newEvent.type = XBMC_KEYUP;
-        break;
+      break;
       default:
         return false;
     }
 
     newEvent.key.keysym.scancode = event.input.key_id;
-    newEvent.key.keysym.unicode = event.input.key_symbol;
-    newEvent.key.keysym.mod =(XBMCMod) event.input.modifiers;
+    newEvent.key.keysym.unicode  = event.input.key_symbol;
+    newEvent.key.keysym.mod = (XBMCMod)event.input.modifiers;
     if (event.input.key_symbol < 128)
-      newEvent.key.keysym.sym = (XBMCKey) event.input.key_symbol;
+    {
+      newEvent.key.keysym.sym = (XBMCKey)event.input.key_symbol;
+    }
     else
     {
       switch (event.input.key_symbol)
       {
         case DIKS_CURSOR_UP:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_UP;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_UP;
+        break;
         case DIKS_CURSOR_DOWN:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_DOWN;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_DOWN;
+        break;
         case DIKS_CURSOR_LEFT:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_LEFT;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_LEFT;
+        break;
         case DIKS_CURSOR_RIGHT:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_RIGHT;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_RIGHT;
+        break;
         case DIKS_INSERT:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_INSERT;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_INSERT;
+        break;
         case DIKS_HOME:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_HOME;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_HOME;
+        break;
         case DIKS_END:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_END;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_END;
+        break;
         case DIKS_PAGE_UP:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_PAGEUP;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_PAGEUP;
+        break;
         case DIKS_PAGE_DOWN:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_PAGEDOWN;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_PAGEDOWN;
+        break;
         case DIKS_VOLUME_UP:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_VOLUME_UP;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_VOLUME_UP;
+        break;
         case DIKS_MUTE:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_VOLUME_MUTE;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_VOLUME_MUTE;
+        break;
         case DIKS_PREVIOUS:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_BACKSPACE;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_BACKSPACE;
+        break;
         case DIKS_PLAY:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_MEDIA_PLAY_PAUSE;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_MEDIA_PLAY_PAUSE;
+        break;
         case DIKS_REWIND:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_r;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_r;
+        break;
         case DIKS_STOP:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_MEDIA_STOP;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_MEDIA_STOP;
+        break;
         case DIKS_FASTFORWARD:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_f;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_f;
+        break;
         case DIKS_PAUSE:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_PAUSE;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_PAUSE;
+        break;
         case DIKS_INFO:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_i;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_i;
+        break;
         default:
-          newEvent.key.keysym.sym=(XBMCKey) XBMCK_UNKNOWN;
-          break;
+          newEvent.key.keysym.sym = (XBMCKey)XBMCK_UNKNOWN;
+        break;
       }
     }
     ret |= g_application.OnEvent(newEvent);

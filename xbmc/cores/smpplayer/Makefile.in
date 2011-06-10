@@ -1,4 +1,7 @@
-CXXFLAGS+= -isystem@BUILDPREFIX@/include/dcchd/core -isystem@BUILDPREFIX@/include/dcchd/mono
+CXXFLAGS+= \
+	-isystem@BUILDPREFIX@/include/directfb \
+	-isystem@BUILDPREFIX@/include/dcchd/core \
+	-isystem@BUILDPREFIX@/include/dcchd/mono
 
 SRCS=	\
 	FileIDataSource.cpp \

@@ -33,6 +33,7 @@ typedef enum _WindowSystemType
   WINDOW_SYSTEM_IOS,
   WINDOW_SYSTEM_X11,
   WINDOW_SYSTEM_SDL,
+  WINDOW_SYSTEM_DFB,
   WINDOW_SYSTEM_EGL
 } WindowSystemType;
 

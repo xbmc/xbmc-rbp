@@ -510,6 +510,7 @@ project/Win32BuildSetup/dependencies/libcdio-10.dll
 /xbmc/cores/VideoRenderers/Makefile
 
 /xbmc/cores/dvdplayer/Makefile
+/xbmc/cores/smpplayer/Makefile
 
 # /lib/ffmpeg/
 /lib/ffmpeg/config.h
@@ -979,6 +980,8 @@ project/Win32BuildSetup/dependencies/libcdio-10.dll
 /xbmc/cores/playercorefactory/Makefile
 
 /xbmc/filesystem/Makefile
+
+/xbmc/windowing/dfb/Makefile
 
 # /xbmc/music/karaoke/
 /xbmc/music/karaoke/Makefile

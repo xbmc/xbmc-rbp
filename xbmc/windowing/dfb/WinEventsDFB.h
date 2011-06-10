@@ -1,5 +1,5 @@
 /*
-*      Copyright (C) 2005-2008 Team XBMC
+*      Copyright (C) 2011 Team XBMC
 *      http://www.xbmc.org
 *
 *  This Program is free software; you can redistribute it and/or modify
@@ -23,17 +23,15 @@
 #ifndef WINDOW_EVENTS_DFB_H
 #define WINDOW_EVENTS_DFB_H
 
-#ifdef HAVE_SIGMASMP
-#include <directfb.h>
-#include "WinEvents.h"
+#include "windowing/WinEvents.h"
 
 class CWinEventsDFB : public CWinEventsBase
 {
 public:
   CWinEventsDFB();
+  ~CWinEventsDFB();
+
   static bool MessagePump();
-private:
 };
 
-#endif
 #endif // WINDOW_EVENTS_DFB_H

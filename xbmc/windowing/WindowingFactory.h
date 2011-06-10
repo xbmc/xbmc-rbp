@@ -44,7 +44,11 @@
 #include "X11/WinSystemX11GL.h"
 #endif
 
-#if defined(HAS_EGL) && !defined(__APPLE__)
+#if defined(HAS_EGL) && defined(HAS_DIRECTFB)
+#include "dfb/WinSystemDFB.h"
+#endif
+
+#if defined(HAS_EGL) && defined(HAS_SDL) && !defined(__APPLE__)
 #include "egl/WinSystemEGL.h"
 #endif
 
