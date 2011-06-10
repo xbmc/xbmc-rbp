@@ -1245,7 +1245,12 @@ void CSMPPlayer::ShowAmpVideoLayer(bool show)
   {
     DFBScreenMixerConfig mixcfg;
     screen->GetMixerConfiguration(screen, 0, &mixcfg);
-    mixcfg.flags = DSMCONF_LAYERS;
+    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_BACKGROUND | DSMCONF_LAYERS);
+    // set mixer background to pure black.
+    mixcfg.background.a = 0;
+    mixcfg.background.r = 0;
+    mixcfg.background.g = 0;
+    mixcfg.background.b = 0;
     // yes this is correct, to hide video we show background.
     if (show)
       DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, EM86LAYER_BKGND);
