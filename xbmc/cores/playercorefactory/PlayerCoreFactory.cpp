@@ -283,6 +283,13 @@ bool CPlayerCoreFactory::LoadConfiguration(TiXmlElement* pConfig, bool clear)
     paplayer->m_bPlaysAudio = true;
     s_vecCoreConfigs.push_back(paplayer);
 
+#if defined (HAVE_SIGMASMP)
+    CPlayerCoreConfig* smpplayer = new CPlayerCoreConfig("SMPPlayer", EPC_SMPPLAYER, NULL);
+    smpplayer->m_bPlaysAudio = true;
+    smpplayer->m_bPlaysVideo = true;
+    s_vecCoreConfigs.push_back(smpplayer);
+#endif
+
     for(std::vector<CPlayerSelectionRule *>::iterator it = s_vecCoreSelectionRules.begin(); it != s_vecCoreSelectionRules.end(); it++)
       delete *it;
     s_vecCoreSelectionRules.clear();

@@ -74,8 +74,7 @@ public:
     switch(m_eCore)
     {
       case EPC_MPLAYER:
-      //case EPC_DVDPLAYER: pPlayer = new CDVDPlayer(callback); break;
-      case EPC_DVDPLAYER: pPlayer = new CSMPPlayer(callback); break;
+      case EPC_DVDPLAYER: pPlayer = new CDVDPlayer(callback); break;
       case EPC_PAPLAYER:  pPlayer = new PAPlayer(callback); break;
       case EPC_EXTPLAYER: pPlayer = new CExternalPlayer(callback); break;
 #if defined (HAVE_SIGMASMP)
