@@ -201,6 +201,7 @@
 #undef HAS_DBUS
 #undef HAS_DBUS_SERVER
 #undef HAS_LIRC
+#undef HAS_SDL_WIN_EVENTS
 #endif
 
 // EGL detected. Dont use GLX!

@@ -18,40 +18,22 @@
 *  http://www.gnu.org/copyleft/gpl.html
 *
 */
-
-#ifndef WINDOW_EVENTS_H
-#define WINDOW_EVENTS_H
-
 #pragma once
 
-#include "utils/StdString.h"
-#include "XBMC_events.h"
+#ifndef WINDOW_EVENTS_DFB_H
+#define WINDOW_EVENTS_DFB_H
 
-typedef bool (* PHANDLE_EVENT_FUNC)(XBMC_Event& newEvent);
+#ifdef HAVE_SIGMASMP
+#include <directfb.h>
+#include "WinEvents.h"
 
-class CWinEventsBase
+class CWinEventsDFB : public CWinEventsBase
 {
 public:
-  static PHANDLE_EVENT_FUNC m_pEventFunc;
+  CWinEventsDFB();
+  static bool MessagePump();
+private:
 };
 
-#ifdef _WIN32
-#include "windows/WinEventsWin32.h"
-#define CWinEvents CWinEventsWin32
 #endif
-
-#ifdef _LINUX
-#if defined(__APPLE__) && defined(__arm__)
-#include "osx/WinEventsIOS.h"
-#define CWinEvents CWinEventsIOS
-#elif defined(HAVE_SIGMASMP)
-#include "WinEventsDFB.h"
-#define CWinEvents CWinEventsDFB
-#else
-#include "WinEventsSDL.h"
-#define CWinEvents CWinEventsSDL
-#endif
-#endif
-
-
-#endif // WINDOW_EVENTS_H
+#endif // WINDOW_EVENTS_DFB_H
