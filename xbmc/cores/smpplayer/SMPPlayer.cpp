@@ -1375,8 +1375,10 @@ bool CSMPPlayer::GetAmpStatus()
   if (m_amp->UploadStatusChanges(m_amp, (SStatus*)m_status, DFB_FALSE) == DFB_OK)
   {
     int elapsed_ms    = 1000 * ((UMSStatus*)m_status)->generic.elapsedTime;
-    int chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
-
+    int chapter_count = 0;
+#if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
+    chapter_count = ((UMSStatus*)m_status)->lpb.media.nb_chapters;
+#endif
     if ((elapsed_ms != m_elapsed_ms) || (chapter_count != m_chapter_count))
     {
 #if defined(SLPBSTATUS_CHAPTER_LIST_SIZE)
