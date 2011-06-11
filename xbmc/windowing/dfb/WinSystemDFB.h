@@ -68,7 +68,8 @@ protected:
   IDirectFB             *m_dfb;
   IDirectFBSurface      *m_dfb_surface;
   IDirectFBDisplayLayer *m_dfb_layer;
-  bool                   m_vsync;
+  IDirectFBSurface      *m_dfb_bkg_surface;
+  IDirectFBDisplayLayer *m_dfb_bkg_layer;
   int                    m_buffermode;
 };
 

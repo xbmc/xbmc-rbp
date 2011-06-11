@@ -44,7 +44,7 @@ public:
   bool  DestroyWindow();
   bool  ReleaseSurface();
   void  SwapBuffers();
-  void  SetVSync(bool enable);
+  bool  SetVSync(bool enable);
   bool  IsExtSupported(const char* extension);
 
   EGLNativeWindowType   GetNativeWindow();

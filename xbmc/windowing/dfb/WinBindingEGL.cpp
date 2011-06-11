@@ -220,10 +220,11 @@ void CWinBindingEGL::SwapBuffers()
   eglSwapBuffers(m_display, m_surface);
 }
 
-void CWinBindingEGL::SetVSync(bool enable)
+bool CWinBindingEGL::SetVSync(bool enable)
 {
-  if (eglSwapInterval(m_display, enable ? 1 : 0) == EGL_FALSE)
-    CLog::Log(LOGERROR, "EGL Error: Could not set vsync");
+  // depending how buffers are setup, eglSwapInterval
+  // might fail so let caller decide if this is an error.
+  return eglSwapInterval(m_display, enable ? 1 : 0);
 }
 
 bool CWinBindingEGL::IsExtSupported(const char* extension)
