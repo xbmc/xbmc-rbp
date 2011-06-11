@@ -32,14 +32,14 @@
 #include <vector>
 #include <directfb/directfb.h>
 
-using namespace std;
-
 CWinSystemDFB::CWinSystemDFB() : CWinSystemBase()
 {
   m_dfb = NULL;
-  m_dfb_screen  = NULL;
   m_dfb_layer   = NULL;
   m_dfb_surface = NULL;
+  m_vsync       = false;
+  m_buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
+  //m_buffermode  = DLBM_BACKVIDEO;   // backbuffer in video memory (no tearing but gui fps is slower)
   m_eWindowSystem = WINDOW_SYSTEM_DFB;
   m_eglBinding = new CWinBindingEGL();
 }
@@ -56,11 +56,11 @@ bool CWinSystemDFB::InitWindowSystem()
   DirectFBCreate(&m_dfb);
   m_dfb->SetCooperativeLevel(m_dfb, DFSCL_NORMAL);
 
-  m_dfb->GetScreen(m_dfb, 0, &m_dfb_screen);
   m_dfb->GetDisplayLayer(m_dfb, DLID_PRIMARY, &m_dfb_layer);
   m_dfb_layer->SetCooperativeLevel(m_dfb_layer, DLSCL_ADMINISTRATIVE);
   m_dfb_layer->SetBackgroundMode(m_dfb_layer, DLBM_DONTCARE);
   m_dfb_layer->EnableCursor(m_dfb_layer, 0);
+
   m_dfb_layer->GetSurface(m_dfb_layer, &m_dfb_surface);
 
   int screenW, screenH;
@@ -70,11 +70,10 @@ bool CWinSystemDFB::InitWindowSystem()
   
   DFBDisplayLayerConfig dlcfg;
   dlcfg.flags       = (DFBDisplayLayerConfigFlags)(DLCONF_BUFFERMODE | DLCONF_PIXELFORMAT);
-  dlcfg.buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
-  //dlcfg.buffermode  = DLBM_BACKVIDEO;   // backbuffer in video memory (no tearing but gui fps is slower)
+  dlcfg.buffermode  = (DFBDisplayLayerBufferMode)m_buffermode;     
   dlcfg.pixelformat = DSPF_ARGB;
   m_dfb_layer->SetConfiguration(m_dfb_layer, &dlcfg);
-  buffermode = dlcfg.buffermode;
+
   if (!CWinSystemBase::InitWindowSystem())
     return false;
 
@@ -89,9 +88,6 @@ bool CWinSystemDFB::DestroyWindowSystem()
   if (m_dfb_layer)
     m_dfb_layer->Release(m_dfb_layer);
   m_dfb_layer  = NULL;
-  if (m_dfb_screen)
-    m_dfb_screen->Release(m_dfb_screen);
-  m_dfb_screen = NULL;
   if (m_dfb)
     m_dfb->Release(m_dfb);
   m_dfb = NULL;
@@ -163,17 +159,18 @@ bool CWinSystemDFB::PresentRenderImpl()
 {
   // if we are not running a backbuffer,
   // then we have to handle the vsync ourselfs
-  if (buffermode == DLBM_FRONTONLY)
+  if (m_vsync && (m_buffermode == DLBM_FRONTONLY))
     m_dfb_layer->WaitForSync(m_dfb_layer);
 
-  eglSwapBuffers(m_eglBinding->GetDisplay(), m_eglBinding->GetSurface());
+  m_eglBinding->SwapBuffers();
+
   return true;
 }
 
 void CWinSystemDFB::SetVSyncImpl(bool enable)
 {
-  if (eglSwapInterval(m_eglBinding->GetDisplay(), enable ? 1 : 0) == EGL_FALSE)
-    CLog::Log(LOGERROR, "EGL Error: Could not set vsync");
+  m_vsync = enable;
+  m_eglBinding->SetVSync(enable);
 }
 
 void CWinSystemDFB::ShowOSMouse(bool show)

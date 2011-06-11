@@ -29,8 +29,6 @@
 #include "windowing/WinSystem.h"
 
 typedef struct _IDirectFB IDirectFB;
-typedef struct _IDirectFBScreen IDirectFBScreen;
-//typedef struct _IDirectFBWindow IDirectFBWindow;
 typedef struct _IDirectFBSurface IDirectFBSurface;
 typedef struct _IDirectFBDisplayLayer IDirectFBDisplayLayer;
 
@@ -67,12 +65,11 @@ protected:
   virtual void  SetVSyncImpl(bool enable);
   
   CWinBindingEGL        *m_eglBinding;
-  CStdString            m_eglext;
   IDirectFB             *m_dfb;
-  IDirectFBScreen       *m_dfb_screen;
-  IDirectFBDisplayLayer *m_dfb_layer;
   IDirectFBSurface      *m_dfb_surface;
-  int                   buffermode;
+  IDirectFBDisplayLayer *m_dfb_layer;
+  bool                   m_vsync;
+  int                    m_buffermode;
 };
 
 XBMC_GLOBAL_REF(CWinSystemDFB,g_Windowing);
