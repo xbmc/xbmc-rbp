@@ -29,8 +29,10 @@
 #include "windowing/WinSystem.h"
 
 typedef struct _IDirectFB IDirectFB;
+typedef struct _IDirectFBScreen IDirectFBScreen;
 typedef struct _IDirectFBWindow IDirectFBWindow;
 typedef struct _IDirectFBSurface IDirectFBSurface;
+typedef struct _IDirectFBDisplayLayer IDirectFBDisplayLayer;
 
 class CWinBindingEGL;
 
@@ -68,8 +70,10 @@ protected:
   CWinBindingEGL  *m_eglBinding;
   CStdString      m_eglext;
   IDirectFB*      m_dfb;
-  IDirectFBWindow  *m_dfb_window_egl;
-  IDirectFBSurface *m_dfb_surface_egl;
+  IDirectFBScreen *m_dfb_screen;
+  IDirectFBDisplayLayer *m_dfb_layer;
+  IDirectFBWindow  *m_dfb_window;
+  IDirectFBSurface *m_dfb_surface;
 };
 
 XBMC_GLOBAL_REF(CWinSystemDFB,g_Windowing);
