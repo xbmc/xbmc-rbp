@@ -2,8 +2,7 @@ INCLUDES= -I. \
 	-I@abs_top_srcdir@/xbmc/linux \
 	-I@abs_top_srcdir@/xbmc/windowing
 
-CXXFLAGS+= \
-	-isystem@BUILDPREFIX@/include/directfb
+CXXFLAGS+= @DIRECTFB_CFLAGS@ 
 
 SRCS= \
      WinSystemDFB.cpp \

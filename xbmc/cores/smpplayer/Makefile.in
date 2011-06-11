@@ -1,5 +1,5 @@
 CXXFLAGS+= \
-	-isystem@BUILDPREFIX@/include/directfb \
+	@DIRECTFB_CFLAGS@ \
 	-isystem@BUILDPREFIX@/include/dcchd/core \
 	-isystem@BUILDPREFIX@/include/dcchd/mono
 

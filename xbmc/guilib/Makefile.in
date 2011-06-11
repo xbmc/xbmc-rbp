@@ -88,7 +88,7 @@ SRCS+=TextureGL.cpp \
 
 endif
 ifeq (@USE_DIRECTFB@,1)
-CXXFLAGS+= -isystem@BUILDPREFIX@/include/directfb
+CXXFLAGS+= @DIRECTFB_CFLAGS@
 endif
 
 LIB=guilib.a
