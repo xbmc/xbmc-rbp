@@ -381,7 +381,6 @@ void CLinuxRendererGLES::Reset()
     /* reset texture locks, a bit ugly, could result in tearing */
     SetEvent(m_eventTexturesDone[i]);
   }
-  m_hasRendered = false;
 }
 
 void CLinuxRendererGLES::Update(bool bPauseDrawing)
