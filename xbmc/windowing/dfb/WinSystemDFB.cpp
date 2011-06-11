@@ -39,7 +39,6 @@ CWinSystemDFB::CWinSystemDFB() : CWinSystemBase()
   m_dfb = NULL;
   m_dfb_screen  = NULL;
   m_dfb_layer   = NULL;
-  m_dfb_window  = NULL;
   m_dfb_surface = NULL;
   m_eWindowSystem = WINDOW_SYSTEM_DFB;
   m_eglBinding = new CWinBindingEGL();
@@ -62,28 +61,20 @@ bool CWinSystemDFB::InitWindowSystem()
   m_dfb_layer->SetCooperativeLevel(m_dfb_layer, DLSCL_ADMINISTRATIVE);
   m_dfb_layer->SetBackgroundMode(m_dfb_layer, DLBM_DONTCARE);
   m_dfb_layer->EnableCursor(m_dfb_layer, 0);
+  m_dfb_layer->GetSurface(m_dfb_layer, &m_dfb_surface);
+
+  int screenW, screenH;
+  m_dfb_surface->GetSize(m_dfb_surface, &screenW, &screenH);
+  CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: width(%d), height(%d)",
+    screenW, screenH);
   
   DFBDisplayLayerConfig dlcfg;
   dlcfg.flags       = (DFBDisplayLayerConfigFlags)(DLCONF_BUFFERMODE | DLCONF_PIXELFORMAT);
-  dlcfg.buffermode  = DLBM_FRONTONLY;
+  dlcfg.buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
+  //dlcfg.buffermode  = DLBM_BACKVIDEO;   // backbuffer in video memory (no tearing but gui fps is slower)
   dlcfg.pixelformat = DSPF_ARGB;
   m_dfb_layer->SetConfiguration(m_dfb_layer, &dlcfg);
-
-  DFBWindowDescription desc;
-  desc.posx   = 0;
-  desc.posy   = 0;
-  desc.width  = 1280;  // screen_width;
-  desc.height = 720;   // screen_height;
-  desc.flags  = (DFBWindowDescriptionFlags)(DWDESC_POSX |
-     DWDESC_POSY | DWDESC_WIDTH | DWDESC_HEIGHT | DWDESC_CAPS | DWDESC_SURFACE_CAPS);
-  desc.surface_caps = (DFBSurfaceCapabilities)(DSCAPS_VIDEOONLY | DSCAPS_PAGE_ALIGNED);
-
-  m_dfb_layer->CreateWindow(m_dfb_layer, &desc, &m_dfb_window);
-  m_dfb_window->GetSurface(m_dfb_window, &m_dfb_surface);
-  m_dfb_window->SetOpacity(m_dfb_window, 0xff);
-  m_dfb_window->RequestFocus(m_dfb_window);
-  m_dfb_window->RaiseToTop(m_dfb_window);
-
+  buffermode = dlcfg.buffermode;
   if (!CWinSystemBase::InitWindowSystem())
     return false;
 
@@ -95,9 +86,6 @@ bool CWinSystemDFB::DestroyWindowSystem()
   if (m_dfb_surface)
     m_dfb_surface->Release(m_dfb_surface);
   m_dfb_surface = NULL;
-  if (m_dfb_window)
-    m_dfb_window->Release(m_dfb_window);
-  m_dfb_window = NULL;
   if (m_dfb_layer)
     m_dfb_layer->Release(m_dfb_layer);
   m_dfb_layer  = NULL;
@@ -141,7 +129,7 @@ bool CWinSystemDFB::ResizeWindow(int newWidth, int newHeight, int newLeft, int n
 
 bool CWinSystemDFB::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays)
 {
-  CLog::Log(LOGNONE, "CWinSystemDFB::SetFullScreen");
+  CLog::Log(LOGDEBUG, "CWinSystemDFB::SetFullScreen");
   m_nWidth  = res.iWidth;
   m_nHeight = res.iHeight;
   m_bFullScreen = fullScreen;
@@ -173,6 +161,11 @@ bool CWinSystemDFB::IsExtSupported(const char* extension)
 
 bool CWinSystemDFB::PresentRenderImpl()
 {
+  // if we are not running a backbuffer,
+  // then we have to handle the vsync ourselfs
+  if (buffermode == DLBM_FRONTONLY)
+    m_dfb_layer->WaitForSync(m_dfb_layer);
+
   eglSwapBuffers(m_eglBinding->GetDisplay(), m_eglBinding->GetSurface());
   return true;
 }
@@ -180,13 +173,12 @@ bool CWinSystemDFB::PresentRenderImpl()
 void CWinSystemDFB::SetVSyncImpl(bool enable)
 {
   if (eglSwapInterval(m_eglBinding->GetDisplay(), enable ? 1 : 0) == EGL_FALSE)
-  {
     CLog::Log(LOGERROR, "EGL Error: Could not set vsync");
-  }
 }
 
 void CWinSystemDFB::ShowOSMouse(bool show)
 {
+  //m_dfb_layer->EnableCursor(m_dfb_layer, show ? 1 : 0);
 }
 
 void CWinSystemDFB::NotifyAppActiveChange(bool bActivated)

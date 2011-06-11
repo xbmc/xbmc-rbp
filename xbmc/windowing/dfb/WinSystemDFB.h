@@ -30,7 +30,7 @@
 
 typedef struct _IDirectFB IDirectFB;
 typedef struct _IDirectFBScreen IDirectFBScreen;
-typedef struct _IDirectFBWindow IDirectFBWindow;
+//typedef struct _IDirectFBWindow IDirectFBWindow;
 typedef struct _IDirectFBSurface IDirectFBSurface;
 typedef struct _IDirectFBDisplayLayer IDirectFBDisplayLayer;
 
@@ -49,6 +49,7 @@ public:
   virtual bool  ResizeWindow(int newWidth, int newHeight, int newLeft, int newTop);
   virtual bool  SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays);
   virtual void  UpdateResolutions();
+  virtual bool  IsExtSupported(const char* extension);
 
   virtual void  ShowOSMouse(bool show);
 
@@ -59,21 +60,19 @@ public:
   virtual bool  Hide();
   virtual bool  Show(bool raise = true);
 
-  virtual bool  IsExtSupported(const char* extension);
-
   IDirectFB*    GetIDirectFB() const;
 
 protected:
-  virtual bool    PresentRenderImpl();
-  virtual void    SetVSyncImpl(bool enable);
+  virtual bool  PresentRenderImpl();
+  virtual void  SetVSyncImpl(bool enable);
   
-  CWinBindingEGL  *m_eglBinding;
-  CStdString      m_eglext;
-  IDirectFB*      m_dfb;
-  IDirectFBScreen *m_dfb_screen;
+  CWinBindingEGL        *m_eglBinding;
+  CStdString            m_eglext;
+  IDirectFB             *m_dfb;
+  IDirectFBScreen       *m_dfb_screen;
   IDirectFBDisplayLayer *m_dfb_layer;
-  IDirectFBWindow  *m_dfb_window;
-  IDirectFBSurface *m_dfb_surface;
+  IDirectFBSurface      *m_dfb_surface;
+  int                   buffermode;
 };
 
 XBMC_GLOBAL_REF(CWinSystemDFB,g_Windowing);
