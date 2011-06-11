@@ -175,6 +175,7 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
   m_eglext += " ";
   CLog::Log(LOGDEBUG, "EGL extensions:%s", m_eglext.c_str());
 
+  // setup for vsync disabled
   eglSwapInterval(m_display, 0);
 
   CLog::Log(LOGINFO, "EGL window and context creation complete");
