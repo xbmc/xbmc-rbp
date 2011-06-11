@@ -1079,10 +1079,6 @@ void CSMPPlayer::Process()
 {
   try
   {
-    // hide the video layer so we can get stream info
-    // first, then do a nice transition away from gui.
-    ShowAmpVideoLayer(false);
-
     // wait for media to open with 20 second timeout.
     if (WaitForAmpOpenMedia(20000))
     {
@@ -1104,6 +1100,10 @@ void CSMPPlayer::Process()
     // wait for playback to start with 2 second timeout
     if (WaitForAmpPlaying(2000))
     {
+      // hide the video layer so we can get stream info
+      // first, then do a nice transition away from gui.
+      ShowAmpVideoLayer(false);
+
       // drop CGUIDialogBusy dialog and release the hold in OpenFile.
       m_ready.Set();
 
@@ -1237,24 +1237,20 @@ int CSMPPlayer::GetVideoStreamCount()
 
 void CSMPPlayer::ShowAmpVideoLayer(bool show)
 {
-  IDirectFBScreen *screen;
-
   IDirectFB *dfb = g_Windowing.GetIDirectFB();
   // enable background layer to hide video playback layer while we start up
+  IDirectFBScreen *screen;
   if (dfb->GetScreen(dfb, 0, &screen) == DFB_OK)
   {
     DFBScreenMixerConfig mixcfg;
     screen->GetMixerConfiguration(screen, 0, &mixcfg);
-    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_BACKGROUND | DSMCONF_LAYERS);
-    // set mixer background to pure black.
-    mixcfg.background.a = 0;
-    mixcfg.background.r = 0;
-    mixcfg.background.g = 0;
-    mixcfg.background.b = 0;
+    mixcfg.flags = DSMCONF_LAYERS;
     // yes this is correct, to hide video we show background.
     if (show)
+      //DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_MAINVIDEO);
       DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, EM86LAYER_BKGND);
     else
+      //DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, EM86LAYER_MAINVIDEO);
       DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_BKGND);
     screen->SetMixerConfiguration(screen, 0, &mixcfg);
   }
@@ -1365,7 +1361,7 @@ bool CSMPPlayer::WaitForWindowFullScreenVideo(int timeout_ms)
     }
     timeout_ms -= 100;
   }
-  usleep(500*1000);
+  //usleep(500*1000);
 
   return rtn;
 }
