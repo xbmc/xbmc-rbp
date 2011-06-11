@@ -40,16 +40,18 @@ public:
   CWinBindingEGL();
   ~CWinBindingEGL();
 
-  bool CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeWindowType nativeWindow);
-  bool DestroyWindow();
-  bool ReleaseSurface();
+  bool  CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeWindowType nativeWindow);
+  bool  DestroyWindow();
+  bool  ReleaseSurface();
+  void  SwapBuffers();
+  void  SetVSync(bool enable);
+  bool  IsExtSupported(const char* extension);
 
-  EGLNativeWindowType   GetNativeWindow()   { return m_nativeWindow;  }
-  EGLNativeDisplayType  GetNativeDisplay()  { return m_nativeDisplay; }
-  EGLDisplay            GetDisplay()        { return m_display; }
-  EGLSurface            GetSurface()        { return m_surface; }
-  EGLContext            GetContext()        { return m_context; }
-  bool                  IsExtSupported(const char* extension);
+  EGLNativeWindowType   GetNativeWindow();
+  EGLNativeDisplayType  GetNativeDisplay();
+  EGLDisplay            GetDisplay();
+  EGLSurface            GetSurface();
+  EGLContext            GetContext();
 
 protected:
   EGLNativeWindowType   m_nativeWindow;

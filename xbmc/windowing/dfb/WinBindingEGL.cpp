@@ -215,6 +215,17 @@ bool CWinBindingEGL::DestroyWindow()
   return true;
 }
 
+void CWinBindingEGL::SwapBuffers()
+{
+  eglSwapBuffers(m_display, m_surface);
+}
+
+void CWinBindingEGL::SetVSync(bool enable)
+{
+  if (eglSwapInterval(m_display, enable ? 1 : 0) == EGL_FALSE)
+    CLog::Log(LOGERROR, "EGL Error: Could not set vsync");
+}
+
 bool CWinBindingEGL::IsExtSupported(const char* extension)
 {
   CStdString name;
@@ -224,6 +235,31 @@ bool CWinBindingEGL::IsExtSupported(const char* extension)
   name += " ";
 
   return m_eglext.find(name) != std::string::npos;
+}
+
+EGLNativeWindowType CWinBindingEGL::GetNativeWindow()
+{
+  return m_nativeWindow;
+}
+
+EGLNativeDisplayType CWinBindingEGL::GetNativeDisplay()
+{
+  return m_nativeDisplay;
+}
+
+EGLDisplay CWinBindingEGL::GetDisplay()
+{
+  return m_display;
+}
+
+EGLSurface CWinBindingEGL::GetSurface()
+{
+  return m_surface;
+}
+
+EGLContext CWinBindingEGL::GetContext()
+{
+  return m_context;
 }
 
 #endif
