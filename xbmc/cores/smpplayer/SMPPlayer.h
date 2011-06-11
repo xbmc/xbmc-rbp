@@ -181,6 +181,7 @@ private:
   float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;
+  double                  m_present_time;
   // opaque smp global status
   void*                   m_status;
 

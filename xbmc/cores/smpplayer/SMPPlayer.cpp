@@ -44,6 +44,8 @@
 #include <directfb/iadvancedmediaprovider.h>
 #include <cdefs_lpb.h>
 
+#define VERBOSE_LOGGING 0
+
 union UMSStatus
 {
   struct SStatus      generic;
@@ -310,7 +312,6 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
       throw;
     }
 
-
     // create the playing thread
     m_StopPlaying = false;
     Create();
@@ -318,11 +319,11 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_ready.Reset();
     if(!m_ready.WaitMSec(100))
     {
-      CGUIDialogBusy *dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
-      dialog->Show();
+      //CGUIDialogBusy *dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
+      //dialog->Show();
       while(!m_ready.WaitMSec(1))
         g_windowManager.Process(false);
-      dialog->Close();
+      //dialog->Close();
     }
 
     // Playback might have been stopped due to some error.
@@ -1076,6 +1077,9 @@ void CSMPPlayer::Process()
 {
   try
   {
+      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
+      m_ready.Set();
+
     // wait for media to open with 20 second timeout.
     if (WaitForAmpOpenMedia(20000))
     {
@@ -1134,9 +1138,6 @@ void CSMPPlayer::Process()
       // first, then do a nice transition away from gui.
       ShowAmpVideoLayer(false);
 
-      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
-      m_ready.Set();
-
       // get our initial status.
       GetAmpStatus();
 
@@ -1176,7 +1177,7 @@ void CSMPPlayer::Process()
         flags |= CONF_FLAGS_FULLSCREEN;
         CStdString formatstr = "BYPASS";
         CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: %s",
-          __FUNCTION__, GetPictureWidth(), GetPictureHeight(), GetActualFPS(), formatstr.c_str());
+          __FUNCTION__, GetPictureWidth(), GetPictureHeight(), fFrameRate, formatstr.c_str());
         g_renderManager.IsConfigured();
         if(!g_renderManager.Configure(width, height, displayWidth, displayHeight, fFrameRate, flags))
         {
@@ -1186,6 +1187,8 @@ void CSMPPlayer::Process()
         {
           CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
         }
+        
+        m_present_time = g_renderManager.GetPresentTime();
       }
 
       m_speed = 1;
@@ -1268,14 +1271,15 @@ int CSMPPlayer::GetVideoStreamCount()
 
 void CSMPPlayer::ShowAmpVideoLayer(bool show)
 {
+  DFBScreenMixerConfig mixcfg;
   IDirectFB *dfb = g_Windowing.GetIDirectFB();
+
   // enable background layer to hide video playback layer while we start up
-  IDirectFBScreen *screen;
-  if (dfb->GetScreen(dfb, 0, &screen) == DFB_OK)
+  IDirectFBScreen *screen = NULL;
+  if (dfb->GetScreen(dfb, DSCID_PRIMARY, &screen) == DFB_OK)
   {
-    DFBScreenMixerConfig mixcfg;
     screen->GetMixerConfiguration(screen, 0, &mixcfg);
-    mixcfg.flags = DSMCONF_LAYERS;
+    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
     // yes this is correct, to hide video we show background.
     if (show)
       //DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_MAINVIDEO);
@@ -1285,6 +1289,40 @@ void CSMPPlayer::ShowAmpVideoLayer(bool show)
       DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_BKGND);
     screen->SetMixerConfiguration(screen, 0, &mixcfg);
   }
+  // dump the mixer config
+  for (int n = 0; n < DFB_DISPLAYLAYER_IDS_MAX; n++)
+  {
+    if (DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, n))
+    {
+      switch(n)
+      {
+        case EM86LAYER_OSD:
+          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) OSD layer (graphic)", n);
+        break;
+        case EM86LAYER_BKGND:
+          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Background layer (graphic)", n);
+          if (mixcfg.flags & DSMCONF_BACKGROUND)
+          {
+            CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Background layer ARGB "
+              "0x%02x, 0x%02x, 0x%02x, 0x%02x",
+              n, mixcfg.background.a, mixcfg.background.r, mixcfg.background.g, mixcfg.background.b );
+          }
+        break;
+        case EM86LAYER_MAINVIDEO:
+          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Main video layer", n);
+        break;
+        case EM86LAYER_SECVIDEO:
+          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Secondary video layer (video or graphic)", n);
+        break;
+        case EM86LAYER_SECOSD:
+          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Secondary OSD layer (graphic)", n);
+        break;
+      }
+    }
+  }
+
+  if (screen)
+    screen->Release(screen);
   //CLog::Log(LOGDEBUG,"CSMPPlayer::ShowAmpVideoLayer: show(%d)", show);
 }
 
@@ -1418,7 +1456,9 @@ bool CSMPPlayer::WaitForWindowFullScreenVideo(int timeout_ms)
   while (!m_bStop && (timeout_ms > 0))
   {
     usleep(100*1000);
-    if (g_windowManager.GetActiveWindow() == WINDOW_FULLSCREEN_VIDEO)
+    //if (g_windowManager.GetActiveWindow() == WINDOW_FULLSCREEN_VIDEO)
+    if (g_graphicsContext.IsFullScreenVideo() &&
+      (g_renderManager.GetPresentTime() > m_present_time))
     {
       rtn = true;
       break;
