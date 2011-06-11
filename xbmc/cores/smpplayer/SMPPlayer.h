@@ -137,6 +137,7 @@ protected:
 private:
   int           GetVideoStreamCount();
   void          ShowAmpVideoLayer(bool show);
+  bool          WaitForAmpStopped(int timeout_ms);
   bool          WaitForAmpPlaying(int timeout_ms);
   bool          WaitForAmpOpenMedia(int timeout_ms);
   bool          WaitForAmpFormatValid(int timeout_ms);

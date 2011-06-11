@@ -501,7 +501,6 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
   cmd.param2.time.Hour   = (seek_ms / 3600000);
   cmd.param2.time.Minute = (seek_ms / 60000) % 60;
   cmd.param2.time.Second = (seek_ms / 1000)  % 60;
-  cmd.param2.time.Frame  = 0;
   cmd.dataSize = sizeof(cmd);
   cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
   //CLog::Log(LOGDEBUG, "CSMPPlayer::Seek:to Hour(%lu), Minute(%lu), Second(%lu)",
@@ -821,7 +820,6 @@ int CSMPPlayer::SeekChapter(int chapter_index)
     cmd.param2.time.Hour   = (seek_ms / 3600000);
     cmd.param2.time.Minute = (seek_ms / 60000) % 60;
     cmd.param2.time.Second = (seek_ms / 1000)  % 60;
-    cmd.param2.time.Frame  = 0;
     //CLog::Log(LOGDEBUG, "CSMPPlayer::SeekChapter:to Hour(%lu), Minute(%lu), Second(%lu)",
     //  cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
 
@@ -898,7 +896,6 @@ void CSMPPlayer::SeekTime(__int64 seek_ms)
   cmd.param2.time.Hour   = (seek_ms / 3600000);
   cmd.param2.time.Minute = (seek_ms / 60000) % 60;
   cmd.param2.time.Second = (seek_ms / 1000)  % 60;
-  cmd.param2.time.Frame  = 0;
   //CLog::Log(LOGDEBUG, "CSMPPlayer::SeekTime:to Hour(%lu), Minute(%lu), Second(%lu)",
   //  cmd.param2.time.Hour, cmd.param2.time.Minute, cmd.param2.time.Second);
 
@@ -1096,7 +1093,40 @@ void CSMPPlayer::Process()
       CLog::Log(LOGDEBUG, "CSMPPlayer::Process:WaitForAmpOpenMedia timeout");
       throw;
     }
+/*
+    // wait for amp startup to stopped with 2 second timeout
+    if (WaitForAmpStopped(2000))
+    {
+      SLPBCommand cmd;
+      cmd.dataSize = sizeof(cmd);
+      cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+      cmd.cmd = LPBCmd_PLAY;
+      cmd.param2.speed = 1 * 1024;
 
+      if (m_options.starttime > 0)
+      {
+        int seek_s = m_options.starttime;
+        // starttime has units of seconds
+        cmd.cmd = LPBCmd_PLAY_TIME;
+        cmd.param2.speed       = 1 * 1024;
+        cmd.param2.time.Hour   = (seek_s / 3600);
+        cmd.param2.time.Minute = (seek_s / 60) % 60;
+        cmd.param2.time.Second = (seek_s % 60);
+      }
+
+      SLPBResult res;
+      res.dataSize = sizeof(res);
+      res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
+
+      if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
+        CLog::Log(LOGERROR, "CSMPPlayer::ToFFRW:AMP command failed!");
+    }
+    else
+    {
+      CLog::Log(LOGDEBUG, "CSMPPlayer::Process:WaitFor AmpStartup timeout");
+      throw;
+    }
+*/
     // wait for playback to start with 2 second timeout
     if (WaitForAmpPlaying(2000))
     {
@@ -1119,12 +1149,12 @@ void CSMPPlayer::Process()
         SeekTime(m_options.starttime * 1000);
         WaitForAmpPlaying(1000);
       }
-      
+
       // wait until video.format.formatValid or audio.format.formatValid
       WaitForAmpFormatValid(2000);
 
       // we are playing but hidden and all stream fields are valid.
-      // check for video
+      // check for video in media content
       if (GetVideoStreamCount() > 0)
       {
         // turn on/off subs
@@ -1157,6 +1187,7 @@ void CSMPPlayer::Process()
           CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
         }
       }
+
       m_speed = 1;
       m_callback.OnPlayBackStarted();
       WaitForWindowFullScreenVideo(2000);
@@ -1255,6 +1286,39 @@ void CSMPPlayer::ShowAmpVideoLayer(bool show)
     screen->SetMixerConfiguration(screen, 0, &mixcfg);
   }
   //CLog::Log(LOGDEBUG,"CSMPPlayer::ShowAmpVideoLayer: show(%d)", show);
+}
+
+bool CSMPPlayer::WaitForAmpStopped(int timeout_ms)
+{
+  bool rtn = false;
+
+  while (!m_bStop && (timeout_ms > 0))
+  {
+    if (m_amp_event->WaitForEventWithTimeout(m_amp_event, 0, 100) == DFB_OK)
+    {
+      // eat the event
+      DFBEvent event;
+      m_amp_event->GetEvent(m_amp_event, &event);
+
+      if (GetAmpStatus())
+      {
+        if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_MODE) && 
+            (((UMSStatus*)m_status)->generic.mode.flags & SSTATUS_MODE_STOPPED))
+        {
+          rtn = true;
+          break;
+        }
+      }
+    }
+    else
+    {
+      // we should never get here but just in case.
+      usleep(100*1000);
+    }
+    timeout_ms -= 100;
+  }
+
+  return rtn;
 }
 
 bool CSMPPlayer::WaitForAmpPlaying(int timeout_ms)
