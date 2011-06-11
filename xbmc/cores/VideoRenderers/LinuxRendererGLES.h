@@ -157,6 +157,7 @@ public:
 #ifdef HAVE_VIDEOTOOLBOXDECODER
   virtual void         AddProcessor(CDVDVideoCodecVideoToolBox* vtb, DVDVideoPicture *picture);
 #endif
+
 protected:
   virtual void Render(DWORD flags, int index);
 
@@ -273,6 +274,7 @@ protected:
   unsigned int m_rgbBufferSize;
 
   HANDLE m_eventTexturesDone[NUM_BUFFERS];
+  bool m_BYPASS_RenderUpdated;
 
 };
 
