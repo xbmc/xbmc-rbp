@@ -93,6 +93,7 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
         EGL_STENCIL_SIZE,    0,
         EGL_SAMPLE_BUFFERS,  0,
         EGL_SAMPLES,         0,
+        EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
         EGL_NONE
   };
@@ -161,7 +162,7 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
     }
   }
 
-  // Make the context and surface current for rendering
+  // Make the context and surface current to this thread for rendering
   eglStatus = eglMakeCurrent(m_display, m_surface, m_surface, m_context);
   if (!eglStatus) 
   {

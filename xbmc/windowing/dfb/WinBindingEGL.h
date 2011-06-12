@@ -25,11 +25,14 @@
 #include "utils/StringUtils.h"
 
 #ifdef HAS_DIRECTFB
-#include <directfb/directfb.h>
-// We have to define SUPPORT_DIRECTFB_WS before including egl.h so
-// that eglplatform.h (included in egl.h) will typedef the native
-// window system types:
-#define SUPPORT_DIRECTFB_WS
+  #include <directfb/directfb.h>
+  // We have to define SUPPORT_DIRECTFB_WS before including egl.h so
+  // that eglplatform.h (included in egl.h) will typedef the native
+  // window system types as follows:
+  // typedef IDirectFB*         NativeDisplayType;
+  // typedef IDirectFBSurface*  NativeWindowType;
+  // typedef IDirectFBSurface*  NativePixmapType;
+  #define SUPPORT_DIRECTFB_WS
 #endif
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
