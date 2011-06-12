@@ -37,6 +37,7 @@
 CWinSystemDFB::CWinSystemDFB() : CWinSystemBase()
 {
   m_dfb = NULL;
+  m_dfb_screen  = NULL;
   m_dfb_layer   = NULL;
   m_dfb_surface = NULL;
 
@@ -61,6 +62,60 @@ bool CWinSystemDFB::InitWindowSystem()
   DirectFBCreate(&m_dfb);
   m_dfb->SetCooperativeLevel(m_dfb, DFSCL_NORMAL);
 
+  m_dfb->GetScreen(m_dfb, DSCID_PRIMARY, &m_dfb_screen);
+
+#if VERBOSE_LOGGING > 0
+  // get and dump the screen descriptor
+ 	DFBScreenDescription screen_desc;
+  screen_desc.caps = DSCCAPS_ALL;
+  m_dfb_screen->GetDescription(m_dfb_screen, &screen_desc);
+  CLog::Log(LOGDEBUG, "screen_desc caps(0x%x), name(%s), mixers(%d), encoders(%d), outputs(%d)",
+    screen_desc.caps, screen_desc.name, screen_desc.mixers, screen_desc.encoders, screen_desc.outputs);
+
+  // get and dump the mixer descriptors
+  DFBScreenMixerDescription mixer_descs[screen_desc.mixers];
+  m_dfb_screen->GetMixerDescriptions(m_dfb_screen, mixer_descs);
+	for (int i = 0; i < screen_desc.mixers; ++i)
+	{
+    CLog::Log(LOGDEBUG, "i(%d), mixer_descs caps(0x%x), layers(0x%x), "
+      "sub_num(0x%x), sub_layers(0x%x), name(%s)",
+      i, mixer_descs[i].caps, mixer_descs[i].layers,
+      mixer_descs[i].sub_num, mixer_descs[i].sub_layers, mixer_descs[i].name);
+  }
+
+  // get and dump the encoder descriptors
+  DFBScreenEncoderConfig encoder_cfg;
+  DFBScreenOutputSignals out_signal;
+	for (int i = 0; i < screen_desc.encoders; ++i)
+	{
+    m_dfb_screen->GetEncoderConfiguration(m_dfb_screen, i, &encoder_cfg);
+    CLog::Log(LOGDEBUG, "i(%d), enc_cfg flags(0x%x), tv_standard(0x%x), out_signals(0x%x)",
+      i, encoder_cfg.flags, encoder_cfg.tv_standard, encoder_cfg.out_signals);
+		if (encoder_cfg.out_signals & ~DSOS_EDID)
+		{
+			out_signal = (DFBScreenOutputSignals)(encoder_cfg.out_signals & ~DSOS_EDID);
+			//break;
+		}
+	}
+
+  // get and dump the screen descriptors
+  DFBScreenOutputDescription screen_descs[screen_desc.outputs];
+  m_dfb_screen->GetOutputDescriptions(m_dfb_screen, screen_descs);
+	for (int i = 0; i < screen_desc.outputs; ++i)
+	{
+    CLog::Log(LOGDEBUG, "i(%d), screen_descs caps(0x%x), all_connectors(0x%x), all_signals(0x%x), name(%s)",
+      i, screen_descs[i].caps, screen_descs[i].all_connectors, screen_descs[i].all_signals, screen_descs[i].name);
+  }
+
+  DFBScreenOutputConfig output_cfg;
+  output_cfg.flags = DSOCONF_ALL;
+  m_dfb_screen->GetOutputConfiguration(m_dfb_screen, 0, &output_cfg);
+  CLog::Log(LOGDEBUG,
+      "output_cfg flags(0x%x), encoder(0x%x), "
+      "out_signals(0x%x), out_connectors(0x%x), slow_blanking(0x%x)",
+      output_cfg.flags, output_cfg.encoder,
+      output_cfg.out_signals, output_cfg.out_connectors, output_cfg.slow_blanking);
+
   m_dfb->GetDisplayLayer(m_dfb, DLID_PRIMARY, &m_dfb_layer);
   m_dfb_layer->SetCooperativeLevel(m_dfb_layer, DLSCL_ADMINISTRATIVE);
   m_dfb_layer->GetConfiguration(m_dfb_layer, &dlcfg);
@@ -77,7 +132,6 @@ bool CWinSystemDFB::InitWindowSystem()
   CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: Surface      width(%d), height(%d)",
     width, height);
 
-#if VERBOSE_LOGGING > 0
   // based on sigma's directfb definitions. beware, others might be different.
   enum {
     XBMC_OSD = DSCID_PRIMARY,
@@ -140,6 +194,10 @@ bool CWinSystemDFB::DestroyWindowSystem()
     m_dfb_layer->Release(m_dfb_layer);
   m_dfb_layer  = NULL;
 
+  if (m_dfb_screen)
+    m_dfb_screen->Release(m_dfb_screen);
+  m_dfb_screen = NULL;
+
   if (m_dfb)
     m_dfb->Release(m_dfb);
   m_dfb = NULL;
@@ -153,19 +211,20 @@ bool CWinSystemDFB::CreateNewWindow(const CStdString& name, bool fullScreen, RES
   m_nHeight = res.iHeight;
   m_bFullScreen = fullScreen;
 
-  if (m_eglBinding->CreateWindow((EGLNativeDisplayType)m_dfb, (NativeWindowType)m_dfb_surface))
-  {
-    m_bWindowCreated = true;
-    return true;
-  }
+  if (!m_eglBinding->CreateWindow((EGLNativeDisplayType)m_dfb, (NativeWindowType)m_dfb_surface))
+    return false;
 
-  return false;
+  m_bWindowCreated = true;
+
+  return true;
 }
 
 bool CWinSystemDFB::DestroyWindow()
 {
   if (!m_eglBinding->DestroyWindow())
     return false;
+
+  m_bWindowCreated = false;
 
   return true;
 }
@@ -254,38 +313,28 @@ bool CWinSystemDFB::Restore()
 
 bool CWinSystemDFB::Hide()
 {
-  IDirectFBScreen *screen = NULL;
-  if (m_dfb->GetScreen(m_dfb, DSCID_PRIMARY, &screen) == DFB_OK)
-  {
-    DFBScreenMixerConfig mixcfg;
-    screen->GetMixerConfiguration(screen, 0, &mixcfg);
-    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
+  DFBScreenMixerConfig mixcfg;
+  m_dfb_screen->GetMixerConfiguration(m_dfb_screen, 0, &mixcfg);
+  mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
 
-    if (DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, DLID_PRIMARY))
-      DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, DLID_PRIMARY);
-    
-    screen->SetMixerConfiguration(screen, 0, &mixcfg);
-    screen->Release(screen);
-  }
+  if (DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, DLID_PRIMARY))
+    DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, DLID_PRIMARY);
+  
+  m_dfb_screen->SetMixerConfiguration(m_dfb_screen, 0, &mixcfg);
 
   return true;
 }
 
 bool CWinSystemDFB::Show(bool raise)
 {
-  IDirectFBScreen *screen = NULL;
-  if (m_dfb->GetScreen(m_dfb, DSCID_PRIMARY, &screen) == DFB_OK)
-  {
-    DFBScreenMixerConfig mixcfg;
-    screen->GetMixerConfiguration(screen, 0, &mixcfg);
-    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
+  DFBScreenMixerConfig mixcfg;
+  m_dfb_screen->GetMixerConfiguration(m_dfb_screen, 0, &mixcfg);
+  mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
 
-    if (!DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, DLID_PRIMARY))
-      DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, DLID_PRIMARY);
-    
-    screen->SetMixerConfiguration(screen, 0, &mixcfg);
-    screen->Release(screen);
-  }
+  if (!DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, DLID_PRIMARY))
+    DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, DLID_PRIMARY);
+  
+  m_dfb_screen->SetMixerConfiguration(m_dfb_screen, 0, &mixcfg);
 
   return true;
 }

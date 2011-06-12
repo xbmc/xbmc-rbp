@@ -29,6 +29,7 @@
 #include "windowing/WinSystem.h"
 
 typedef struct _IDirectFB IDirectFB;
+typedef struct _IDirectFBScreen IDirectFBScreen;
 typedef struct _IDirectFBSurface IDirectFBSurface;
 typedef struct _IDirectFBDisplayLayer IDirectFBDisplayLayer;
 
@@ -66,6 +67,7 @@ protected:
   
   CWinBindingEGL        *m_eglBinding;
   IDirectFB             *m_dfb;
+  IDirectFBScreen       *m_dfb_screen;
   IDirectFBDisplayLayer *m_dfb_layer;
   IDirectFBSurface      *m_dfb_surface;
   int                    m_buffermode;
