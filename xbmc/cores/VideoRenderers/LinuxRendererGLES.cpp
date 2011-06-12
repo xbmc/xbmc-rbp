@@ -395,19 +395,22 @@ void CLinuxRendererGLES::RenderUpdate(bool clear, DWORD flags, DWORD alpha)
 {
   if (!m_bConfigured) return;
 
-  if ((m_renderMethod & RENDER_BYPASS) && !m_BYPASS_RenderUpdated)
-  {
-    m_BYPASS_RenderUpdated = true;
-    g_graphicsContext.BeginPaint();
-    g_graphicsContext.Clear();
-    g_graphicsContext.EndPaint();
-    glFinish();
-    return;
-  }
-
   // if its first pass, just init textures and return
   if (ValidateRenderTarget())
     return;
+
+  if (m_renderMethod & RENDER_BYPASS)
+  {
+    //if (!m_BYPASS_RenderUpdated)
+    {
+      g_graphicsContext.BeginPaint();
+      g_graphicsContext.Clear();
+      g_graphicsContext.EndPaint();
+      glFinish();
+    }
+    m_BYPASS_RenderUpdated = true;
+    return;
+  }
 
   // this needs to be checked after texture validation
   if (!m_bImageReady) return;
