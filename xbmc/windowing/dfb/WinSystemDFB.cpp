@@ -32,13 +32,13 @@
 #include <vector>
 #include <directfb/directfb.h>
 
+#define VERBOSE_LOGGING 1
+
 CWinSystemDFB::CWinSystemDFB() : CWinSystemBase()
 {
   m_dfb = NULL;
   m_dfb_layer   = NULL;
   m_dfb_surface = NULL;
-  m_dfb_bkg_layer   = NULL;
-  m_dfb_bkg_surface = NULL;
 
   m_buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
   //m_buffermode  = DLBM_BACKVIDEO;   // backbuffer in video memory (no tearing but gui fps is slower)
@@ -68,33 +68,62 @@ bool CWinSystemDFB::InitWindowSystem()
     dlcfg.width, dlcfg.height);
 
   dlcfg.flags       = (DFBDisplayLayerConfigFlags)(DLCONF_BUFFERMODE | DLCONF_PIXELFORMAT);
-  dlcfg.options     = (DFBDisplayLayerOptions)(DLOP_OPACITY);
   dlcfg.buffermode  = (DFBDisplayLayerBufferMode)m_buffermode;     
   dlcfg.pixelformat = DSPF_ARGB;
   m_dfb_layer->SetConfiguration(m_dfb_layer, &dlcfg);
-  //m_dfb_layer->SetBackgroundMode(m_dfb_layer, DLBM_DONTCARE);
-  //m_dfb_layer->EnableCursor(m_dfb_layer, 0);
-	//m_dfb_layer->SetOpacity(m_dfb_layer, 0xff);
 
   m_dfb_layer->GetSurface(m_dfb_layer, &m_dfb_surface);
   m_dfb_surface->GetSize(m_dfb_surface, &width, &height);
-  CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: Surface (gui) width(%d), height(%d)",
+  CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: Surface      width(%d), height(%d)",
     width, height);
 
-  // setup background just like DLID_PRIMARY (EM86LAYER_OSD)
-  // EM86LAYER_BKGND is layer 1.
-  m_dfb->GetDisplayLayer(m_dfb, 1, &m_dfb_bkg_layer);
-  m_dfb_bkg_layer->SetCooperativeLevel(m_dfb_bkg_layer, DLSCL_ADMINISTRATIVE);
-  m_dfb_bkg_layer->SetConfiguration(m_dfb_bkg_layer, &dlcfg);
-  //m_dfb_bkg_layer->SetBackgroundMode(m_dfb_bkg_layer, DLBM_DONTCARE);
-  //m_dfb_bkg_layer->EnableCursor(m_dfb_bkg_layer, 0);
-  //m_dfb_bkg_layer->SetOpacity(m_dfb_bkg_layer, 0xff);
-
-  m_dfb_bkg_layer->GetSurface(m_dfb_bkg_layer, &m_dfb_bkg_surface);
-  m_dfb_bkg_surface->GetSize(m_dfb_bkg_surface, &width, &height);
-    CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: Surface (bkg) width(%d), height(%d)",
-      width, height);
-  m_dfb_bkg_surface->Clear(m_dfb_bkg_surface, 0, 0xff, 0xff, 0xff);
+#if VERBOSE_LOGGING > 0
+  // based on sigma's directfb definitions. beware, others might be different.
+  enum {
+    XBMC_OSD = DSCID_PRIMARY,
+    XBMC_BKGND,
+    XBMC_MAINVIDEO,
+    XBMC_SECVIDEO,
+    XBMC_SECOSD
+  };
+  IDirectFBScreen *screen = NULL;
+  if (m_dfb->GetScreen(m_dfb, DSCID_PRIMARY, &screen) == DFB_OK)
+  {
+    DFBScreenMixerConfig mixcfg;
+    screen->GetMixerConfiguration(screen, 0, &mixcfg);
+    // dump the mixer config
+    for (int n = 0; n < DFB_DISPLAYLAYER_IDS_MAX; n++)
+    {
+      if (DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, n))
+      {
+        switch(n)
+        {
+          case XBMC_OSD:
+            CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: (%02x) OSD layer (graphic)", n);
+          break;
+          case XBMC_BKGND:
+            CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: (%02x) Background layer (graphic)", n);
+            if (mixcfg.flags & DSMCONF_BACKGROUND)
+            {
+              CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: (%02x) Background layer ARGB "
+                "0x%02x, 0x%02x, 0x%02x, 0x%02x",
+                n, mixcfg.background.a, mixcfg.background.r, mixcfg.background.g, mixcfg.background.b );
+            }
+          break;
+          case XBMC_MAINVIDEO:
+            CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: (%02x) Main video layer", n);
+          break;
+          case XBMC_SECVIDEO:
+            CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: (%02x) Secondary video layer (video or graphic)", n);
+          break;
+          case XBMC_SECOSD:
+            CLog::Log(LOGDEBUG, "CWinSystemDFB::InitWindowSystem: (%02x) Secondary OSD layer (graphic)", n);
+          break;
+        }
+      }
+    }
+  }
+#endif
 
   if (!CWinSystemBase::InitWindowSystem())
     return false;
@@ -104,13 +133,6 @@ bool CWinSystemDFB::InitWindowSystem()
 
 bool CWinSystemDFB::DestroyWindowSystem()
 {
-  if (m_dfb_bkg_surface)
-    m_dfb_bkg_surface->Release(m_dfb_bkg_surface);
-  m_dfb_bkg_surface = NULL;
-  if (m_dfb_bkg_layer)
-    m_dfb_bkg_layer->Release(m_dfb_bkg_layer);
-  m_dfb_bkg_layer = NULL;
-
   if (m_dfb_surface)
     m_dfb_surface->Release(m_dfb_surface);
   m_dfb_surface = NULL;
@@ -219,21 +241,51 @@ void CWinSystemDFB::NotifyAppActiveChange(bool bActivated)
 
 bool CWinSystemDFB::Minimize()
 {
+  Hide();
   return true;
 }
 
 bool CWinSystemDFB::Restore()
 {
+  Show(true);
   return false;
 }
 
 bool CWinSystemDFB::Hide()
 {
+  IDirectFBScreen *screen = NULL;
+  if (m_dfb->GetScreen(m_dfb, DSCID_PRIMARY, &screen) == DFB_OK)
+  {
+    DFBScreenMixerConfig mixcfg;
+    screen->GetMixerConfiguration(screen, 0, &mixcfg);
+    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
+
+    if (DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, DLID_PRIMARY))
+      DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, DLID_PRIMARY);
+    
+    screen->SetMixerConfiguration(screen, 0, &mixcfg);
+    screen->Release(screen);
+  }
+
   return true;
 }
 
 bool CWinSystemDFB::Show(bool raise)
 {
+  IDirectFBScreen *screen = NULL;
+  if (m_dfb->GetScreen(m_dfb, DSCID_PRIMARY, &screen) == DFB_OK)
+  {
+    DFBScreenMixerConfig mixcfg;
+    screen->GetMixerConfiguration(screen, 0, &mixcfg);
+    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
+
+    if (!DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, DLID_PRIMARY))
+      DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, DLID_PRIMARY);
+    
+    screen->SetMixerConfiguration(screen, 0, &mixcfg);
+    screen->Release(screen);
+  }
+
   return true;
 }
 
