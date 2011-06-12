@@ -205,7 +205,6 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_video_fps      =  0.0;
     m_video_width    =  0;
     m_video_height   =  0;
-
     IDirectFB *dfb = g_Windowing.GetIDirectFB();
     DFBResult res = dfb->GetInterface(dfb, "IAdvancedMediaProvider", "EM8630", (void*)m_ampID, (void **)&m_amp);
     if (res != DFB_OK)
@@ -319,11 +318,11 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_ready.Reset();
     if(!m_ready.WaitMSec(100))
     {
-      //CGUIDialogBusy *dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
-      //dialog->Show();
+      CGUIDialogBusy *dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
+      dialog->Show();
       while(!m_ready.WaitMSec(1))
         g_windowManager.Process(false);
-      //dialog->Close();
+      dialog->Close();
     }
 
     // Playback might have been stopped due to some error.
@@ -840,7 +839,7 @@ int CSMPPlayer::SeekChapter(int chapter_index)
     {
       for (int timeout = 10; timeout > 0; timeout--)
       {
-        usleep(100*1000);
+        Sleep(100);
         // wait until this chapter starts playing
         GetAmpStatus();
         if (chapter_index == GetChapter())
@@ -1077,9 +1076,6 @@ void CSMPPlayer::Process()
 {
   try
   {
-      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
-      m_ready.Set();
-
     // wait for media to open with 20 second timeout.
     if (WaitForAmpOpenMedia(20000))
     {
@@ -1097,46 +1093,18 @@ void CSMPPlayer::Process()
       CLog::Log(LOGDEBUG, "CSMPPlayer::Process:WaitForAmpOpenMedia timeout");
       throw;
     }
-/*
-    // wait for amp startup to stopped with 2 second timeout
-    if (WaitForAmpStopped(2000))
-    {
-      SLPBCommand cmd;
-      cmd.dataSize = sizeof(cmd);
-      cmd.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-      cmd.cmd = LPBCmd_PLAY;
-      cmd.param2.speed = 1 * 1024;
 
-      if (m_options.starttime > 0)
-      {
-        int seek_s = m_options.starttime;
-        // starttime has units of seconds
-        cmd.cmd = LPBCmd_PLAY_TIME;
-        cmd.param2.speed       = 1 * 1024;
-        cmd.param2.time.Hour   = (seek_s / 3600);
-        cmd.param2.time.Minute = (seek_s / 60) % 60;
-        cmd.param2.time.Second = (seek_s % 60);
-      }
-
-      SLPBResult res;
-      res.dataSize = sizeof(res);
-      res.mediaSpace = MEDIA_SPACE_LINEAR_MEDIA;
-
-      if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
-        CLog::Log(LOGERROR, "CSMPPlayer::ToFFRW:AMP command failed!");
-    }
-    else
-    {
-      CLog::Log(LOGDEBUG, "CSMPPlayer::Process:WaitFor AmpStartup timeout");
-      throw;
-    }
-*/
     // wait for playback to start with 2 second timeout
     if (WaitForAmpPlaying(2000))
     {
-      // hide the video layer so we can get stream info
-      // first, then do a nice transition away from gui.
-      ShowAmpVideoLayer(false);
+      // hide the gui layer so we can get stream info first
+      // without having video playback blended into it.
+      g_Windowing.Hide();
+
+      m_speed = 1;
+      m_callback.OnPlayBackSpeedChanged(m_speed);
+      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
+      m_ready.Set();
 
       // get our initial status.
       GetAmpStatus();
@@ -1146,7 +1114,7 @@ void CSMPPlayer::Process()
       {
         // BUGFIX: if we try to seek before amp renders 1st frame,
         // bad things happen.
-        usleep(100*1000);
+        Sleep(100);
         SeekTime(m_options.starttime * 1000);
         WaitForAmpPlaying(1000);
       }
@@ -1187,15 +1155,12 @@ void CSMPPlayer::Process()
         {
           CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
         }
-        
-        m_present_time = g_renderManager.GetPresentTime();
       }
 
-      m_speed = 1;
       m_callback.OnPlayBackStarted();
       WaitForWindowFullScreenVideo(2000);
-      // now we can show the video playback layer.
-      ShowAmpVideoLayer(true);
+      // show gui layer again.
+      g_Windowing.Show();
 
       while (!m_bStop && !m_StopPlaying)
       {
@@ -1216,7 +1181,7 @@ void CSMPPlayer::Process()
         else
         {
           // we should never get here but just in case.
-          usleep(250*1000);
+          Sleep(250);
         }
       }
       m_callback.OnPlayBackEnded();
@@ -1269,63 +1234,6 @@ int CSMPPlayer::GetVideoStreamCount()
   return m_video_count;
 }
 
-void CSMPPlayer::ShowAmpVideoLayer(bool show)
-{
-  DFBScreenMixerConfig mixcfg;
-  IDirectFB *dfb = g_Windowing.GetIDirectFB();
-
-  // enable background layer to hide video playback layer while we start up
-  IDirectFBScreen *screen = NULL;
-  if (dfb->GetScreen(dfb, DSCID_PRIMARY, &screen) == DFB_OK)
-  {
-    screen->GetMixerConfiguration(screen, 0, &mixcfg);
-    mixcfg.flags = (DFBScreenMixerConfigFlags)(DSMCONF_LAYERS);
-    // yes this is correct, to hide video we show background.
-    if (show)
-      //DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_MAINVIDEO);
-      DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, EM86LAYER_BKGND);
-    else
-      //DFB_DISPLAYLAYER_IDS_REMOVE(mixcfg.layers, EM86LAYER_MAINVIDEO);
-      DFB_DISPLAYLAYER_IDS_ADD(mixcfg.layers, EM86LAYER_BKGND);
-    screen->SetMixerConfiguration(screen, 0, &mixcfg);
-  }
-  // dump the mixer config
-  for (int n = 0; n < DFB_DISPLAYLAYER_IDS_MAX; n++)
-  {
-    if (DFB_DISPLAYLAYER_IDS_HAVE( mixcfg.layers, n))
-    {
-      switch(n)
-      {
-        case EM86LAYER_OSD:
-          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) OSD layer (graphic)", n);
-        break;
-        case EM86LAYER_BKGND:
-          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Background layer (graphic)", n);
-          if (mixcfg.flags & DSMCONF_BACKGROUND)
-          {
-            CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Background layer ARGB "
-              "0x%02x, 0x%02x, 0x%02x, 0x%02x",
-              n, mixcfg.background.a, mixcfg.background.r, mixcfg.background.g, mixcfg.background.b );
-          }
-        break;
-        case EM86LAYER_MAINVIDEO:
-          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Main video layer", n);
-        break;
-        case EM86LAYER_SECVIDEO:
-          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Secondary video layer (video or graphic)", n);
-        break;
-        case EM86LAYER_SECOSD:
-          CLog::Log(LOGDEBUG, "CSMPPlayer::ShowAmpVideoLayer: (%02x) Secondary OSD layer (graphic)", n);
-        break;
-      }
-    }
-  }
-
-  if (screen)
-    screen->Release(screen);
-  //CLog::Log(LOGDEBUG,"CSMPPlayer::ShowAmpVideoLayer: show(%d)", show);
-}
-
 bool CSMPPlayer::WaitForAmpStopped(int timeout_ms)
 {
   bool rtn = false;
@@ -1351,7 +1259,7 @@ bool CSMPPlayer::WaitForAmpStopped(int timeout_ms)
     else
     {
       // we should never get here but just in case.
-      usleep(100*1000);
+      Sleep(100);
     }
     timeout_ms -= 100;
   }
@@ -1384,7 +1292,7 @@ bool CSMPPlayer::WaitForAmpPlaying(int timeout_ms)
     else
     {
       // we should never get here but just in case.
-      usleep(100*1000);
+      Sleep(100);
     }
     timeout_ms -= 100;
   }
@@ -1419,7 +1327,7 @@ bool CSMPPlayer::WaitForAmpOpenMedia(int timeout_ms)
     {
       // we should never get here but just in case.
       g_windowManager.Process(false);
-      usleep(100*1000);
+      Sleep(100);
     }
     timeout_ms -= 100;
   }
@@ -1433,7 +1341,7 @@ bool CSMPPlayer::WaitForAmpFormatValid(int timeout_ms)
 
   while (!m_bStop && (timeout_ms > 0))
   {
-    usleep(100*1000);
+    Sleep(100);
     if (GetAmpStatus())
     {
       if (((UMSStatus*)m_status)->lpb.video.format.formatValid ||
@@ -1453,19 +1361,32 @@ bool CSMPPlayer::WaitForWindowFullScreenVideo(int timeout_ms)
 {
   bool rtn = false;
 
+  double present_time;
+  // we do a two step check.
+  // 1st, wait for switch to fullscreen video rendering in gui
   while (!m_bStop && (timeout_ms > 0))
   {
-    usleep(100*1000);
-    //if (g_windowManager.GetActiveWindow() == WINDOW_FULLSCREEN_VIDEO)
-    if (g_graphicsContext.IsFullScreenVideo() &&
-      (g_renderManager.GetPresentTime() > m_present_time))
+    if (g_graphicsContext.IsFullScreenVideo())
+      break;
+
+    timeout_ms -= 100;
+    Sleep(100);
+  }
+  // 2nd, wait for renderer to flip at least once.
+  present_time = g_renderManager.GetPresentTime();
+  while (!m_bStop && (timeout_ms > 0))
+  {
+    if (present_time < g_renderManager.GetPresentTime())
     {
       rtn = true;
       break;
     }
     timeout_ms -= 100;
+    Sleep(100);
   }
-  //usleep(500*1000);
+  // BUGFIX: why don't we know when gui has truly transitioned?
+  // sleep another 1/2 seconds to be sure.
+  Sleep(500);
 
   return rtn;
 }

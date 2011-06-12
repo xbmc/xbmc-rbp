@@ -136,7 +136,6 @@ protected:
   
 private:
   int           GetVideoStreamCount();
-  void          ShowAmpVideoLayer(bool show);
   bool          WaitForAmpStopped(int timeout_ms);
   bool          WaitForAmpPlaying(int timeout_ms);
   bool          WaitForAmpOpenMedia(int timeout_ms);
@@ -181,7 +180,6 @@ private:
   float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;
-  double                  m_present_time;
   // opaque smp global status
   void*                   m_status;
 
