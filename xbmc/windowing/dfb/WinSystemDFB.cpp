@@ -154,9 +154,10 @@ bool CWinSystemDFB::CreateNewWindow(const CStdString& name, bool fullScreen, RES
   m_bFullScreen = fullScreen;
 
   if (m_eglBinding->CreateWindow((EGLNativeDisplayType)m_dfb, (NativeWindowType)m_dfb_surface))
+  {
+    m_bWindowCreated = true;
     return true;
-
-  m_bWindowCreated = true;
+  }
 
   return false;
 }
