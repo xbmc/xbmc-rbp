@@ -180,13 +180,13 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     }
     return false;
   }
-/*
+
   if (URIUtils::GetExtension(texturePath).Equals(".jpg"))
   {
     if (LoadHWAccelerated(texturePath))
       return true;
   }
-*/
+
 #if defined(__APPLE__) && defined(__arm__)
   XFILE::CFile file;
   UInt8 *imageBuff      = NULL;
@@ -552,10 +552,11 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   // get the surface description, from the incoming compressed image.
   DFBSurfaceDescription dsc;
   memset(&dsc, 0, sizeof(dsc));
-  provider->GetSurfaceDescription(provider, &dsc);
 
   // set caps to DSCAPS_VIDEOONLY so we get hw decode.
   dsc.flags = (DFBSurfaceDescriptionFlags)(DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT);
+  provider->GetSurfaceDescription(provider, &dsc);
+
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps | DSCAPS_VIDEOONLY);
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
   dsc.pixelformat = DSPF_ARGB;
