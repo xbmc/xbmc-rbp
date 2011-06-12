@@ -35,7 +35,7 @@
 #include "filesystem/File.h"
 #include "threads/SingleLock.h"
 #include "threads/CriticalSection.h"
-#include "directfb.h"
+#include <directfb.h>
 #endif
 
 #if defined (HAS_DIRECTFB)
