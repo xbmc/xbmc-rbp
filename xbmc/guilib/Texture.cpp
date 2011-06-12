@@ -31,14 +31,14 @@
 #include "filesystem/File.h"
 #include "osx/DarwinUtils.h"
 #endif
-#if defined (HAVE_DIRECTFB)
+#if defined (HAS_DIRECTFB)
 #include "filesystem/File.h"
 #include "threads/SingleLock.h"
 #include "threads/CriticalSection.h"
 #include "directfb.h"
 #endif
 
-#if defined (HAVE_DIRECTFB)
+#if defined (HAS_DIRECTFB)
 // we need this to serialize access to hw image decoder.
 static CCriticalSection gHWLoaderSection;
 #endif
@@ -466,7 +466,7 @@ bool CBaseTexture::HasAlpha() const
 
 bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
 {
-#if defined (HAVE_DIRECTFB)
+#if defined (HAS_DIRECTFB)
   CSingleLock lock(gHWLoaderSection);
 
   if (!g_Windowing.IsCreated())
