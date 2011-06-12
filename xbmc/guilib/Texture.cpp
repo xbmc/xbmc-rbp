@@ -553,10 +553,12 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   DFBSurfaceDescription dsc;
   memset(&dsc, 0, sizeof(dsc));
 
-  // set caps to DSCAPS_VIDEOONLY so we get hw decode.
+  // important to set what we want to get back in flags
+  // before calling GetSurfaceDescription.
   dsc.flags = (DFBSurfaceDescriptionFlags)(DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT);
   provider->GetSurfaceDescription(provider, &dsc);
 
+  // set caps to DSCAPS_VIDEOONLY so we get hw decode.
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps | DSCAPS_VIDEOONLY);
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
   dsc.pixelformat = DSPF_ARGB;
