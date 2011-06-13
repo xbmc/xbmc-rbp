@@ -1189,16 +1189,16 @@ else
 fi
 
 if test "x$use_sdl" != "xno"; then
-  USE_DIRECTFB=1
   final_message="$final_message\n  SDL:\tYes"
 else
-  USE_DIRECTFB=0
   final_message="$final_message\n  SDL:\tNo"
 fi
 
 if test "x$use_directfb" != "xno"; then
+  USE_DIRECTFB=1
   final_message="$final_message\n  DirectFB:\tYes"
 else
+  USE_DIRECTFB=0
   final_message="$final_message\n  DirectFB:\tNo"
 fi
 
