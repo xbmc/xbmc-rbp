@@ -1678,6 +1678,7 @@ XB_CONFIG_MODULE([lib/libdvd/libdvdcss], [
 ], [$SKIP_CONFIG_DVDCSS])
 
 XB_CONFIG_MODULE([lib/libdvd/libdvdread], [
+  sed -ie "s|-I\$prefix/include|`pwd`/../includes|g" "misc/dvdread-config.sh" &&
   ./configure2 \
     --extra-cflags="$CFLAGS $DVDREAD_CFLAGS -I`pwd`/../libdvdcss/src" \
     --prefix="${prefix}" --includedir="${includedir}" --libdir="${libdir}" --datadir="${datadir}" \
