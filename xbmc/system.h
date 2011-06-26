@@ -180,6 +180,7 @@
 #undef HAS_DBUS_SERVER
 #undef HAS_LIRC
 #define HAS_DIRECTFB
+#define HAS_XBMC_MUTEX
 #endif
 
 // EGL detected. Dont use GLX!
