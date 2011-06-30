@@ -1786,14 +1786,14 @@ bool CLinuxRendererGLES::CreateCVRefTexture(int index)
 //********************************************************************************************************
 void CLinuxRendererGLES::UploadBYPASS(int index)
 {
-  SetEvent(m_eventTexturesDone[index]);
+  m_eventTexturesDone[index]->Set();
 }
 void CLinuxRendererGLES::DeleteBYPASS(int index)
 {
 }
 bool CLinuxRendererGLES::CreateBYPASS(int index)
 {
-  SetEvent(m_eventTexturesDone[index]);
+  m_eventTexturesDone[index]->Set();
   return true;
 }
 
