@@ -27,6 +27,8 @@
 #include "utils/log.h"
 #include "utils/Variant.h"
 #include "utils/CharsetConverter.h"
+#include "ThumbnailCache.h"
+#include "filesystem/File.h"
 
 #include <sstream>
 
@@ -79,6 +81,7 @@ void CVideoInfoTag::Reset()
   m_playCount = 0;
   m_fEpBookmark = 0;
   m_basePath = "";
+  m_parentPathID = -1;
 }
 
 bool CVideoInfoTag::Save(TiXmlNode *node, const CStdString &tag, bool savePathInfo)
@@ -305,6 +308,7 @@ void CVideoInfoTag::Archive(CArchive& ar)
     ar << m_strShowLink;
     ar << m_fEpBookmark;
     ar << m_basePath;
+    ar << m_parentPathID;
   }
   else
   {
@@ -371,13 +375,14 @@ void CVideoInfoTag::Archive(CArchive& ar)
     ar >> m_strShowLink;
     ar >> m_fEpBookmark;
     ar >> m_basePath;
+    ar >> m_parentPathID;
   }
 }
 
 void CVideoInfoTag::Serialize(CVariant& value)
 {
   value["director"] = m_strDirector;
-  value["writingcredits"] = m_strWritingCredits;
+  value["writer"] = m_strWritingCredits;
   value["genre"] = m_strGenre;
   value["country"] = m_strCountry;
   value["tagline"] = m_strTagLine;
@@ -393,6 +398,9 @@ void CVideoInfoTag::Serialize(CVariant& value)
     CVariant actor;
     actor["name"] = m_cast[i].strName;
     actor["role"] = m_cast[i].strRole;
+    CStdString thumb = CThumbnailCache::GetActorThumb(m_cast[i].strName);
+    if (XFILE::CFile::Exists(thumb))
+      actor["thumbnail"] = thumb;
     value["cast"].push_back(actor);
   }
   value["set"] = m_strSet;

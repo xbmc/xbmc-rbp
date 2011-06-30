@@ -78,7 +78,7 @@ public:
   bool HasTextChangeActions() { return m_textChangeActions.size() > 0; };
 
 protected:
-  virtual void RenderText();
+  virtual void ProcessText(unsigned int currentTime);
   CStdStringW GetDisplayedText() const;
   void RecalcLabelPosition();
   void ValidateCursor();

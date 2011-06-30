@@ -57,6 +57,7 @@
 #include "utils/URIUtils.h"
 #include "input/MouseStat.h"
 #include "filesystem/File.h"
+#include "addons/AddonManager.h"
 
 using namespace std;
 using namespace XFILE;
@@ -136,6 +137,8 @@ void CSettings::Initialize()
   m_usingLoginScreen = false;
   m_lastUsedProfile = 0;
   m_currentProfile = 0;
+
+  m_activeKeyboardMapping = "default";
 }
 
 CSettings::~CSettings(void)
@@ -950,6 +953,8 @@ bool CSettings::LoadProfile(unsigned int index)
 
     CUtil::DeleteMusicDatabaseDirectoryCache();
     CUtil::DeleteVideoDatabaseDirectoryCache();
+
+    ADDON::CAddonMgr::Get().StartServices(false);
 
     return true;
   }

@@ -55,6 +55,7 @@
 #include "utils/log.h"
 #include "utils/Variant.h"
 #include "music/karaoke/karaokelyricsfactory.h"
+#include "ThumbnailCache.h"
 
 using namespace std;
 using namespace XFILE;
@@ -491,7 +492,7 @@ bool CFileItem::IsVideo() const
   if (HasMusicInfoTag()) return false;
   if (HasPictureInfoTag()) return false;
 
-  if (IsHDHomeRun() || IsTuxBox() || URIUtils::IsDVD(m_strPath))
+  if (IsHDHomeRun() || IsTuxBox() || URIUtils::IsDVD(m_strPath) || IsSlingbox())
     return true;
 
   CStdString extension;
@@ -759,6 +760,11 @@ bool CFileItem::IsOnDVD() const
   return URIUtils::IsOnDVD(m_strPath) || m_iDriveType == CMediaSource::SOURCE_TYPE_DVD;
 }
 
+bool CFileItem::IsNfs() const
+{
+  return URIUtils::IsNfs(m_strPath);
+}
+
 bool CFileItem::IsOnLAN() const
 {
   return URIUtils::IsOnLAN(m_strPath);
@@ -802,6 +808,11 @@ bool CFileItem::IsMythTV() const
 bool CFileItem::IsHDHomeRun() const
 {
   return URIUtils::IsHDHomeRun(m_strPath);
+}
+
+bool CFileItem::IsSlingbox() const
+{
+  return URIUtils::IsSlingbox(m_strPath);
 }
 
 bool CFileItem::IsVTP() const
@@ -944,21 +955,17 @@ void CFileItem::FillInDefaultIcon()
 
 CStdString CFileItem::GetCachedArtistThumb() const
 {
-  return GetCachedThumb("artist"+GetLabel(),g_settings.GetMusicArtistThumbFolder());
+  return CThumbnailCache::GetArtistThumb(*this);
 }
 
 CStdString CFileItem::GetCachedSeasonThumb() const
 {
-  CStdString seasonPath;
-  if (HasVideoInfoTag())
-    seasonPath = GetVideoInfoTag()->m_strPath;
-
-  return GetCachedThumb("season"+seasonPath+GetLabel(),g_settings.GetVideoThumbFolder(),true);
+  return CThumbnailCache::GetSeasonThumb(*this);
 }
 
 CStdString CFileItem::GetCachedActorThumb() const
 {
-  return GetCachedThumb("actor"+GetLabel(),g_settings.GetVideoThumbFolder(),true);
+  return CThumbnailCache::GetActorThumb(*this);
 }
 
 void CFileItem::SetCachedArtistThumb()
@@ -1994,6 +2001,7 @@ void CFileItemList::Stack()
       // 1. rars and zips may be on slow sources? is this supposed to be allowed?
       if( !item->IsRemote()
         || item->IsSmb()
+        || item->IsNfs() 
         || URIUtils::IsInRAR(item->m_strPath)
         || URIUtils::IsInZIP(item->m_strPath)
         )
@@ -2399,7 +2407,7 @@ CStdString CFileItem::GetPreviouslyCachedMusicThumb() const
   if (!strAlbum.IsEmpty() && !strArtist.IsEmpty())
   {
     // try permanent album thumb using "album name + artist name"
-    CStdString thumb(CUtil::GetCachedAlbumThumb(strAlbum, strArtist));
+    CStdString thumb(CThumbnailCache::GetAlbumThumb(strAlbum, strArtist));
     if (CFile::Exists(thumb))
       return thumb;
   }
@@ -2408,7 +2416,7 @@ CStdString CFileItem::GetPreviouslyCachedMusicThumb() const
   if (!m_bIsFolder)
   {
     // look for locally cached tbn
-    CStdString thumb(CUtil::GetCachedMusicThumb(m_strPath));
+    CStdString thumb(CThumbnailCache::GetMusicThumb(m_strPath));
     if (CFile::Exists(thumb))
       return thumb;
   }
@@ -2422,7 +2430,7 @@ CStdString CFileItem::GetPreviouslyCachedMusicThumb() const
   // music thumbs are cached without slash at end
   URIUtils::RemoveSlashAtEnd(strPath);
 
-  CStdString thumb(CUtil::GetCachedMusicThumb(strPath));
+  CStdString thumb(CThumbnailCache::GetMusicThumb(strPath));
   if (CFile::Exists(thumb))
     return thumb;
 
@@ -2482,7 +2490,7 @@ void CFileItem::SetUserMusicThumb(bool alwaysCheckRemote /* = false */)
   CStdString thumb(GetUserMusicThumb(alwaysCheckRemote));
   if (!thumb.IsEmpty())
   {
-    CStdString cachedThumb(CUtil::GetCachedMusicThumb(m_strPath));
+    CStdString cachedThumb(CThumbnailCache::GetMusicThumb(m_strPath));
     CPicture::CreateThumbnail(thumb, cachedThumb);
   }
 
@@ -2491,24 +2499,12 @@ void CFileItem::SetUserMusicThumb(bool alwaysCheckRemote /* = false */)
 
 CStdString CFileItem::GetCachedVideoThumb() const
 {
-  if (IsStack())
-    return GetCachedThumb(CStackDirectory::GetFirstStackedFile(m_strPath),g_settings.GetVideoThumbFolder(),true);
-  else if (IsVideoDb() && HasVideoInfoTag())
-  {
-    if (m_bIsFolder && !GetVideoInfoTag()->m_strPath.IsEmpty())
-      return GetCachedThumb(GetVideoInfoTag()->m_strPath, g_settings.GetVideoThumbFolder(), true);
-    else if (!GetVideoInfoTag()->m_strFileNameAndPath.IsEmpty())
-      return GetCachedThumb(GetVideoInfoTag()->m_strFileNameAndPath, g_settings.GetVideoThumbFolder(), true);
-  }
-  return GetCachedThumb(m_strPath,g_settings.GetVideoThumbFolder(),true);
+  return CThumbnailCache::GetVideoThumb(*this);
 }
 
 CStdString CFileItem::GetCachedEpisodeThumb() const
 {
-  // get the locally cached thumb
-  CStdString strCRC;
-  strCRC.Format("%sepisode%i",GetVideoInfoTag()->m_strFileNameAndPath.c_str(),GetVideoInfoTag()->m_iEpisode);
-  return GetCachedThumb(strCRC,g_settings.GetVideoThumbFolder(),true);
+  return CThumbnailCache::GetEpisodeThumb(*this);
 }
 
 void CFileItem::SetCachedVideoThumb()
@@ -2805,47 +2801,12 @@ CStdString CFileItem::GetLocalFanart() const
 
 CStdString CFileItem::GetCachedFanart() const
 {
-  // get the locally cached thumb
-  if (IsVideoDb())
-  {
-    if (!HasVideoInfoTag())
-      return "";
-    if (!GetVideoInfoTag()->m_strArtist.IsEmpty())
-      return GetCachedThumb(GetVideoInfoTag()->m_strArtist,g_settings.GetMusicFanartFolder());
-    if (!m_bIsFolder && !GetVideoInfoTag()->m_strShowTitle.IsEmpty())
-    {
-      CVideoDatabase database;
-      database.Open();
-      int iShowId = database.GetTvShowId(GetVideoInfoTag()->m_strPath);
-      CStdString showPath;
-      database.GetFilePathById(iShowId,showPath,VIDEODB_CONTENT_TVSHOWS);
-      return GetCachedThumb(showPath,g_settings.GetVideoFanartFolder());
-    }
-    return GetCachedThumb(m_bIsFolder ? GetVideoInfoTag()->m_strPath : GetVideoInfoTag()->m_strFileNameAndPath,g_settings.GetVideoFanartFolder());
-  }
-  if (HasMusicInfoTag())
-    return GetCachedThumb(GetMusicInfoTag()->GetArtist(),g_settings.GetMusicFanartFolder());
-
-  return GetCachedThumb(m_strPath,g_settings.GetVideoFanartFolder());
+  return CThumbnailCache::GetFanart(*this);
 }
 
 CStdString CFileItem::GetCachedThumb(const CStdString &path, const CStdString &path2, bool split)
 {
-  // get the locally cached thumb
-  Crc32 crc;
-  crc.ComputeFromLowerCase(path);
-
-  CStdString thumb;
-  if (split)
-  {
-    CStdString hex;
-    hex.Format("%08x", (__int32)crc);
-    thumb.Format("%c\\%08x.tbn", hex[0], (unsigned __int32)crc);
-  }
-  else
-    thumb.Format("%08x.tbn", (unsigned __int32)crc);
-
-  return URIUtils::AddFileToFolder(path2, thumb);
+  return CThumbnailCache::GetThumb(path, path2, split);
 }
 
 /*void CFileItem::SetThumb()

@@ -103,7 +103,7 @@ void CApplicationMessenger::Cleanup()
     ThreadMessage* pMsg = m_vecMessages.front();
 
     if (pMsg->hWaitEvent)
-      SetEvent(pMsg->hWaitEvent);
+      pMsg->hWaitEvent->Set();
 
     delete pMsg;
     m_vecMessages.pop();
@@ -114,7 +114,7 @@ void CApplicationMessenger::Cleanup()
     ThreadMessage* pMsg = m_vecWindowMessages.front();
 
     if (pMsg->hWaitEvent)
-      SetEvent(pMsg->hWaitEvent);
+      pMsg->hWaitEvent->Set();
 
     delete pMsg;
     m_vecWindowMessages.pop();
@@ -128,7 +128,7 @@ void CApplicationMessenger::SendMessage(ThreadMessage& message, bool wait)
   { // check that we're not being called from our application thread, else we'll be waiting
     // forever!
     if (!g_application.IsCurrentThread())
-      message.hWaitEvent = CreateEvent(NULL, true, false, NULL);
+      message.hWaitEvent = new CEvent(true);
     else
     {
       //OutputDebugString("Attempting to wait on a SendMessage() from our application thread will cause lockup!\n");
@@ -144,7 +144,7 @@ void CApplicationMessenger::SendMessage(ThreadMessage& message, bool wait)
   {
     if (message.hWaitEvent)
     {
-      CloseHandle(message.hWaitEvent);
+      delete message.hWaitEvent;
       message.hWaitEvent = NULL;
     }
     return;
@@ -168,8 +168,8 @@ void CApplicationMessenger::SendMessage(ThreadMessage& message, bool wait)
   if (message.hWaitEvent)
   { // ensure the thread doesn't hold the graphics lock
     CSingleExit exit(g_graphicsContext);
-    WaitForSingleObject(message.hWaitEvent, INFINITE);
-    CloseHandle(message.hWaitEvent);
+    message.hWaitEvent->Wait();
+    delete message.hWaitEvent;
     message.hWaitEvent = NULL;
   }
 }
@@ -190,7 +190,7 @@ void CApplicationMessenger::ProcessMessages()
 
     ProcessMessage(pMsg);
     if (pMsg->hWaitEvent)
-      SetEvent(pMsg->hWaitEvent);
+      pMsg->hWaitEvent->Set();
     delete pMsg;
 
     lock.Enter();
@@ -337,7 +337,7 @@ case TMSG_POWERDOWN:
         g_application.WakeUpScreenSaverAndDPMS();
 
         g_graphicsContext.Lock();
-        pSlideShow->Reset();
+
         if (g_windowManager.GetActiveWindow() != WINDOW_SLIDESHOW)
           g_windowManager.ActivateWindow(WINDOW_SLIDESHOW);
         if (URIUtils::IsZIP(pMsg->strParam) || URIUtils::IsRAR(pMsg->strParam)) // actually a cbz/cbr
@@ -352,6 +352,7 @@ case TMSG_POWERDOWN:
           CUtil::GetRecursiveListing(strPath, items, g_settings.m_pictureExtensions);
           if (items.Size() > 0)
           {
+            pSlideShow->Reset();
             for (int i=0;i<items.Size();++i)
             {
               pSlideShow->Add(items[i].get());
@@ -710,6 +711,11 @@ case TMSG_POWERDOWN:
         callback->callback(callback->userptr);
       }
 #endif
+    case TMSG_VOLUME_SHOW:
+      {
+        CAction action((int)pMsg->dwParam1);
+        g_application.ShowVolumeBar(&action);
+      }
   }
 }
 
@@ -728,7 +734,7 @@ void CApplicationMessenger::ProcessWindowMessages()
 
     ProcessMessage(pMsg);
     if (pMsg->hWaitEvent)
-      SetEvent(pMsg->hWaitEvent);
+      pMsg->hWaitEvent->Set();
     delete pMsg;
 
     lock.Enter();
@@ -1106,5 +1112,12 @@ void CApplicationMessenger::OpticalUnMount(CStdString device)
 {
   ThreadMessage tMsg = {TMSG_OPTICAL_UNMOUNT};
   tMsg.strParam = device;
+  SendMessage(tMsg, false);
+}
+
+void CApplicationMessenger::ShowVolumeBar(bool up)
+{
+  ThreadMessage tMsg = {TMSG_VOLUME_SHOW};
+  tMsg.dwParam1 = up ? ACTION_VOLUME_UP : ACTION_VOLUME_DOWN;
   SendMessage(tMsg, false);
 }

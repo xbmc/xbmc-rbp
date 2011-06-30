@@ -37,6 +37,7 @@
 #include "video/dialogs/GUIDialogFullScreenInfo.h"
 #include "video/dialogs/GUIDialogAudioSubtitleSettings.h"
 #include "dialogs/GUIDialogNumeric.h"
+#include "dialogs/GUIDialogKaiToast.h"
 #include "guilib/GUISliderControl.h"
 #include "settings/Settings.h"
 #include "FileItem.h"
@@ -52,7 +53,9 @@
 #include "input/ButtonTranslator.h"
 
 #include <stdio.h>
-
+#ifdef __APPLE__
+#include "linux/LinuxResourceCounter.h"
+#endif
 
 #define BLUE_BAR                          0
 #define LABEL_ROW1                       10
@@ -260,8 +263,8 @@ bool CGUIWindowFullScreen::OnAction(const CAction &action)
         g_application.m_pPlayer->GetSubtitleName(g_application.m_pPlayer->GetSubtitle(),sub);
       else
         sub = g_localizeStrings.Get(1223);
-      g_application.m_guiDialogKaiToast.QueueNotification(CGUIDialogKaiToast::Info,
-                                                          g_localizeStrings.Get(287), sub, DisplTime, false, MsgTime);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info,
+                                            g_localizeStrings.Get(287), sub, DisplTime, false, MsgTime);
     }
     return true;
     break;
@@ -307,7 +310,7 @@ bool CGUIWindowFullScreen::OnAction(const CAction &action)
         g_application.m_pPlayer->GetSubtitleName(g_settings.m_currentVideoSettings.m_SubtitleStream,sub);
       else
         sub = g_localizeStrings.Get(1223);
-      g_application.m_guiDialogKaiToast.QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(287), sub, DisplTime, false, MsgTime);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(287), sub, DisplTime, false, MsgTime);
     }
     return true;
     break;
@@ -383,7 +386,7 @@ bool CGUIWindowFullScreen::OnAction(const CAction &action)
       g_application.m_pPlayer->SetAudioStream(g_settings.m_currentVideoSettings.m_AudioStream);    // Set the audio stream to the one selected
       CStdString aud;
       g_application.m_pPlayer->GetAudioStreamName(g_settings.m_currentVideoSettings.m_AudioStream,aud);
-      g_application.m_guiDialogKaiToast.QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(460), aud, DisplTime, false, MsgTime);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(460), aud, DisplTime, false, MsgTime);
       return true;
     }
     break;
@@ -838,6 +841,15 @@ void CGUIWindowFullScreen::FrameMove()
     SET_CONTROL_HIDDEN(LABEL_ROW3);
     SET_CONTROL_HIDDEN(BLUE_BAR);
   }
+}
+
+void CGUIWindowFullScreen::Process(unsigned int currentTime, CDirtyRegionList &dirtyregion)
+{
+  // TODO: This isn't quite optimal - ideally we'd only be dirtying up the actual video render rect
+  //       which is probably the job of the renderer as it can more easily track resizing etc.
+  MarkDirtyRegion();
+  CGUIWindow::Process(currentTime, dirtyregion);
+  m_renderRegion.SetRect(0, 0, (float)g_graphicsContext.GetWidth(), (float)g_graphicsContext.GetHeight());
 }
 
 void CGUIWindowFullScreen::Render()

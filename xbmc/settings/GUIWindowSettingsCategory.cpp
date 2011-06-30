@@ -55,6 +55,7 @@
 #include "dialogs/GUIDialogYesNo.h"
 #include "dialogs/GUIDialogOK.h"
 #include "dialogs/GUIDialogProgress.h"
+#include "dialogs/GUIDialogKaiToast.h"
 #include "addons/Visualisation.h"
 #include "addons/AddonManager.h"
 #include "storage/MediaManager.h"
@@ -697,7 +698,7 @@ void CGUIWindowSettingsCategory::UpdateSettings()
       {
         g_guiSettings.SetBool("services.esenabled", true);
         if (!g_application.StartEventServer())
-          g_application.m_guiDialogKaiToast.QueueNotification("DefaultIconWarning.png", g_localizeStrings.Get(33102), g_localizeStrings.Get(33100));
+          CGUIDialogKaiToast::QueueNotification("DefaultIconWarning.png", g_localizeStrings.Get(33102), g_localizeStrings.Get(33100));
       }
 
       // if XBMC helper is running, prompt user before effecting change
@@ -821,13 +822,8 @@ void CGUIWindowSettingsCategory::UpdateSettings()
                                          g_guiSettings.GetString("audiooutput.audiodevice").find("wasapi:") == CStdString::npos);
     }
 #ifdef HAS_WEB_SERVER
-    else if (strSetting.Equals("services.webserverusername"))
-    {
-      CGUIEditControl *pControl = (CGUIEditControl *)GetControl(pSettingControl->GetID());
-      if (pControl)
-        pControl->SetEnabled(g_guiSettings.GetBool("services.webserver"));
-    }
-    else if (strSetting.Equals("services.webserverpassword"))
+    else if (strSetting.Equals("services.webserverusername") ||
+             strSetting.Equals("services.webserverpassword"))
     {
       CGUIEditControl *pControl = (CGUIEditControl *)GetControl(pSettingControl->GetID());
       if (pControl)
@@ -2018,7 +2014,7 @@ void CGUIWindowSettingsCategory::FrameMove()
   CGUIWindow::FrameMove();
 }
 
-void CGUIWindowSettingsCategory::Render()
+void CGUIWindowSettingsCategory::DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyregions)
 {
   // update alpha status of current button
   bool bAlphaFaded = false;
@@ -2038,7 +2034,7 @@ void CGUIWindowSettingsCategory::Render()
       bAlphaFaded = true;
     }
   }
-  CGUIWindow::Render();
+  CGUIWindow::DoProcess(currentTime, dirtyregions);
   if (bAlphaFaded)
   {
     control->SetFocus(false);
@@ -2047,6 +2043,11 @@ void CGUIWindowSettingsCategory::Render()
     else
       ((CGUIButtonControl *)control)->SetSelected(false);
   }
+}
+
+void CGUIWindowSettingsCategory::Render()
+{
+  CGUIWindow::Render();
   // render the error message if necessary
   if (m_strErrorMessage.size())
   {
@@ -2327,7 +2328,8 @@ DisplayMode CGUIWindowSettingsCategory::FillInScreens(CStdString strSetting, RES
   pControl->Clear();
 
   CStdString strScreen;
-  pControl->AddLabel(g_localizeStrings.Get(242), -1);
+  if (g_advancedSettings.m_canWindowed)
+    pControl->AddLabel(g_localizeStrings.Get(242), -1);
 
   for (int idx = 0; idx < g_Windowing.GetNumScreens(); idx++)
   {

@@ -60,6 +60,7 @@
 #include "utils/TimeUtils.h"
 #include "utils/log.h"
 #include "utils/URIUtils.h"
+#include "ThumbnailCache.h"
 
 using namespace std;
 using namespace XFILE;
@@ -95,12 +96,6 @@ bool CGUIWindowMusicBase::OnAction(const CAction& action)
       CUtil::ThumbCacheClear();
       CUtil::RemoveTempFiles();
     }
-  }
-
-  if (action.GetID() == ACTION_SHOW_PLAYLIST)
-  {
-    g_windowManager.ActivateWindow(WINDOW_MUSIC_PLAYLIST);
-    return true;
   }
 
   return CGUIMediaWindow::OnAction(action);
@@ -861,7 +856,7 @@ bool CGUIWindowMusicBase::FindArtistInfo(const CStdString& strArtist, CMusicArti
   while (needsRefresh || bCanceled);
 
   m_musicdatabase.GetArtistInfo(idArtist,artist.GetArtist());
-  artist.SetLoaded(true);
+  artist.SetLoaded();
   return true;
 }
 
@@ -1207,7 +1202,7 @@ void CGUIWindowMusicBase::UpdateThumb(const CAlbum &album, const CStdString &pat
     saveDirThumb = false;
   }
 
-  CStdString albumThumb(CUtil::GetCachedAlbumThumb(album.strAlbum, album.strArtist));
+  CStdString albumThumb(CThumbnailCache::GetAlbumThumb(album));
 
   // Update the thumb in the music database (songs + albums)
   CStdString albumPath(path);
@@ -1255,7 +1250,7 @@ void CGUIWindowMusicBase::UpdateThumb(const CAlbum &album, const CStdString &pat
     CStdString album, artist;
     if (CMusicInfoScanner::HasSingleAlbum(songs, album, artist))
     { // can cache as the folder thumb
-      CStdString folderThumb(CUtil::GetCachedMusicThumb(albumPath));
+      CStdString folderThumb(CThumbnailCache::GetMusicThumb(albumPath));
       CFile::Cache(albumThumb, folderThumb);
     }
   }
