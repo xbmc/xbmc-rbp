@@ -366,6 +366,7 @@ case $host in
      PYTHON_SITE_PKG="${use_build_prefix}/lib/python2.6/site-packages"
      PYTHON_NOVERSIONCHECK="no-check"
      use_texturepacker_native=yes
+     AC_SUBST(ARCH_DEFINES, "-DTARGET_POSIX -DTARGET_LINUX -D_LINUX")
      ;;
   i*86*-linux-gnu*)
      ARCH="i486-linux"
