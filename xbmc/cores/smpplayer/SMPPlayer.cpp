@@ -513,7 +513,6 @@ void CSMPPlayer::Seek(bool bPlus, bool bLargeStep)
   // This will popup seek info dialog if skin supports it
   //g_infoManager.SetDisplayAfterSeek(100000);
   //m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
-  //g_windowManager.Process(false);
 
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
     CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
@@ -830,7 +829,6 @@ int CSMPPlayer::SeekChapter(int chapter_index)
     // This will popup seek info dialog if skin supports it.
     //g_infoManager.SetDisplayAfterSeek(100000);
     //m_callback.OnPlayBackSeekChapter(GetChapter());
-    //g_windowManager.Process(false);
 
     if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
       CLog::Log(LOGERROR, "CSMPPlayer::SeekChapter:ExecutePresentationCmd failed!");
@@ -844,7 +842,6 @@ int CSMPPlayer::SeekChapter(int chapter_index)
         GetAmpStatus();
         if (chapter_index == GetChapter())
           break;
-        //g_windowManager.Process(false);
       }
     }
     else
@@ -906,7 +903,6 @@ void CSMPPlayer::SeekTime(__int64 seek_ms)
   // This will popup seek info dialog if skin supports it.
   //g_infoManager.SetDisplayAfterSeek(100000);
   //m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - GetTime()));
-  //g_windowManager.Process(false);
 
   if (m_amp->ExecutePresentationCmd(m_amp, (SCommand*)&cmd, (SResult*)&res) != DFB_OK)
     CLog::Log(LOGERROR, "CSMPPlayer::SeekTime:AMP command failed!");
@@ -1314,6 +1310,7 @@ bool CSMPPlayer::WaitForAmpOpenMedia(int timeout_ms)
 
       if (GetAmpStatus())
       {
+        //if (!IS_ERROR(((UMSStatus*)m_status)->generic.lastCmd.result))
         if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
            IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
         {
@@ -1321,12 +1318,9 @@ bool CSMPPlayer::WaitForAmpOpenMedia(int timeout_ms)
           break;
         }
       }
-      g_windowManager.Process(false);
     }
     else
     {
-      // we should never get here but just in case.
-      g_windowManager.Process(false);
       Sleep(100);
     }
     timeout_ms -= 100;
