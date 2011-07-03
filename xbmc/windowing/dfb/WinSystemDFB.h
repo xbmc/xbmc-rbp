@@ -32,6 +32,8 @@ typedef struct _IDirectFB IDirectFB;
 typedef struct _IDirectFBScreen IDirectFBScreen;
 typedef struct _IDirectFBSurface IDirectFBSurface;
 typedef struct _IDirectFBDisplayLayer IDirectFBDisplayLayer;
+typedef struct _IDirectFBDataBuffer IDirectFBDataBuffer;
+typedef struct _IDirectFBImageProvider IDirectFBImageProvider;
 
 class CWinBindingEGL;
 
@@ -60,6 +62,8 @@ public:
   virtual bool  Show(bool raise = true);
 
   IDirectFB*    GetIDirectFB() const;
+  bool          CreateImageProvider(IDirectFBDataBuffer *buffer, IDirectFBImageProvider **provider, bool retain1st);
+  bool          ReleaseImageProvider(IDirectFBImageProvider *provider);
 
 protected:
   virtual bool  PresentRenderImpl();
@@ -71,6 +75,7 @@ protected:
   IDirectFBDisplayLayer *m_dfb_layer;
   IDirectFBSurface      *m_dfb_surface;
   int                    m_buffermode;
+  IDirectFBImageProvider *m_dfb_image_provider;
 };
 
 XBMC_GLOBAL_REF(CWinSystemDFB,g_Windowing);

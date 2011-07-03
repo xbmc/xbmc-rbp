@@ -40,6 +40,7 @@ CWinSystemDFB::CWinSystemDFB() : CWinSystemBase()
   m_dfb_screen  = NULL;
   m_dfb_layer   = NULL;
   m_dfb_surface = NULL;
+  m_dfb_image_provider = NULL;
 
   m_buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
   //m_buffermode  = DLBM_BACKVIDEO;   // backbuffer in video memory (no tearing but gui fps is slower)
@@ -187,6 +188,10 @@ bool CWinSystemDFB::InitWindowSystem()
 
 bool CWinSystemDFB::DestroyWindowSystem()
 {
+  if (m_dfb_image_provider)
+    m_dfb_image_provider->Release(m_dfb_image_provider);
+  m_dfb_image_provider = NULL;
+    
   if (m_dfb_surface)
     m_dfb_surface->Release(m_dfb_surface);
   m_dfb_surface = NULL;
@@ -342,6 +347,30 @@ bool CWinSystemDFB::Show(bool raise)
 IDirectFB* CWinSystemDFB::GetIDirectFB() const
 {
   return m_dfb;
+}
+
+bool CWinSystemDFB::CreateImageProvider(IDirectFBDataBuffer *buffer, IDirectFBImageProvider **provider, bool retain1st)
+{
+  // some hardware accelerated dfb image provider implementations have
+  // lengthy setup overhead and we can avoid this by retaining the 1st
+  // created image provider.
+  DFBResult err;
+  err = buffer->CreateImageProvider(buffer, provider);
+  if (retain1st && !m_dfb_image_provider)
+    m_dfb_image_provider = *provider;
+    
+  return(err == DFB_OK);
+}
+
+bool CWinSystemDFB::ReleaseImageProvider(IDirectFBImageProvider *provider)
+{
+  // if we have not cached the initial image provider, retain it now.
+  // the initial image provider will get released when we shutdown.
+  DFBResult err = DFB_OK;
+  if (provider && (m_dfb_image_provider != provider))
+    err = provider->Release(provider);
+
+  return(err == DFB_OK);
 }
 
 #endif
