@@ -42,6 +42,9 @@ struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
 class CTexture;
 class CGLTexture;
 class CDXTexture;
+#if defined(HAS_DIRECTFB)
+typedef struct _IDirectFBSurface IDirectFBSurface;
+#endif
 
 #pragma once
 
@@ -111,6 +114,10 @@ protected:
   unsigned int m_format;
   int m_orientation;
   bool m_hasAlpha;
+#if defined(HAS_DIRECTFB)
+  IDirectFBSurface *m_dfbSurface;
+#endif
+
 };
 
 #if defined(HAS_GL) || defined(HAS_GLES)

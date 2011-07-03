@@ -27,6 +27,10 @@
 
 #if defined(HAS_GL) || defined(HAS_GLES)
 
+#if defined(HAS_DIRECTFB)
+#include <directfb.h>
+#endif
+
 using namespace std;
 
 /************************************************************************/
@@ -55,7 +59,7 @@ void CGLTexture::DestroyTextureObject()
 
 void CGLTexture::LoadToGPU()
 {
-  if (!m_pixels)
+  if (!m_pixels && !m_dfbSurface)
   {
     // nothing to load - probably same image (no change)
     return;
@@ -127,15 +131,31 @@ void CGLTexture::LoadToGPU()
 #else	// GLES version
     m_textureWidth = maxSize;
   }
+#if defined (HAS_DIRECTFB)
+  if (m_format & XB_FMT_DFBSURFACE)
+  {
+    int imgpitch = 0;
+    void *imgsrc = NULL;
+    m_dfbSurface->Lock(m_dfbSurface, DSLF_READ , &imgsrc, &imgpitch);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_textureWidth, m_textureHeight, 0,
+      GL_RGBA, GL_UNSIGNED_BYTE, imgsrc);
+    VerifyGLState();
 
-#if HAS_GLES == 1
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, m_textureWidth, m_textureHeight, 0,
-		GL_BGRA_EXT, GL_UNSIGNED_BYTE, m_pixels);
-#elif HAS_GLES == 2
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_textureWidth, m_textureHeight, 0,
-		GL_RGBA, GL_UNSIGNED_BYTE, m_pixels);
+    m_dfbSurface->Unlock(m_dfbSurface);
+    m_dfbSurface->Release(m_dfbSurface);
+    m_dfbSurface = NULL;
+  }
+  else
 #endif
-
+  {
+  #if HAS_GLES == 1
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, m_textureWidth, m_textureHeight, 0,
+      GL_BGRA_EXT, GL_UNSIGNED_BYTE, m_pixels);
+  #elif HAS_GLES == 2
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_textureWidth, m_textureHeight, 0,
+      GL_RGBA, GL_UNSIGNED_BYTE, m_pixels);
+  #endif
+  }
 #endif
   VerifyGLState();
 

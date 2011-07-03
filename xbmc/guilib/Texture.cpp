@@ -31,14 +31,14 @@
 #include "filesystem/File.h"
 #include "osx/DarwinUtils.h"
 #endif
-#if defined (HAS_DIRECTFB)
+#if defined(HAS_DIRECTFB)
 #include "filesystem/File.h"
 #include "threads/SingleLock.h"
 #include "threads/CriticalSection.h"
 #include <directfb.h>
 #endif
 
-#if defined (HAS_DIRECTFB)
+#if defined(HAS_DIRECTFB)
 // we need this to serialize access to hw image decoder.
 static CCriticalSection gHWLoaderSection;
 #endif
@@ -53,13 +53,27 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
   m_texture = 0; 
 #endif
   m_pixels = NULL;
+#if defined(HAS_DIRECTFB)
+  m_dfbSurface = NULL;
+#endif
   m_loadedToGPU = false;
   Allocate(width, height, format);
 }
 
 CBaseTexture::~CBaseTexture()
 {
-  delete[] m_pixels;
+#if defined(HAS_DIRECTFB)
+  if (m_dfbSurface && (m_format & XB_FMT_DFBSURFACE))
+  {
+    m_dfbSurface->Release(m_dfbSurface);
+    m_dfbSurface = NULL;
+  }
+  else
+#endif
+  {
+    delete[] m_pixels;
+    m_pixels = NULL;
+  }
 }
 
 void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format)
@@ -94,8 +108,13 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   CLAMP(m_imageWidth, m_textureWidth);
   CLAMP(m_imageHeight, m_textureHeight);
 
-  delete[] m_pixels;
-  m_pixels = new unsigned char[GetPitch() * GetRows()];
+#if defined(HAS_DIRECTFB)
+  if (!(m_format & XB_FMT_DFBSURFACE))
+#endif
+  {
+    delete[] m_pixels;
+    m_pixels = new unsigned char[GetPitch() * GetRows()];
+  }
 }
 
 void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU)
@@ -108,6 +127,13 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
     Allocate(width, height, XB_FMT_A8R8G8B8);
     CDDSImage::Decompress(m_pixels, std::min(width, m_textureWidth), std::min(height, m_textureHeight), GetPitch(m_textureWidth), pixels, format);
   }
+#if defined(HAS_DIRECTFB)
+  else if (m_format & XB_FMT_DFBSURFACE)
+  {
+    CLog::Log(LOGERROR, "CBaseTexture::Update, should not be here, format is XB_FMT_DFBSURFACE");
+    Allocate(width, height, format);
+  }
+#endif
   else
   {
     Allocate(width, height, format);
@@ -139,30 +165,33 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
 
 void CBaseTexture::ClampToEdge()
 {
-  unsigned int imagePitch = GetPitch(m_imageWidth);
-  unsigned int imageRows = GetRows(m_imageHeight);
-  unsigned int texturePitch = GetPitch(m_textureWidth);
-  unsigned int textureRows = GetRows(m_textureHeight);
-  if (imagePitch < texturePitch)
+  if (!(m_format & XB_FMT_DFBSURFACE))
   {
-    unsigned int blockSize = GetBlockSize();
-    unsigned char *src = m_pixels + imagePitch - blockSize;
-    unsigned char *dst = m_pixels;
-    for (unsigned int y = 0; y < imageRows; y++)
+    unsigned int imagePitch = GetPitch(m_imageWidth);
+    unsigned int imageRows = GetRows(m_imageHeight);
+    unsigned int texturePitch = GetPitch(m_textureWidth);
+    unsigned int textureRows = GetRows(m_textureHeight);
+    if (imagePitch < texturePitch)
     {
-      for (unsigned int x = imagePitch; x < texturePitch; x += blockSize)
-        memcpy(dst + x, src, blockSize);
-      dst += texturePitch;
+      unsigned int blockSize = GetBlockSize();
+      unsigned char *src = m_pixels + imagePitch - blockSize;
+      unsigned char *dst = m_pixels;
+      for (unsigned int y = 0; y < imageRows; y++)
+      {
+        for (unsigned int x = imagePitch; x < texturePitch; x += blockSize)
+          memcpy(dst + x, src, blockSize);
+        dst += texturePitch;
+      }
     }
-  }
 
-  if (imageRows < textureRows)
-  {
-    unsigned char *dst = m_pixels + imageRows * texturePitch;
-    for (unsigned int y = imageRows; y < textureRows; y++)
+    if (imageRows < textureRows)
     {
-      memcpy(dst, dst - texturePitch, texturePitch);
-      dst += texturePitch;
+      unsigned char *dst = m_pixels + imageRows * texturePitch;
+      for (unsigned int y = imageRows; y < textureRows; y++)
+      {
+        memcpy(dst, dst - texturePitch, texturePitch);
+        dst += texturePitch;
+      }
     }
   }
 }
@@ -442,6 +471,8 @@ unsigned int CBaseTexture::GetPitch(unsigned int width) const
     return ((width + 3) / 4) * 16;
   case XB_FMT_A8:
     return width;
+  case XB_FMT_DFBSURFACE:
+    return width*4;
   case XB_FMT_A8R8G8B8:
   default:
     return width*4;
@@ -458,6 +489,8 @@ unsigned int CBaseTexture::GetRows(unsigned int height) const
   case XB_FMT_DXT5:
   case XB_FMT_DXT5_YCoCg:
     return (height + 3) / 4;
+  case XB_FMT_DFBSURFACE:
+    return height;
   default:
     return height;
   }
@@ -475,6 +508,8 @@ unsigned int CBaseTexture::GetBlockSize() const
     return 16;
   case XB_FMT_A8:
     return 1;
+  case XB_FMT_DFBSURFACE:
+    return 4;
   default:
     return 4;
   }
@@ -561,8 +596,9 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   }
 
   IDirectFBImageProvider *provider = NULL;
-  err = buffer->CreateImageProvider(buffer, &provider);
-  if (err != DFB_OK)
+  // use g_Windowing to create the image provider and retain the 1st
+  // so we avoid recurring setup overhead. 
+  if (!g_Windowing.CreateImageProvider(buffer, &provider, true))
   {
     CLog::Log(LOGERROR,"CBaseTexture::LoadHWAccelerated:buffer->CreateImageProvider failed");
     buffer->Release(buffer);
@@ -579,6 +615,35 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   dsc.flags = (DFBSurfaceDescriptionFlags)(DSDESC_CAPS|DSDESC_WIDTH|DSDESC_HEIGHT|DSDESC_PIXELFORMAT);
   provider->GetSurfaceDescription(provider, &dsc);
 
+  // remember original jpeg/png width, height.
+  unsigned int img_width  = dsc.width;
+  unsigned int img_height = dsc.height;
+  // check size limits and limit to screen size - preserving aspectratio of image  
+  if ( img_width  > g_Windowing.GetMaxTextureSize() ||
+       img_height > g_Windowing.GetMaxTextureSize() )
+  {
+    float aspect;
+    if (img_width > img_height)
+    {
+      aspect = (float)img_width / (float)img_height;
+      img_width  = g_Windowing.GetWidth();
+      img_height = (float)img_width / (float)aspect;
+    }
+    else
+    {
+      aspect = (float)img_height / (float)img_width;
+      img_height = g_Windowing.GetHeight();
+      img_width  = (float)img_height / (float)aspect;
+    }
+    CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:clamping image size: %i x %i",
+      img_height, img_height);
+  }
+  if (!g_Windowing.SupportsNPOT(false))
+  {
+    dsc.width  = PadPow2(img_width);
+    dsc.height = PadPow2(img_height);
+  }
+ 
   // set caps to DSCAPS_VIDEOONLY so we get hw decode.
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps | DSCAPS_VIDEOONLY);
   dsc.caps  = (DFBSurfaceCapabilities)(dsc.caps &~DSCAPS_SYSTEMONLY);
@@ -597,12 +662,18 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
     delete [] imageBuff;
     return false;
   }
-  provider->RenderTo(provider, imagesurface, NULL);
-  provider->Release(provider);
+  const DFBRectangle dstRect = {0, 0, img_width, img_height};
+  provider->RenderTo(provider, imagesurface, &dstRect);
+  // use g_Windowing to manage release
+  g_Windowing.ReleaseImageProvider(provider);
   buffer->Release(buffer);
   delete [] imageBuff;
 
-  Allocate(dsc.width, dsc.height, XB_FMT_A8R8G8B8);
+#if 1
+  m_dfbSurface = imagesurface;
+  Allocate(img_width, img_height, XB_FMT_DFBSURFACE);
+#else
+  Allocate(img_width, img_height, XB_FMT_A8R8G8B8);
   // lock the rendered surface, get a read pointer to it
   // and memcpy the contents into our m_pixels.
   int gotpitch = 0;
@@ -613,6 +684,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   imagesurface->Release(imagesurface);
 
   ClampToEdge();
+#endif
 
   return true;
 #else
