@@ -357,7 +357,17 @@ bool CWinSystemDFB::CreateImageProvider(IDirectFBDataBuffer *buffer, IDirectFBIm
   DFBResult err;
   err = buffer->CreateImageProvider(buffer, provider);
   if (retain1st && !m_dfb_image_provider)
-    m_dfb_image_provider = *provider;
+  {
+    // get the surface description, to check its size
+    DFBSurfaceDescription dsc;
+    memset(&dsc, 0, sizeof(dsc));
+
+    // set the flags to indicate what we want to get back
+    dsc.flags = (DFBSurfaceDescriptionFlags)(DSDESC_WIDTH|DSDESC_HEIGHT);
+    (*provider)->GetSurfaceDescription(*provider, &dsc);
+    if ((dsc.width >= 512) && (dsc.height >= 512))
+      m_dfb_image_provider = *provider;
+  }
     
   return(err == DFB_OK);
 }
