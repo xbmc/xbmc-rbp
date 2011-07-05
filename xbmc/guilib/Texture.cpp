@@ -657,7 +657,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   {
     // sometimes, during startup, we get a null surface back.
     CLog::Log(LOGERROR, "CBaseTexture::LoadHWAccelerated:dfb->CreateSurface failed");
-    provider->Release(provider);
+    g_Windowing.ReleaseImageProvider(provider);
     buffer->Release(buffer);
     delete [] imageBuff;
     return false;
