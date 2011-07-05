@@ -90,12 +90,10 @@ bool CRenderSystemGLES::InitRenderSystem()
 
   LogGraphicsInfo();
 
-#if !defined(HAVE_SIGMASMP)
   if (IsExtSupported("GL_TEXTURE_NPOT"))
   {
     m_renderCaps |= RENDER_CAPS_NPOT;
   }
-#endif
 
   m_bRenderCreated = true;
   
