@@ -158,7 +158,6 @@ public:
 #ifdef HAVE_VIDEOTOOLBOXDECODER
   virtual void         AddProcessor(CDVDVideoCodecVideoToolBox* vtb, DVDVideoPicture *picture);
 #endif
-
 protected:
   virtual void Render(DWORD flags, int index);
 
@@ -182,9 +181,9 @@ protected:
   void DeleteCVRefTexture(int index);
   bool CreateCVRefTexture(int index);
 
-  void UploadBYPASS(int index);
-  void DeleteBYPASS(int index);
-  bool CreateBYPASS(int index);
+  void UploadBYPASSTexture(int index);
+  void DeleteBYPASSTexture(int index);
+  bool CreateBYPASSTexture(int index);
 
   void CalculateTextureSourceRects(int source, int num_planes);
 
@@ -275,7 +274,7 @@ protected:
   unsigned int m_rgbBufferSize;
 
   CEvent* m_eventTexturesDone[NUM_BUFFERS];
-  bool m_BYPASS_RenderUpdated;
+  int m_BYPASS_RenderUpdated;
 
 };
 

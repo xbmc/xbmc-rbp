@@ -175,7 +175,7 @@ bool CLinuxRendererGLES::Configure(unsigned int width, unsigned int height, unsi
     m_buffers[i].image.flags = 0;
 
   m_iLastRenderBuffer = -1;
-  m_BYPASS_RenderUpdated = false;
+  m_BYPASS_RenderUpdated = 4;
   return true;
 }
 
@@ -401,14 +401,15 @@ void CLinuxRendererGLES::RenderUpdate(bool clear, DWORD flags, DWORD alpha)
 
   if (m_renderMethod & RENDER_BYPASS)
   {
-    //if (!m_BYPASS_RenderUpdated)
+    if (clear || m_BYPASS_RenderUpdated)
     {
       g_graphicsContext.BeginPaint();
       g_graphicsContext.Clear();
       g_graphicsContext.EndPaint();
       glFinish();
+      if (m_BYPASS_RenderUpdated)
+        m_BYPASS_RenderUpdated--;
     }
-    m_BYPASS_RenderUpdated = true;
     return;
   }
 
@@ -487,6 +488,7 @@ void CLinuxRendererGLES::FlipPage(int source)
     m_iYV12RenderBuffer = NextYV12Texture();
 
   m_buffers[m_iYV12RenderBuffer].flipindex = ++m_flipindex;
+
   return;
 }
 
@@ -725,9 +727,9 @@ void CLinuxRendererGLES::LoadShaders(int field)
   }
   else if (CONF_FLAGS_FORMAT_MASK(m_iFlags) == CONF_FLAGS_FORMAT_BYPASS)
   {
-    m_textureUpload = &CLinuxRendererGLES::UploadBYPASS;
-    m_textureCreate = &CLinuxRendererGLES::CreateBYPASS;
-    m_textureDelete = &CLinuxRendererGLES::DeleteBYPASS;
+    m_textureUpload = &CLinuxRendererGLES::UploadBYPASSTexture;
+    m_textureCreate = &CLinuxRendererGLES::CreateBYPASSTexture;
+    m_textureDelete = &CLinuxRendererGLES::DeleteBYPASSTexture;
   }
   else
   {
@@ -1784,14 +1786,14 @@ bool CLinuxRendererGLES::CreateCVRefTexture(int index)
 //********************************************************************************************************
 // BYPASS creation, deletion, copying + clearing
 //********************************************************************************************************
-void CLinuxRendererGLES::UploadBYPASS(int index)
+void CLinuxRendererGLES::UploadBYPASSTexture(int index)
 {
   m_eventTexturesDone[index]->Set();
 }
-void CLinuxRendererGLES::DeleteBYPASS(int index)
+void CLinuxRendererGLES::DeleteBYPASSTexture(int index)
 {
 }
-bool CLinuxRendererGLES::CreateBYPASS(int index)
+bool CLinuxRendererGLES::CreateBYPASSTexture(int index)
 {
   m_eventTexturesDone[index]->Set();
   return true;
