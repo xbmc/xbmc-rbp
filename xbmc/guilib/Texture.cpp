@@ -532,7 +532,7 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   uint8_t *imageBuff = NULL;
   int64_t imageBuffSize = 0;
 
-#if 0
+#if 1
   //open path and read data to buffer
   //this handles advancedsettings.xml pathsubstitution
   //and resulting networking
