@@ -2012,7 +2012,6 @@ void CApplication::Render()
   }
 
   CSingleLock lock(g_graphicsContext);
-  CTimeUtils::UpdateFrameTime();
   g_infoManager.UpdateFPS();
 
   if (g_graphicsContext.IsFullScreenVideo() && IsPlaying() && vsync_mode == VSYNC_VIDEO)
@@ -2650,6 +2649,7 @@ void CApplication::FrameMove()
   ProcessEventServer(frameTime);
 
   // Process events and animate controls
+  CTimeUtils::UpdateFrameTime();
   if (!m_bStop)
     g_windowManager.Process(CTimeUtils::GetFrameTime());
   g_windowManager.FrameMove();
