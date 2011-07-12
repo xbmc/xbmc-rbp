@@ -1095,8 +1095,6 @@ void CSMPPlayer::Process()
     {
       m_speed = 1;
       m_callback.OnPlayBackSpeedChanged(m_speed);
-      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
-      m_ready.Set();
 
       // get our initial status.
       GetAmpStatus();
@@ -1114,14 +1112,15 @@ void CSMPPlayer::Process()
       // wait until video.format.formatValid or audio.format.formatValid
       WaitForAmpFormatValid(2000);
 
+      // drop CGUIDialogBusy dialog and release the hold in OpenFile.
+      // sleep a bit to let main thread run and do it's thing.
+      m_ready.Set();
+      Sleep(100);
+
       // we are playing but hidden and all stream fields are valid.
       // check for video in media content
       if (GetVideoStreamCount() > 0)
       {
-        // hide the gui layer so we can get stream info first
-        // without having video playback blended into it.
-        g_Windowing.Hide();
-
         // turn on/off subs
         SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
 
@@ -1154,13 +1153,6 @@ void CSMPPlayer::Process()
       }
 
       m_callback.OnPlayBackStarted();
-
-      if (GetVideoStreamCount() > 0)
-      {
-        WaitForWindowFullScreenVideo(4000);
-        // show gui layer again.
-        g_Windowing.Show();
-      }
 
       while (!m_bStop && !m_StopPlaying)
       {
@@ -1213,7 +1205,6 @@ void CSMPPlayer::Process()
       CLog::Log(LOGERROR, "CSMPPlayer::Process: WaitForAmpPlaying() failed, m_status.flags(0x%08lx), m_status.mode.flags(0x%08lx)",
         (long unsigned int)((UMSStatus*)m_status)->generic.flags,
         (long unsigned int)((UMSStatus*)m_status)->generic.mode.flags);
-      throw;
     }
 
   }
@@ -1352,41 +1343,6 @@ bool CSMPPlayer::WaitForAmpFormatValid(int timeout_ms)
 
   return rtn;
 }
-
-bool CSMPPlayer::WaitForWindowFullScreenVideo(int timeout_ms)
-{
-  bool rtn = false;
-
-  double present_time;
-  // we do a two step check.
-  // 1st, wait for switch to fullscreen video rendering in gui
-  while (!m_bStop && (timeout_ms > 0))
-  {
-    if (g_graphicsContext.IsFullScreenVideo() && g_renderManager.IsRendering())
-      break;
-
-    timeout_ms -= 100;
-    Sleep(100);
-  }
-  // 2nd, wait for renderer to flip at least once.
-  present_time = g_renderManager.GetPresentTime();
-  while (!m_bStop && (timeout_ms > 0))
-  {
-    if (present_time < g_renderManager.GetPresentTime())
-    {
-      rtn = true;
-      break;
-    }
-    timeout_ms -= 100;
-    Sleep(100);
-  }
-  // BUGFIX: why don't we know when gui has truly transitioned?
-  // sleep another 1/2 seconds to be sure.
-  Sleep(500);
-
-  return rtn;
-}
-
 
 bool CSMPPlayer::GetAmpStatus()
 {
