@@ -1093,10 +1093,6 @@ void CSMPPlayer::Process()
     // wait for playback to start with 2 second timeout
     if (WaitForAmpPlaying(2000))
     {
-      // hide the gui layer so we can get stream info first
-      // without having video playback blended into it.
-      g_Windowing.Hide();
-
       m_speed = 1;
       m_callback.OnPlayBackSpeedChanged(m_speed);
       // drop CGUIDialogBusy dialog and release the hold in OpenFile.
@@ -1122,6 +1118,10 @@ void CSMPPlayer::Process()
       // check for video in media content
       if (GetVideoStreamCount() > 0)
       {
+        // hide the gui layer so we can get stream info first
+        // without having video playback blended into it.
+        g_Windowing.Hide();
+
         // turn on/off subs
         SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
 
@@ -1154,9 +1154,13 @@ void CSMPPlayer::Process()
       }
 
       m_callback.OnPlayBackStarted();
-      WaitForWindowFullScreenVideo(4000);
-      // show gui layer again.
-      g_Windowing.Show();
+
+      if (GetVideoStreamCount() > 0)
+      {
+        WaitForWindowFullScreenVideo(4000);
+        // show gui layer again.
+        g_Windowing.Show();
+      }
 
       while (!m_bStop && !m_StopPlaying)
       {
@@ -1430,6 +1434,9 @@ bool CSMPPlayer::GetAmpStatus()
 
     m_video_index = ((UMSStatus*)m_status)->lpb.video.index;
     m_video_count = ((UMSStatus*)m_status)->lpb.media.video_streams;
+
+    m_audio_index = ((UMSStatus*)m_status)->lpb.audio.index;
+    m_audio_count = ((UMSStatus*)m_status)->lpb.media.audio_streams;
 
     if (flags != ((UMSStatus*)m_status)->generic.mode.flags)
     {
