@@ -1310,9 +1310,7 @@ bool CSMPPlayer::WaitForAmpOpenMedia(int timeout_ms)
 
       if (GetAmpStatus())
       {
-        //if (!IS_ERROR(((UMSStatus*)m_status)->generic.lastCmd.result))
-        if ((((UMSStatus*)m_status)->generic.flags & SSTATUS_COMMAND) &&
-           IS_SUCCESS(((UMSStatus*)m_status)->generic.lastCmd.result))
+        if (!IS_ERROR(((UMSStatus*)m_status)->generic.lastCmd.result))
         {
           rtn = true;
           break;
