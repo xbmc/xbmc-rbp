@@ -619,8 +619,8 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
   unsigned int img_width  = dsc.width;
   unsigned int img_height = dsc.height;
   // check size limits and limit to screen size - preserving aspectratio of image  
-  if ( img_width  > g_Windowing.GetMaxTextureSize() ||
-       img_height > g_Windowing.GetMaxTextureSize() )
+  unsigned int maxSize = g_Windowing.GetMaxTextureSize();
+  if ( img_width  > maxSize || img_height > maxSize )
   {
     float aspect;
     if (img_width > img_height)
@@ -635,8 +635,10 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
       img_height = g_Windowing.GetHeight();
       img_width  = (float)img_height / (float)aspect;
     }
-    CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:clamping image size: %i x %i",
-      img_height, img_height);
+    CLog::Log(LOGDEBUG, "CBaseTexture::LoadHWAccelerated:clamping image size from %i x %i to %i x %i",
+      dsc.width, dsc.height, img_height, img_height);
+    dsc.width  = img_width;
+    dsc.height = img_height;
   }
   if (!g_Windowing.SupportsNPOT(false))
   {
@@ -672,13 +674,20 @@ bool CBaseTexture::LoadHWAccelerated(const CStdString& texturePath)
 #if 1
   m_dfbSurface = imagesurface;
   Allocate(img_width, img_height, XB_FMT_DFBSURFACE);
+  // correct our texture width to match the IDirectFBSurface pitch
+  int imgpitch = 0;
+  void *src = NULL;
+  imagesurface->Lock(imagesurface, DSLF_READ , &src, &imgpitch);
+  m_textureWidth = imgpitch / 4;
+  imagesurface->Unlock(imagesurface);
 #else
   Allocate(img_width, img_height, XB_FMT_A8R8G8B8);
   // lock the rendered surface, get a read pointer to it
   // and memcpy the contents into our m_pixels.
-  int gotpitch = 0;
+  // TODO: fixup memcpy to pay attention to imgpitch
+  int imgpitch = 0;
   void *src = NULL;
-  imagesurface->Lock(imagesurface, DSLF_READ , &src, &gotpitch);
+  imagesurface->Lock(imagesurface, DSLF_READ , &src, &imgpitch);
   memcpy(m_pixels, src, GetPitch() * dsc.height);
   imagesurface->Unlock(imagesurface);
   imagesurface->Release(imagesurface);
