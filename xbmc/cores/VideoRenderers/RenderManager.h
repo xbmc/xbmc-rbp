@@ -142,6 +142,17 @@ public:
   }
 #endif
 
+#if defined (HAVE_SIGMASMP)
+  bool IsRendering()
+  {
+    CSharedLock lock(m_sharedSection);
+    if (m_pRenderer)
+      return m_pRenderer->IsRendering();
+    else
+      return false;
+  }
+#endif
+
   void AddOverlay(CDVDOverlay* o, double pts)
   {
     CSharedLock lock(m_sharedSection);

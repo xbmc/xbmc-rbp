@@ -158,6 +158,8 @@ public:
 #ifdef HAVE_VIDEOTOOLBOXDECODER
   virtual void         AddProcessor(CDVDVideoCodecVideoToolBox* vtb, DVDVideoPicture *picture);
 #endif
+
+          bool IsRendering();
 protected:
   virtual void Render(DWORD flags, int index);
 

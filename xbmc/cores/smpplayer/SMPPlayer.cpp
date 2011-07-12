@@ -1154,7 +1154,7 @@ void CSMPPlayer::Process()
       }
 
       m_callback.OnPlayBackStarted();
-      WaitForWindowFullScreenVideo(2000);
+      WaitForWindowFullScreenVideo(4000);
       // show gui layer again.
       g_Windowing.Show();
 
@@ -1360,7 +1360,7 @@ bool CSMPPlayer::WaitForWindowFullScreenVideo(int timeout_ms)
   // 1st, wait for switch to fullscreen video rendering in gui
   while (!m_bStop && (timeout_ms > 0))
   {
-    if (g_graphicsContext.IsFullScreenVideo())
+    if (g_graphicsContext.IsFullScreenVideo() && g_renderManager.IsRendering())
       break;
 
     timeout_ms -= 100;

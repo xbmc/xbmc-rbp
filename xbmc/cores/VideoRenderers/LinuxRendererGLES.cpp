@@ -1903,5 +1903,12 @@ void CLinuxRendererGLES::AddProcessor(CDVDVideoCodecVideoToolBox* vtb, DVDVideoP
 }
 #endif
 
+#if defined (HAVE_SIGMASMP)
+bool CLinuxRendererGLES::IsRendering()
+{
+  return(m_BYPASS_RenderUpdated == 0);
+}
+#endif
+
 
 #endif
