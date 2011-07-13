@@ -42,8 +42,9 @@ CWinSystemDFB::CWinSystemDFB() : CWinSystemBase()
   m_dfb_surface = NULL;
   m_dfb_image_provider = NULL;
 
-  m_buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
+  //m_buffermode  = DLBM_FRONTONLY;     // no backbuffer ( tearing unless we WaitForSync)
   //m_buffermode  = DLBM_BACKVIDEO;   // backbuffer in video memory (no tearing but gui fps is slower)
+  m_buffermode = DLBM_TRIPLE;   // best of both worlds
   m_eWindowSystem = WINDOW_SYSTEM_DFB;
   m_eglBinding = new CWinBindingEGL();
 }
