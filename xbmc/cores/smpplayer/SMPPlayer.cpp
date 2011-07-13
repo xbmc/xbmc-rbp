@@ -255,6 +255,10 @@ bool CSMPPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
         format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
       else if (extension.Equals(".m2ts"))
         format.mediaType = MTYPE_APP_NONE | MTYPE_CONT_M2TS;
+      else if (extension.Equals(".mp3"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_ELEM_MP3 | MTYPE_CONT_UNKNOWN;
+      else if (extension.Equals(".aac"))
+        format.mediaType = MTYPE_APP_NONE | MTYPE_ELEM_AAC | MTYPE_CONT_UNKNOWN;
       else
         format.mediaType = MTYPE_APP_UNKNOWN;
 
