@@ -210,7 +210,7 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     return false;
   }
 
-  if (URIUtils::GetExtension(texturePath).Equals(".jpg"))
+  if (URIUtils::GetExtension(texturePath).Equals(".jpg") || URIUtils::GetExtension(texturePath).Equals(".tbn"))
   {
     if (LoadHWAccelerated(texturePath))
       return true;
