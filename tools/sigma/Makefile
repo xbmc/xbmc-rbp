@@ -1,4 +1,4 @@
-include sigma-sdk.mk
+include sigma-release.mk
 
 SOURCE=../../
 # configuration settings
