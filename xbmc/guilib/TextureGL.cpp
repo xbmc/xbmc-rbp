@@ -137,8 +137,8 @@ void CGLTexture::LoadToGPU()
     int imgpitch = 0;
     void *imgsrc = NULL;
     m_dfbSurface->Lock(m_dfbSurface, DSLF_READ , &imgsrc, &imgpitch);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_textureWidth, m_textureHeight, 0,
-      GL_RGBA, GL_UNSIGNED_BYTE, imgsrc);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, m_textureWidth, m_textureHeight, 0,
+      GL_BGRA_EXT, GL_UNSIGNED_BYTE, imgsrc);
     VerifyGLState();
 
     m_dfbSurface->Unlock(m_dfbSurface);
@@ -148,14 +148,31 @@ void CGLTexture::LoadToGPU()
   else
 #endif
   {
-  #if HAS_GLES == 1
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, m_textureWidth, m_textureHeight, 0,
-      GL_BGRA_EXT, GL_UNSIGNED_BYTE, m_pixels);
-  #elif HAS_GLES == 2
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_textureWidth, m_textureHeight, 0,
-      GL_RGBA, GL_UNSIGNED_BYTE, m_pixels);
-  #endif
+  // All incoming textures are BGRA, which GLES does not necessarily support.
+  // Some (most?) hardware supports BGRA textures via an extension.
+  // If not, we convert to RGBA first to avoid having to swizzle in shaders.
+  GLint internalformat;
+  GLenum pixelformat;
+  if (g_Windowing.SupportsBGRA())
+  {
+    internalformat = pixelformat = GL_BGRA_EXT;
   }
+  else if (g_Windowing.SupportsBGRAApple())
+  {
+    // Apple's implementation does not conform to spec. Instead, they require
+    // differing format/internalformat, more like GL.
+    internalformat = GL_RGBA;
+    pixelformat = GL_BGRA_EXT;
+  }
+  else
+  {
+    SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
+    internalformat = pixelformat = GL_RGBA;
+  }
+
+  glTexImage2D(GL_TEXTURE_2D, 0, internalformat, m_textureWidth, m_textureHeight, 0,
+    pixelformat, GL_UNSIGNED_BYTE, m_pixels); 
+ }
 #endif
   VerifyGLState();
 
