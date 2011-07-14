@@ -14,5 +14,5 @@ configure:
 	cd $(SOURCE); ./bootstrap
 	cd $(SOURCE); $(CONFIGURE)
 	cd $(SOURCE); make
-	#cd $(SOURCE); make install
+	cd $(SOURCE); DESTDIR=$(XBMC_ROOTFS) make install
 
