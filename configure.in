@@ -600,14 +600,10 @@ fi
 
 # platform common libraries
 AC_CHECK_PROG(MYSQL_CONFIG, mysql_config, "yes", "no")
-if test $MYSQL_CONFIG = "yes"; then
   INCLUDES=INCLUDES ${use_build_prefix}/include/mysql
   MYSQL_LIBS=-L${use_build_prefix}/lib/mysql -l mysqlclient
   LIBS="$LIBS $MYSQL_LIBS"
   AC_SUBST(MYSQL_LIBS)
-else
-  AC_MSG_ERROR($missing_program)
-fi
 AC_CHECK_HEADER([ass/ass.h],, AC_MSG_ERROR($missing_library))
 AC_CHECK_HEADER([mpeg2dec/mpeg2.h],, AC_MSG_ERROR($missing_library))
 AC_CHECK_HEADER([mpeg2dec/mpeg2convert.h],, AC_MSG_ERROR($missing_library),
