@@ -728,7 +728,7 @@ else
   if test "$use_arch" = "mips"; then
     # includes are handled in local makefiles to keep from spewing directfb includes around
     PKG_CHECK_MODULES([DIRECTFB],  [directfb],
-      [LIBS="$LIBS $DIRECTFB_LIBS"],
+      [LIBS="$LIBS -ldirectfb -lfusion -ldirect"],
       AC_MSG_ERROR($missing_library))
     use_directfb=yes;
   else
