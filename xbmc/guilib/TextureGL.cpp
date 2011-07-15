@@ -147,6 +147,13 @@ void CGLTexture::LoadToGPU()
   }
   else
 #endif
+
+#ifndef GL_BGRA_EXT
+#define GL_BGRA_EXT 0x80E1
+#endif
+//  GL_BGRA_EXT is missing from some headers even when supported. If
+//  the extension exists, assume we can use it.
+
   {
   // All incoming textures are BGRA, which GLES does not necessarily support.
   // Some (most?) hardware supports BGRA textures via an extension.
