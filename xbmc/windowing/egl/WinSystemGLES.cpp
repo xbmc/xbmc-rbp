@@ -30,6 +30,8 @@
 #include "WinBindingEGL.h"
 
 #include <vector>
+#include "interface/vmcs_host/vc_dispmanx.h"
+#include "interface/vchiq_arm/vchiq_if.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 CWinSystemGLES::CWinSystemGLES() : CWinSystemBase()
@@ -55,9 +57,61 @@ bool CWinSystemGLES::InitWindowSystem()
     m_fb_width, m_fb_height, m_fb_bpp);
 
   m_display = EGL_DEFAULT_DISPLAY;
-  m_window  = (fbdev_window*)calloc(1, sizeof(fbdev_window));
-	m_window->width  = m_fb_width;
-	m_window->height = m_fb_height;
+  m_window  = (EGL_DISPMANX_WINDOW_T*)calloc(1, sizeof(EGL_DISPMANX_WINDOW_T));
+
+
+  static VCHI_INSTANCE_T vchiq_instance;
+  static VCHI_CONNECTION_T *vchi_connection;
+
+  vcos_init();
+  if (vchi_initialise(&vchiq_instance) != VCHIQ_SUCCESS)
+  {
+    CLog::Log(LOGERROR, "CWinSystemGLES::InitWindowSystem: failed to open vchiq instance");
+    return false;
+  }
+  //create a vchi connection
+  if (vchi_connect(NULL, 0, vchiq_instance) != 0)
+  {
+    CLog::Log(LOGERROR, "CWinSystemGLES::InitWindowSystem: VCHI connection failed");
+    return false;
+  }
+  vc_vchi_dispmanx_init(vchiq_instance, &vchi_connection, 1);
+
+/*
+  DISPMANX_ELEMENT_HANDLE_T dispman_element;
+  DISPMANX_DISPLAY_HANDLE_T dispman_display;
+  DISPMANX_UPDATE_HANDLE_T  dispman_update;
+  VC_RECT_T dst_rect;
+  VC_RECT_T src_rect;
+  dst_rect.x = 0;
+  dst_rect.y = 0;
+  dst_rect.width = m_fb_width;
+  dst_rect.height = m_fb_height;
+
+  src_rect.x = 0;
+  src_rect.y = 0;
+  src_rect.width = m_fb_width << 16;
+  src_rect.height = m_fb_height << 16;        
+
+  dispman_display = vc_dispmanx_display_open(0); // LCD
+  dispman_update  = vc_dispmanx_update_start(0);
+     
+  dispman_element = vc_dispmanx_element_add(dispman_update,
+    dispman_display,
+    0,                              // layer
+    &dst_rect,
+    (DISPMANX_RESOURCE_HANDLE_T)0,  // src
+    &src_rect,
+    DISPMANX_PROTECTION_NONE,
+    (VC_DISPMANX_ALPHA_T*)0,        // alpha
+    (DISPMANX_CLAMP_T*)0,           // clamp
+    (DISPMANX_TRANSFORM_T)0);       // transform
+    
+  m_window->element = dispman_element;
+*/
+  m_window->width   = m_fb_width;
+  m_window->height  = m_fb_height;
+  //vc_dispmanx_update_submit_sync( dispman_update );
 
   if (!CWinSystemBase::InitWindowSystem())
     return false;
@@ -100,6 +154,7 @@ bool CWinSystemGLES::DestroyWindow()
 bool CWinSystemGLES::ResizeWindow(int newWidth, int newHeight, int newLeft, int newTop)
 {
   CRenderSystemGLES::ResetRenderSystem(newWidth, newHeight, true, 0);
+
   return true;
 }
 
@@ -122,8 +177,8 @@ void CWinSystemGLES::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  int w = 1280;
-  int h = 720;
+  int w = m_nWidth;
+  int h = m_nHeight;
   UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
 }
 

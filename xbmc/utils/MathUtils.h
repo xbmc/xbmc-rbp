@@ -24,7 +24,7 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
-
+#include <stdio.h>
 /*! \brief Math utility class.
  Note that the test() routine should return true for all implementations
 
@@ -82,7 +82,7 @@ namespace MathUtils
        int_val++;
      return int_val;
      */
-
+/*
     __asm__ __volatile__ (
                           "vmov.F64 d1,%[rnd_val]      \n\t" // Copy round_to_nearest into a working register (d1 = 0.5)
                           "fcmpezd %P[value]           \n\t" // Check value against zero (value == 0?)
@@ -103,6 +103,8 @@ namespace MathUtils
                           : [rnd_val] "Dv" (round_to_nearest), [value] "w"(x) // Inputs
                           : "d1", "d2", "s3"                                  // Clobbers
                           );
+*/
+    i = floor(x + round_to_nearest);
 #else
     __asm__ __volatile__ (
                           "fadd %%st\n\t"
@@ -147,12 +149,15 @@ namespace MathUtils
 #if defined(__powerpc__) || defined(__ppc__)
     return (int)x;
 #elif defined(__arm__)
+/*
     __asm__ __volatile__ (
                           "vcvt.S32.F64 %[result],%P[value]   \n\t" // Truncate(round towards zero) and store the result
                           : [result] "=w"(i)                        // Outputs
                           : [value] "w"(x)                          // Inputs
                           );
     return i;
+*/
+    return (int)x;
 #else
     __asm__ __volatile__ (
                           "fadd %%st\n\t"

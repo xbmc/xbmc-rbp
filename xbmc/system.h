@@ -124,36 +124,47 @@
  *****************/
 
 #if defined(TARGET_LINUX)
+
 #if defined(HAVE_LIBAVAHI_COMMON) && defined(HAVE_LIBAVAHI_CLIENT)
 #define HAS_ZEROCONF
 #define HAS_AVAHI
 #endif
 #define HAS_LCD
+
 #ifdef HAVE_DBUS
 #define HAS_DBUS
 #define HAS_DBUS_SERVER
 #endif
+
 #define HAS_GL
 #ifdef HAVE_X11
 #define HAS_GLX
 #endif
+
 #ifdef HAVE_SDL
 #define HAS_SDL
 #ifndef HAS_SDL_OPENGL
 #define HAS_SDL_OPENGL
-#endif
 #define HAS_SDL_AUDIO
 #define HAS_SDL_WIN_EVENTS
 #endif
+#else
+#define HAS_LINUX_EVENTS
+#endif
+
 #define HAS_LINUX_NETWORK
 #define HAS_LIRC
+
 #ifdef HAVE_LIBPULSE
 #define HAS_PULSEAUDIO
 #endif
+
 #ifdef HAVE_LIBXRANDR
 #define HAS_XRANDR
 #endif
+
 #define HAS_AIRPLAY
+
 #endif
 
 #ifdef HAVE_LIBSSH

@@ -27,6 +27,7 @@
 #include "utils/log.h"
 
 #include <string>
+#include <interface/vmcs_host/vc_dispmanx.h>
 
 CWinBindingEGL::CWinBindingEGL()
 {
@@ -84,7 +85,16 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
     CLog::Log(LOGERROR, "EGL failed to initialize");
     return false;
   } 
-  
+
+  EGLint configAttrs[] = {
+        EGL_RED_SIZE,        8,
+        EGL_GREEN_SIZE,      8,
+        EGL_BLUE_SIZE,       8,
+        EGL_ALPHA_SIZE,      8,
+        EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
+        EGL_NONE
+  };
+/*
   EGLint configAttrs[] = {
         EGL_RED_SIZE,        8,
         EGL_GREEN_SIZE,      8,
@@ -97,6 +107,7 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
         EGL_NONE
   };
+*/
 
   // Find out how many configurations suit our needs  
   eglStatus = eglChooseConfig(m_display, configAttrs, NULL, 0, &configCount);
@@ -115,35 +126,22 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
   }
 
   // Obtain the configuration list from EGL
-  eglStatus = eglChooseConfig(m_display, configAttrs,
-                                configList, configCount, &configCount);
+  eglStatus = eglChooseConfig(m_display, configAttrs, configList, configCount, &configCount);
   if (!eglStatus || !configCount) 
   {
     CLog::Log(LOGERROR, "EGL failed to populate configuration list: %d", eglStatus);
     return false;
   }
-  
-  // Select an EGL configuration that matches the native window
-  m_config = configList[0];
-
-  if (m_surface != EGL_NO_SURFACE)
-  {
-    ReleaseSurface();
-  }
-
-  m_surface = eglCreateWindowSurface(m_display, m_config, m_nativeWindow, NULL);
-  if (!m_surface)
-  { 
-    CLog::Log(LOGERROR, "EGL couldn't create window surface");
-    return false;
-  }
-
+/*  
   eglStatus = eglBindAPI(EGL_OPENGL_ES_API);
   if (!eglStatus) 
   {
     CLog::Log(LOGERROR, "EGL failed to bind API: %d", eglStatus);
     return false;
   }
+*/
+  // Select an EGL configuration that matches the native window
+  m_config = configList[0];
 
   EGLint contextAttrs[] = 
   {
@@ -160,6 +158,51 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
       CLog::Log(LOGERROR, "EGL couldn't create context");
       return false;
     }
+  }
+
+  static EGL_DISPMANX_WINDOW_T nativewindow;
+  //= (EGL_DISPMANX_WINDOW_T*)m_nativeWindow;
+  DISPMANX_ELEMENT_HANDLE_T dispman_element;
+  DISPMANX_DISPLAY_HANDLE_T dispman_display;
+  DISPMANX_UPDATE_HANDLE_T  dispman_update;
+  VC_RECT_T dst_rect;
+  VC_RECT_T src_rect;
+  dst_rect.x = 0;
+  dst_rect.y = 0;
+  dst_rect.width  = 1280;
+  dst_rect.height = 720;
+
+  src_rect.x = 0;
+  src_rect.y = 0;
+  src_rect.width  = dst_rect.width  << 16;
+  src_rect.height = dst_rect.height << 16;        
+
+  dispman_display = vc_dispmanx_display_open(0); // LCD
+  dispman_update  = vc_dispmanx_update_start(0);
+     
+  dispman_element = vc_dispmanx_element_add(dispman_update,
+    dispman_display,
+    0,                              // layer
+    &dst_rect,
+    (DISPMANX_RESOURCE_HANDLE_T)0,  // src
+    &src_rect,
+    DISPMANX_PROTECTION_NONE,
+    (VC_DISPMANX_ALPHA_T*)0,        // alpha
+    (DISPMANX_CLAMP_T*)0,           // clamp
+    (DISPMANX_TRANSFORM_T)0);       // transform
+    
+  nativewindow.element = dispman_element;
+  nativewindow.width   = dst_rect.width;
+  nativewindow.height  = dst_rect.height;
+  vc_dispmanx_update_submit_sync(dispman_update);
+
+  if (m_surface != EGL_NO_SURFACE)
+    ReleaseSurface();
+  m_surface = eglCreateWindowSurface(m_display, m_config, (void*)&nativewindow, NULL);
+  if (!m_surface)
+  { 
+    CLog::Log(LOGERROR, "EGL couldn't create window surface");
+    return false;
   }
 
   // Make the context and surface current to this thread for rendering
