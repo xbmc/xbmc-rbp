@@ -1,0 +1,12 @@
+SDKSTAGE=/opt/bcm-rootfs
+XBMCPREFIX=/opt/xbmc-bcm
+TARGETFS=/opt/bcm-rootfs
+TOOLCHAIN=/usr/local/bcm-gcc
+BUILDROOT=/opt/bcm-rootfs
+BASE_URL=http://mirrors.xbmc.org/build-deps/darwin-libs
+TARBALLS_LOCATION=/opt/xbmc-tarballs
+RETRIEVE_TOOL=/usr/bin/curl
+RETRIEVE_TOOL_FLAGS=-Ls --create-dirs --output $(TARBALLS_LOCATION)/$(ARCHIVE)
+ARCHIVE_TOOL=/bin/tar
+ARCHIVE_TOOL_FLAGS=xf
+JOBS=7
