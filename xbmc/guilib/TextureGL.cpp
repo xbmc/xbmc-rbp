@@ -141,6 +141,7 @@ void CGLTexture::LoadToGPU()
 
   switch (m_format)
   {
+    default:
     case XB_FMT_RGBA8:
       internalformat = pixelformat = GL_RGBA;
       break;
@@ -166,6 +167,7 @@ void CGLTexture::LoadToGPU()
   glTexImage2D(GL_TEXTURE_2D, 0, internalformat, m_textureWidth, m_textureHeight, 0,
     pixelformat, GL_UNSIGNED_BYTE, m_pixels);
 
+  { GLenum err = glGetError(); CLog::Log(LOGERROR, "GL ERROR: %i", (int)err);}
 #endif
   VerifyGLState();
 
