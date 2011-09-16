@@ -47,8 +47,6 @@ public:
   EGLDisplay            GetDisplay();
   EGLSurface            GetSurface();
   EGLContext            GetContext();
-  unsigned int          GetDisplayWidth()  { return m_DisplayWidth ; };
-  unsigned int          GetDisplayHeight() { return m_DisplayHeight; };
 
 protected:
   EGLNativeWindowType   m_nativeWindow;
@@ -57,8 +55,6 @@ protected:
   EGLSurface            m_surface;
   EGLConfig             m_config;
   EGLContext            m_context;
-  unsigned int          m_DisplayWidth;
-  unsigned int          m_DisplayHeight;
   CStdString            m_eglext;
   bool                  m_once;
 };

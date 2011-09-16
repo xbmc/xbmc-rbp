@@ -38,6 +38,7 @@ CWinSystemGLES::CWinSystemGLES() : CWinSystemBase()
 {
   m_window = NULL;
   m_eglBinding = new CWinBindingEGL();
+  // m_vendorBindings = new CDispmanx();
   m_eWindowSystem = WINDOW_SYSTEM_EGL;
 }
 
@@ -49,19 +50,10 @@ CWinSystemGLES::~CWinSystemGLES()
 
 bool CWinSystemGLES::InitWindowSystem()
 {
-  /*
-  m_fb_width  = 1280;
-  m_fb_height = 720;
-  m_fb_bpp    = 8;
-  */
-
-  CLog::Log(LOGDEBUG, "Video mode: %dx%d with %d bits per pixel.",
-    m_fb_width, m_fb_height, m_fb_bpp);
-
   m_display = EGL_DEFAULT_DISPLAY;
   m_window  = (EGL_DISPMANX_WINDOW_T*)calloc(1, sizeof(EGL_DISPMANX_WINDOW_T));
 
-
+  // vchiq/vc_dispmanx specific inits, move out later.
   static VCHI_INSTANCE_T vchiq_instance;
   static VCHI_CONNECTION_T *vchi_connection;
 
@@ -77,12 +69,20 @@ bool CWinSystemGLES::InitWindowSystem()
     CLog::Log(LOGERROR, "CWinSystemGLES::InitWindowSystem: VCHI connection failed");
     return false;
   }
+
   vc_vchi_dispmanx_init(vchiq_instance, &vchi_connection, 1);
 
-/*
-  DISPMANX_ELEMENT_HANDLE_T dispman_element;
-  DISPMANX_DISPLAY_HANDLE_T dispman_display;
-  DISPMANX_UPDATE_HANDLE_T  dispman_update;
+  DISPMANX_DISPLAY_HANDLE_T dispman_display = vc_dispmanx_display_open(0);
+  DISPMANX_UPDATE_HANDLE_T  dispman_update  = vc_dispmanx_update_start(0);
+     
+  DISPMANX_MODEINFO_T mode_info;
+  memset(&mode_info, 0x0, sizeof(DISPMANX_MODEINFO_T));
+  vc_dispmanx_display_get_info(dispman_display, &mode_info);
+
+  m_fb_width  = mode_info.width;
+  m_fb_height = mode_info.height;
+  m_fb_bpp    = 8;
+
   VC_RECT_T dst_rect;
   VC_RECT_T src_rect;
   dst_rect.x = 0;
@@ -95,9 +95,7 @@ bool CWinSystemGLES::InitWindowSystem()
   src_rect.width = m_fb_width << 16;
   src_rect.height = m_fb_height << 16;        
 
-  dispman_display = vc_dispmanx_display_open(0); // LCD
-  dispman_update  = vc_dispmanx_update_start(0);
-     
+  DISPMANX_ELEMENT_HANDLE_T dispman_element;
   dispman_element = vc_dispmanx_element_add(dispman_update,
     dispman_display,
     0,                              // layer
@@ -110,15 +108,15 @@ bool CWinSystemGLES::InitWindowSystem()
     (DISPMANX_TRANSFORM_T)0);       // transform
     
   m_window->element = dispman_element;
-*/
-  /*
   m_window->width   = m_fb_width;
   m_window->height  = m_fb_height;
-  */
-  //vc_dispmanx_update_submit_sync( dispman_update );
+  vc_dispmanx_update_submit_sync( dispman_update );
 
   if (!CWinSystemBase::InitWindowSystem())
     return false;
+
+  CLog::Log(LOGDEBUG, "Video mode: %dx%d with %d bits per pixel.",
+    m_fb_width, m_fb_height, m_fb_bpp);
 
   return true;
 }
@@ -133,13 +131,12 @@ bool CWinSystemGLES::DestroyWindowSystem()
 
 bool CWinSystemGLES::CreateNewWindow(const CStdString& name, bool fullScreen, RESOLUTION_INFO& res, PHANDLE_EVENT_FUNC userFunction)
 {
+  m_nWidth  = res.iWidth;
+  m_nHeight = res.iHeight;
   m_bFullScreen = fullScreen;
 
   if (!m_eglBinding->CreateWindow((EGLNativeDisplayType)m_display, (EGLNativeWindowType)m_window))
     return false;
-
-  m_nWidth  = m_eglBinding->GetDisplayWidth ();
-  m_nHeight = m_eglBinding->GetDisplayHeight();
 
   UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, m_nWidth, m_nHeight, 0.0);
 
@@ -184,8 +181,10 @@ void CWinSystemGLES::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  int w = m_nWidth;
-  int h = m_nHeight;
+  // here is where we would probe the avaliable display resolutions from display
+  // hard code now to what we get from vc_dispmanx_display_get_info
+  int w = m_fb_width;
+  int h = m_fb_height;
   UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
 }
 
