@@ -177,8 +177,8 @@ void CWinSystemGLES::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  int w = m_nWidth;
-  int h = m_nHeight;
+  int w = m_fb_width;
+  int h = m_fb_height;
   UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
 }
 
