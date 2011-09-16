@@ -34,6 +34,7 @@ CWinBindingEGL::CWinBindingEGL()
   m_surface = EGL_NO_SURFACE;
   m_context = EGL_NO_CONTEXT;
   m_display = EGL_NO_DISPLAY;
+  m_once = false;
 }
 
 CWinBindingEGL::~CWinBindingEGL()
@@ -132,14 +133,14 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
     CLog::Log(LOGERROR, "EGL failed to populate configuration list: %d", eglStatus);
     return false;
   }
-/*  
+ 
   eglStatus = eglBindAPI(EGL_OPENGL_ES_API);
   if (!eglStatus) 
   {
     CLog::Log(LOGERROR, "EGL failed to bind API: %d", eglStatus);
     return false;
   }
-*/
+
   // Select an EGL configuration that matches the native window
   m_config = configList[0];
 
@@ -161,41 +162,44 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
   }
 
   static EGL_DISPMANX_WINDOW_T nativewindow;
-  //= (EGL_DISPMANX_WINDOW_T*)m_nativeWindow;
-  DISPMANX_ELEMENT_HANDLE_T dispman_element;
-  DISPMANX_DISPLAY_HANDLE_T dispman_display;
-  DISPMANX_UPDATE_HANDLE_T  dispman_update;
-  VC_RECT_T dst_rect;
-  VC_RECT_T src_rect;
-  dst_rect.x = 0;
-  dst_rect.y = 0;
-  dst_rect.width  = 1280;
-  dst_rect.height = 720;
+  if (!m_once)
+  {
+    //= (EGL_DISPMANX_WINDOW_T*)m_nativeWindow;
+    DISPMANX_ELEMENT_HANDLE_T dispman_element;
+    DISPMANX_DISPLAY_HANDLE_T dispman_display;
+    DISPMANX_UPDATE_HANDLE_T  dispman_update;
+    VC_RECT_T dst_rect;
+    VC_RECT_T src_rect;
+    dst_rect.x = 0;
+    dst_rect.y = 0;
+    dst_rect.width  = 1280;
+    dst_rect.height = 720;
 
-  src_rect.x = 0;
-  src_rect.y = 0;
-  src_rect.width  = dst_rect.width  << 16;
-  src_rect.height = dst_rect.height << 16;        
+    src_rect.x = 0;
+    src_rect.y = 0;
+    src_rect.width  = dst_rect.width  << 16;
+    src_rect.height = dst_rect.height << 16;        
 
-  dispman_display = vc_dispmanx_display_open(0); // LCD
-  dispman_update  = vc_dispmanx_update_start(0);
-     
-  dispman_element = vc_dispmanx_element_add(dispman_update,
-    dispman_display,
-    0,                              // layer
-    &dst_rect,
-    (DISPMANX_RESOURCE_HANDLE_T)0,  // src
-    &src_rect,
-    DISPMANX_PROTECTION_NONE,
-    (VC_DISPMANX_ALPHA_T*)0,        // alpha
-    (DISPMANX_CLAMP_T*)0,           // clamp
-    (DISPMANX_TRANSFORM_T)0);       // transform
-    
-  nativewindow.element = dispman_element;
-  nativewindow.width   = dst_rect.width;
-  nativewindow.height  = dst_rect.height;
-  vc_dispmanx_update_submit_sync(dispman_update);
-
+    dispman_display = vc_dispmanx_display_open(0); // LCD
+    dispman_update  = vc_dispmanx_update_start(0);
+       
+    dispman_element = vc_dispmanx_element_add(dispman_update,
+      dispman_display,
+      0,                              // layer
+      &dst_rect,
+      (DISPMANX_RESOURCE_HANDLE_T)0,  // src
+      &src_rect,
+      DISPMANX_PROTECTION_NONE,
+      (VC_DISPMANX_ALPHA_T*)0,        // alpha
+      (DISPMANX_CLAMP_T*)0,           // clamp
+      (DISPMANX_TRANSFORM_T)0);       // transform
+      
+    nativewindow.element = dispman_element;
+    nativewindow.width   = dst_rect.width;
+    nativewindow.height  = dst_rect.height;
+    vc_dispmanx_update_submit_sync(dispman_update);
+    m_once = true;
+  }
   if (m_surface != EGL_NO_SURFACE)
     ReleaseSurface();
   m_surface = eglCreateWindowSurface(m_display, m_config, (void*)&nativewindow, NULL);

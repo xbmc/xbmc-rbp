@@ -56,6 +56,7 @@ protected:
   EGLConfig             m_config;
   EGLContext            m_context;
   CStdString            m_eglext;
+  bool                  m_once;
 };
 
 #endif // WINDOW_BINDING_EGL_H
