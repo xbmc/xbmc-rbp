@@ -49,9 +49,11 @@ CWinSystemGLES::~CWinSystemGLES()
 
 bool CWinSystemGLES::InitWindowSystem()
 {
+  /*
   m_fb_width  = 1280;
   m_fb_height = 720;
   m_fb_bpp    = 8;
+  */
 
   CLog::Log(LOGDEBUG, "Video mode: %dx%d with %d bits per pixel.",
     m_fb_width, m_fb_height, m_fb_bpp);
@@ -109,8 +111,10 @@ bool CWinSystemGLES::InitWindowSystem()
     
   m_window->element = dispman_element;
 */
+  /*
   m_window->width   = m_fb_width;
   m_window->height  = m_fb_height;
+  */
   //vc_dispmanx_update_submit_sync( dispman_update );
 
   if (!CWinSystemBase::InitWindowSystem())
@@ -129,12 +133,15 @@ bool CWinSystemGLES::DestroyWindowSystem()
 
 bool CWinSystemGLES::CreateNewWindow(const CStdString& name, bool fullScreen, RESOLUTION_INFO& res, PHANDLE_EVENT_FUNC userFunction)
 {
-  m_nWidth  = res.iWidth;
-  m_nHeight = res.iHeight;
   m_bFullScreen = fullScreen;
 
   if (!m_eglBinding->CreateWindow((EGLNativeDisplayType)m_display, (EGLNativeWindowType)m_window))
     return false;
+
+  m_nWidth  = m_eglBinding->GetDisplayWidth ();
+  m_nHeight = m_eglBinding->GetDisplayHeight();
+
+  UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, m_nWidth, m_nHeight, 0.0);
 
   m_bWindowCreated = true;
 
@@ -177,8 +184,8 @@ void CWinSystemGLES::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  int w = m_fb_width;
-  int h = m_fb_height;
+  int w = m_nWidth;
+  int h = m_nHeight;
   UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, w, h, 0.0);
 }
 

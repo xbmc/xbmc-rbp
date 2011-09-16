@@ -31,10 +31,12 @@
 
 CWinBindingEGL::CWinBindingEGL()
 {
-  m_surface = EGL_NO_SURFACE;
-  m_context = EGL_NO_CONTEXT;
-  m_display = EGL_NO_DISPLAY;
-  m_once = false;
+  m_surface       = EGL_NO_SURFACE;
+  m_context       = EGL_NO_CONTEXT;
+  m_display       = EGL_NO_DISPLAY;
+  m_DisplayWidth  = 0;
+  m_DisplayHeight = 0;
+  m_once          = false;
 }
 
 CWinBindingEGL::~CWinBindingEGL()
@@ -168,21 +170,30 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
     DISPMANX_ELEMENT_HANDLE_T dispman_element;
     DISPMANX_DISPLAY_HANDLE_T dispman_display;
     DISPMANX_UPDATE_HANDLE_T  dispman_update;
+
+    dispman_display = vc_dispmanx_display_open(0); // LCD
+    dispman_update  = vc_dispmanx_update_start(0);
+       
+    DISPMANX_MODEINFO_T mode_info;
+    memset(&mode_info, 0x0, sizeof(DISPMANX_MODEINFO_T));
+
+    vc_dispmanx_display_get_info(dispman_display, &mode_info);
+
+    m_DisplayWidth  = mode_info.width;
+    m_DisplayHeight = mode_info.height;
+
     VC_RECT_T dst_rect;
     VC_RECT_T src_rect;
     dst_rect.x = 0;
     dst_rect.y = 0;
-    dst_rect.width  = 1280;
-    dst_rect.height = 720;
+    dst_rect.width  = m_DisplayWidth;
+    dst_rect.height = m_DisplayHeight;
 
     src_rect.x = 0;
     src_rect.y = 0;
     src_rect.width  = dst_rect.width  << 16;
     src_rect.height = dst_rect.height << 16;        
 
-    dispman_display = vc_dispmanx_display_open(0); // LCD
-    dispman_update  = vc_dispmanx_update_start(0);
-       
     dispman_element = vc_dispmanx_element_add(dispman_update,
       dispman_display,
       0,                              // layer
