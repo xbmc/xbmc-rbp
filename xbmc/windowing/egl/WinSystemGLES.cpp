@@ -110,7 +110,7 @@ bool CWinSystemGLES::InitWindowSystem()
   m_window->element = dispman_element;
   m_window->width   = m_fb_width;
   m_window->height  = m_fb_height;
-  vc_dispmanx_update_submit_sync( dispman_update );
+  vc_dispmanx_update_submit_sync(dispman_update);
 
   if (!CWinSystemBase::InitWindowSystem())
     return false;
@@ -181,7 +181,7 @@ void CWinSystemGLES::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  // here is where we would probe the avaliable display resolutions from display
+  // here is where we would probe the avaliable display resolutions from display.
   // hard code now to what we get from vc_dispmanx_display_get_info
   int w = m_fb_width;
   int h = m_fb_height;
