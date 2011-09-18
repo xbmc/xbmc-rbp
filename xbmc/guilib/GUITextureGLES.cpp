@@ -32,9 +32,6 @@
 
 #if defined(HAS_GLES)
 
-#ifndef GL_INVALID_INDEX
-#define GL_INVALID_INDEX 0xFFFFFFFF
-#endif
 
 CGUITextureGLES::CGUITextureGLES(float posX, float posY, float width, float height, const CTextureInfo &texture)
 : CGUITextureBase(posX, posY, width, height, texture)
@@ -96,17 +93,17 @@ void CGUITextureGLES::Begin(color_t color)
     }
   }
 
-  GLuint posLoc  = g_Windowing.GUIShaderGetPos();
-  GLuint colLoc  = g_Windowing.GUIShaderGetCol();
-  GLuint tex0Loc = g_Windowing.GUIShaderGetCoord0();
+  GLint posLoc  = g_Windowing.GUIShaderGetPos();
+  GLint colLoc  = g_Windowing.GUIShaderGetCol();
+  GLint tex0Loc = g_Windowing.GUIShaderGetCoord0();
 
   glVertexAttribPointer(posLoc, 3, GL_FLOAT, 0, 0, m_vert);
-  if(colLoc != GL_INVALID_INDEX)
+  if(colLoc >= 0)
     glVertexAttribPointer(colLoc, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, m_col);
   glVertexAttribPointer(tex0Loc, 2, GL_FLOAT, 0, 0, m_tex0);
 
   glEnableVertexAttribArray(posLoc);
-  if(colLoc != GL_INVALID_INDEX)
+  if(colLoc >= 0)
     glEnableVertexAttribArray(colLoc);
   glEnableVertexAttribArray(tex0Loc);
 
@@ -130,8 +127,8 @@ void CGUITextureGLES::End()
   }
 
   glDisableVertexAttribArray(g_Windowing.GUIShaderGetPos());
-  GLuint colLoc  = g_Windowing.GUIShaderGetCol();
-  if(colLoc != GL_INVALID_INDEX)
+  GLint colLoc  = g_Windowing.GUIShaderGetCol();
+  if(colLoc >= 0)
     glDisableVertexAttribArray(g_Windowing.GUIShaderGetCol());
   glDisableVertexAttribArray(g_Windowing.GUIShaderGetCoord0());
 
@@ -240,12 +237,12 @@ void CGUITextureGLES::DrawQuad(const CRect &rect, color_t color, CBaseTexture *t
   else
     g_Windowing.EnableGUIShader(SM_DEFAULT);
 
-  GLuint posLoc   = g_Windowing.GUIShaderGetPos();
-  GLuint colLoc   = g_Windowing.GUIShaderGetCol();
-  GLuint tex0Loc  = g_Windowing.GUIShaderGetCoord0();
+  GLint posLoc   = g_Windowing.GUIShaderGetPos();
+  GLint colLoc   = g_Windowing.GUIShaderGetCol();
+  GLint tex0Loc  = g_Windowing.GUIShaderGetCoord0();
 
   glVertexAttribPointer(posLoc,  3, GL_FLOAT, 0, 0, ver);
-  if(colLoc != GL_INVALID_INDEX)
+  if(colLoc >= 0)
     glVertexAttribPointer(colLoc,  4, GL_UNSIGNED_BYTE, GL_TRUE, 0, col);
   if (texture)
     glVertexAttribPointer(tex0Loc, 2, GL_FLOAT, 0, 0, tex);
@@ -253,7 +250,7 @@ void CGUITextureGLES::DrawQuad(const CRect &rect, color_t color, CBaseTexture *t
   glEnableVertexAttribArray(posLoc);
   if (texture)
     glEnableVertexAttribArray(tex0Loc);
-  if(colLoc != GL_INVALID_INDEX)
+  if(colLoc >= 0)
     glEnableVertexAttribArray(colLoc);
 
   for (int i=0; i<4; i++)
@@ -291,7 +288,7 @@ void CGUITextureGLES::DrawQuad(const CRect &rect, color_t color, CBaseTexture *t
   glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, idx);
 
   glDisableVertexAttribArray(posLoc);
-  if(colLoc != GL_INVALID_INDEX)
+  if(colLoc >= 0)
     glDisableVertexAttribArray(colLoc);
   if (texture)
     glDisableVertexAttribArray(tex0Loc);
