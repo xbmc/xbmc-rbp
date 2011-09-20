@@ -28,25 +28,14 @@
 #if defined(HAVE_LIBOPENMAX)
 #include "OpenMax.h"
 #include "DynamicDll.h"
-#include "DVDClock.h"
-#include "DVDStreamInfo.h"
-#include "windowing/WindowingFactory.h"
-#include "DVDVideoCodec.h"
 #include "utils/log.h"
-#include "utils/TimeUtils.h"
-#include "ApplicationMessenger.h"
-#include "Application.h"
 
 #if (HAVE_LIBOPENMAX == 2)
 #include <IL/OMX_Core.h>
 #include <IL/OMX_Component.h>
-#include <IL/OMX_Index.h>
-#include <IL/OMX_Image.h>
 #else
 #include <OMX_Core.h>
 #include <OMX_Component.h>
-#include <OMX_Index.h>
-#include <OMX_Image.h>
 #endif
 
 #define CLASSNAME "COpenMax"

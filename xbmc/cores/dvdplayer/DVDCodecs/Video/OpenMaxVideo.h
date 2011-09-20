@@ -23,8 +23,18 @@
 #if defined(HAVE_LIBOPENMAX)
 
 #include "OpenMax.h"
+#include "threads/Event.h"
+#include "DVDVideoCodec.h"
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+
+typedef struct omx_demux_packet {
+  OMX_U8 *buff;
+  int size;
+  double dts;
+  double pts;
+} omx_demux_packet;
 
 // an omx egl video frame
 typedef struct OpenMaxVideoBuffer {
