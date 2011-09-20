@@ -240,4 +240,14 @@ bool CWinSystemGLES::Show(bool raise)
   return true;
 }
 
+EGLContext CWinSystemGLES::GetEGLContext() const
+{
+  return m_eglBinding->GetContext();
+}
+
+EGLDisplay CWinSystemGLES::GetEGLDisplay() const
+{
+  return m_eglBinding->GetDisplay();
+}
+
 #endif

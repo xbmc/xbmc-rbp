@@ -30,6 +30,8 @@
 
 #include <EGL/eglplatform.h>
 
+typedef void *EGLDisplay;
+typedef void *EGLContext;
 class CWinBindingEGL;
 
 class CWinSystemGLES : public CWinSystemBase, public CRenderSystemGLES
@@ -56,6 +58,8 @@ public:
   virtual bool  Hide();
   virtual bool  Show(bool raise = true);
 
+  EGLContext GetEGLContext() const;
+  EGLDisplay GetEGLDisplay() const;
 protected:
   virtual bool  PresentRenderImpl(const CDirtyRegionList &dirty);
   virtual void  SetVSyncImpl(bool enable);
