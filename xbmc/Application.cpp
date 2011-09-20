@@ -1280,13 +1280,17 @@ void CApplication::StartAirplayServer()
 #ifdef HAS_AIRPLAY
   if (g_guiSettings.GetBool("services.airplay") && m_network.IsAvailable())
   {
+    CStdString password = g_guiSettings.GetString("services.airplaypassword");
+    bool usePassword = g_guiSettings.GetBool("services.useairplaypassword");
+    
     if (CAirPlayServer::StartServer(9091, true))
     {
+      CAirPlayServer::SetCredentials(usePassword, password);
       std::map<std::string, std::string> txt;
       txt["deviceid"] = m_network.GetFirstConnectedInterface()->GetMacAddress();
       txt["features"] = "0x77";
       txt["model"] = "AppleTV2,1";
-      txt["srcvers"] = "101.10";
+      txt["srcvers"] = "101.28";
       CZeroconf::GetInstance()->PublishService("servers.airplay", "_airplay._tcp", "XBMC", 9091, txt);
     }
   }
@@ -3898,7 +3902,10 @@ void CApplication::OnPlayBackPaused()
     getApplicationMessenger().HttpApi("broadcastlevel; OnPlayBackPaused;1");
 #endif
 
-  CAnnouncementManager::Announce(Player, "xbmc", "OnPause", m_itemCurrentFile);
+  CVariant param;
+  param["player"]["speed"] = 0;
+  param["player"]["playerid"] = g_playlistPlayer.GetCurrentPlaylist();
+  CAnnouncementManager::Announce(Player, "xbmc", "OnPause", m_itemCurrentFile, param);
 }
 
 void CApplication::OnPlayBackResumed()
@@ -3914,7 +3921,8 @@ void CApplication::OnPlayBackResumed()
 #endif
 
   CVariant param;
-  param["speed"] = 1;
+  param["player"]["speed"] = 1;
+  param["player"]["playerid"] = g_playlistPlayer.GetCurrentPlaylist();
   CAnnouncementManager::Announce(Player, "xbmc", "OnPlay", m_itemCurrentFile, param);
 }
 
@@ -3935,8 +3943,9 @@ void CApplication::OnPlayBackSpeedChanged(int iSpeed)
 #endif
 
   CVariant param;
-  param["speed"] = iSpeed;
-  CAnnouncementManager::Announce(Player, "xbmc", "OnPlay", m_itemCurrentFile, param);
+  param["player"]["speed"] = iSpeed;
+  param["player"]["playerid"] = g_playlistPlayer.GetCurrentPlaylist();
+  CAnnouncementManager::Announce(Player, "xbmc", "OnSpeedChanged", m_itemCurrentFile, param);
 }
 
 void CApplication::OnPlayBackSeek(int iTime, int seekOffset)
@@ -3956,9 +3965,11 @@ void CApplication::OnPlayBackSeek(int iTime, int seekOffset)
 #endif
 
   CVariant param;
-  param["time"] = iTime;
-  param["seekoffset"] = seekOffset;
-  CAnnouncementManager::Announce(Player, "xbmc", "OnSeek", param);
+  CJSONUtils::MillisecondsToTimeObject(iTime, param["player"]["time"]);
+  CJSONUtils::MillisecondsToTimeObject(seekOffset, param["player"]["seekoffset"]);;
+  param["player"]["playerid"] = g_playlistPlayer.GetCurrentPlaylist();
+  param["player"]["speed"] = GetPlaySpeed();
+  CAnnouncementManager::Announce(Player, "xbmc", "OnSeek", m_itemCurrentFile, param);
   g_infoManager.SetDisplayAfterSeek(2500, seekOffset/1000);
 }
 
@@ -4430,7 +4441,8 @@ bool CApplication::OnMessage(CGUIMessage& message)
       g_partyModeManager.OnSongChange(true);
 
       CVariant param;
-      param["speed"] = 1;
+      param["player"]["speed"] = 1;
+      param["player"]["playerid"] = g_playlistPlayer.GetCurrentPlaylist();
       CAnnouncementManager::Announce(Player, "xbmc", "OnPlay", m_itemCurrentFile, param);
 
       DimLCDOnPlayback(true);

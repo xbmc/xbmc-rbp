@@ -100,7 +100,8 @@ bool CVideoDatabase::CreateTables()
                 "ViewMode integer,ZoomAmount float, PixelRatio float, VerticalShift float, AudioStream integer, SubtitleStream integer,"
                 "SubtitleDelay float, SubtitlesOn bool, Brightness float, Contrast float, Gamma float,"
                 "VolumeAmplification float, AudioDelay float, OutputToAllSpeakers bool, ResumeTime integer, Crop bool, CropLeft integer,"
-                "CropRight integer, CropTop integer, CropBottom integer, Sharpness float, NoiseReduction float, NonLinStretch bool, PostProcess bool, ScalingMethod integer)\n");
+                "CropRight integer, CropTop integer, CropBottom integer, Sharpness float, NoiseReduction float, NonLinStretch bool, PostProcess bool,"
+                "ScalingMethod integer, DeinterlaceMode integer)\n");
     m_pDS->exec("CREATE UNIQUE INDEX ix_settings ON settings ( idFile )\n");
 
     CLog::Log(LOGINFO, "create stacktimes table");
@@ -3068,7 +3069,7 @@ void CVideoDatabase::SetVideoSettings(const CStdString& strFilenameAndPath, cons
       strSQL=PrepareSQL("update settings set Deinterlace=%i,ViewMode=%i,ZoomAmount=%f,PixelRatio=%f,VerticalShift=%f,"
                        "AudioStream=%i,SubtitleStream=%i,SubtitleDelay=%f,SubtitlesOn=%i,Brightness=%f,Contrast=%f,Gamma=%f,"
                        "VolumeAmplification=%f,AudioDelay=%f,OutputToAllSpeakers=%i,Sharpness=%f,NoiseReduction=%f,NonLinStretch=%i,PostProcess=%i,ScalingMethod=%i,"
-                       "DeinterlaceMode=%i",
+                       "DeinterlaceMode=%i,",
                        setting.m_InterlaceMethod, setting.m_ViewMode, setting.m_CustomZoomAmount, setting.m_CustomPixelRatio, setting.m_CustomVerticalShift,
                        setting.m_AudioStream, setting.m_SubtitleStream, setting.m_SubtitleDelay, setting.m_SubtitleOn,
                        setting.m_Brightness, setting.m_Contrast, setting.m_Gamma, setting.m_VolumeAmplification, setting.m_AudioDelay,

@@ -680,7 +680,7 @@ bool CSettings::LoadSettings(const CStdString& strSettingsFile)
     int deinterlaceMode;
     bool deinterlaceModePresent = GetInteger(pElement, "deinterlacemode", deinterlaceMode, VS_DEINTERLACEMODE_OFF, VS_DEINTERLACEMODE_OFF, VS_DEINTERLACEMODE_FORCE);
     int interlaceMethod;
-    bool interlaceMethodPresent = GetInteger(pElement, "interlacemethod", interlaceMethod, VS_INTERLACEMETHOD_AUTO, VS_INTERLACEMETHOD_RENDER_BLEND, VS_INTERLACEMETHOD_INVERSE_TELECINE);
+    bool interlaceMethodPresent = GetInteger(pElement, "interlacemethod", interlaceMethod, VS_INTERLACEMETHOD_AUTO, VS_INTERLACEMETHOD_AUTO, VS_INTERLACEMETHOD_INVERSE_TELECINE);
     // For smooth conversion of settings stored before the deinterlaceMode existed
     if (!deinterlaceModePresent && interlaceMethodPresent)
     {
@@ -873,6 +873,7 @@ bool CSettings::SaveSettings(const CStdString& strSettingsFile, CGUISettings *lo
   TiXmlElement videoSettingsNode("defaultvideosettings");
   pNode = pRoot->InsertEndChild(videoSettingsNode);
   if (!pNode) return false;
+  XMLUtils::SetInt(pNode, "deinterlacemode", m_defaultVideoSettings.m_DeinterlaceMode);
   XMLUtils::SetInt(pNode, "interlacemethod", m_defaultVideoSettings.m_InterlaceMethod);
   XMLUtils::SetInt(pNode, "scalingmethod", m_defaultVideoSettings.m_ScalingMethod);
   XMLUtils::SetFloat(pNode, "noisereduction", m_defaultVideoSettings.m_NoiseReduction);
