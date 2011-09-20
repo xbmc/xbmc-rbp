@@ -36,11 +36,17 @@
 #include "ApplicationMessenger.h"
 #include "Application.h"
 
+#if (HAVE_LIBOPENMAX == 2)
+#include <IL/OMX_Core.h>
+#include <IL/OMX_Component.h>
+#include <IL/OMX_Index.h>
+#include <IL/OMX_Image.h>
+#else
 #include <OMX_Core.h>
 #include <OMX_Component.h>
 #include <OMX_Index.h>
 #include <OMX_Image.h>
-
+#endif
 
 #define CLASSNAME "COpenMaxVideo"
 
@@ -57,8 +63,6 @@
 #define OMX_VC1_DECODER         "OMX.Nvidia.vc1.decode"
 
 // EGL extension functions
-static PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-static PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
 #define GETEXTENSION(type, ext) \
 do \
 { \
@@ -657,10 +661,8 @@ OMX_ERRORTYPE COpenMaxVideo::AllocOMXOutputEGLTextures(void)
 {
   OMX_ERRORTYPE omx_err;
 
-  if (!eglCreateImageKHR)
-  {
-    GETEXTENSION(PFNEGLCREATEIMAGEKHRPROC,  eglCreateImageKHR);
-  }
+  PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
+  GETEXTENSION(PFNEGLCREATEIMAGEKHRPROC, eglCreateImageKHR);
 
   EGLint attrib = EGL_NONE;
   OpenMaxVideoBuffer *egl_buffer;
@@ -747,10 +749,8 @@ OMX_ERRORTYPE COpenMaxVideo::FreeOMXOutputEGLTextures(bool wait)
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   OpenMaxVideoBuffer *egl_buffer;
 
-  if (!eglDestroyImageKHR)
-  {
-    GETEXTENSION(PFNEGLDESTROYIMAGEKHRPROC, eglDestroyImageKHR);
-  }
+  PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
+  GETEXTENSION(PFNEGLDESTROYIMAGEKHRPROC, eglDestroyImageKHR);
 
   for (size_t i = 0; i < m_omx_output_buffers.size(); i++)
   {

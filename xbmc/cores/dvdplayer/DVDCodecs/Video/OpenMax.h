@@ -28,8 +28,11 @@
 
 #include <queue>
 #include <semaphore.h>
+#if (HAVE_LIBOPENMAX == 2)
+#include <IL/OMX_Core.h>
+#else
 #include <OMX_Core.h>
-
+#endif
 ////////////////////////////////////////////////////////////////////////////////////////////
 // debug spew defines
 #if 0
