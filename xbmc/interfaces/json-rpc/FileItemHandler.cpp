@@ -53,6 +53,8 @@ void CFileItemHandler::FillDetails(ISerializable* info, CFileItemPtr item, const
 
     if (item)
     {
+      if (item->IsAlbum() && field.Equals("albumlabel"))
+        field = "label";
       if (item->IsAlbum() && item->HasProperty("album_" + field))
       {
         if (field == "rating")
@@ -106,7 +108,7 @@ void CFileItemHandler::HandleFileItemList(const char *ID, bool allowFile, const 
   {
     CVariant object;
     CFileItemPtr item = items.Get(i);
-    HandleFileItem(ID, allowFile, resultname, item, parameterObject, parameterObject["fields"], result);
+    HandleFileItem(ID, allowFile, resultname, item, parameterObject, parameterObject["properties"], result);
   }
 }
 
@@ -128,11 +130,8 @@ void CFileItemHandler::HandleFileItem(const char *ID, bool allowFile, const char
 
   if (allowFile && hasFileField)
   {
-    if (item->HasVideoInfoTag())
-    {
-      if (!item->GetVideoInfoTag()->GetPath().IsEmpty())
-        object["file"] = item->GetVideoInfoTag()->m_strFileNameAndPath.c_str();
-    }
+    if (item->HasVideoInfoTag() && !item->GetVideoInfoTag()->GetPath().IsEmpty())
+        object["file"] = item->GetVideoInfoTag()->GetPath().c_str();
     if (item->HasMusicInfoTag() && !item->GetMusicInfoTag()->GetURL().IsEmpty())
       object["file"] = item->GetMusicInfoTag()->GetURL().c_str();
 

@@ -26,6 +26,7 @@
 #include "settings/Settings.h"
 #include "filesystem/File.h"
 #include "utils/log.h"
+#include "XBTF.h"
 #include "JpegIO.h"
 
 /*Override libjpeg's error function to avoid an exit() call.*/
@@ -68,7 +69,7 @@ static boolean x_fill_mem_input_buffer (j_decompress_ptr cinfo)
   cinfo->src->next_input_byte = mybuffer;
   cinfo->src->bytes_in_buffer = 2;
 
-  return TRUE;
+  return true;
 }
 
 static void x_skip_input_data (j_decompress_ptr cinfo, long num_bytes)
@@ -128,7 +129,7 @@ CJpegIO::CJpegIO()
   m_minx = 0;
   m_miny = 0;
   m_imgsize = 0;
-  m_width = 0;
+  m_width  = 0;
   m_height = 0;
   m_orientation = 0;
   m_inputBuffSize = 0;
@@ -146,7 +147,7 @@ void CJpegIO::Close()
   delete [] m_inputBuff;
 }
 
-bool CJpegIO::Open(const CStdString& texturePath,  unsigned int minx, unsigned int miny)
+bool CJpegIO::Open(const CStdString &texturePath, unsigned int minx, unsigned int miny)
 {
   m_texturePath = texturePath;
   m_minx = minx;
@@ -178,7 +179,7 @@ bool CJpegIO::Open(const CStdString& texturePath,  unsigned int minx, unsigned i
 
   try
   {
-    jpeg_read_header(&m_cinfo, TRUE);
+    jpeg_read_header(&m_cinfo, true);
 
     /*  libjpeg can scale the image for us if it is too big. It must be in the format
     num/denom, where (for our purposes) that is [1-8]/8 where 8/8 is the unscaled image.
@@ -192,23 +193,22 @@ bool CJpegIO::Open(const CStdString& texturePath,  unsigned int minx, unsigned i
       m_minx = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iWidth;
       m_miny = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iHeight;
     }
-    m_cinfo.scale_denom=8;
+    m_cinfo.scale_denom = 8;
     unsigned int maxtexsize = g_Windowing.GetMaxTextureSize();
-    for (m_cinfo.scale_num = 1;m_cinfo.scale_num <=8 ;m_cinfo.scale_num++)
+    for (m_cinfo.scale_num = 1; m_cinfo.scale_num <= 8; m_cinfo.scale_num++)
     {
-      jpeg_calc_output_dimensions (&m_cinfo);
+      jpeg_calc_output_dimensions(&m_cinfo);
       if ((m_cinfo.output_width * m_cinfo.output_height) > (maxtexsize * maxtexsize))
       {
         m_cinfo.scale_num--;
         break;
       }
-      if ( m_cinfo.output_width >= m_minx && m_cinfo.output_height >= m_miny)
+      if (m_cinfo.output_width >= m_minx && m_cinfo.output_height >= m_miny)
         break;
     }
-    jpeg_calc_output_dimensions (&m_cinfo);
-    m_width = m_cinfo.output_width;
+    jpeg_calc_output_dimensions(&m_cinfo);
+    m_width  = m_cinfo.output_width;
     m_height = m_cinfo.output_height;
-    m_pitch = (((m_cinfo.output_width + 1)* 3 / 4) * 4); //align to 4-bytes
 
     GetExif();
     return true;
@@ -239,19 +239,45 @@ bool CJpegIO::GetExif()
   return false;
 }
 
-bool CJpegIO::Decode(const unsigned char *pixels)
+bool CJpegIO::Decode(const unsigned char *pixels, unsigned int pitch, unsigned int format)
 {
-  //requires a pre-allocated buffer of size pitch*3
-  unsigned char *dst = (unsigned char *) pixels;
+  unsigned char *dst = (unsigned char*)pixels;
   try
   {
-    jpeg_start_decompress( &m_cinfo );
-    while( m_cinfo.output_scanline < m_height )
+    jpeg_start_decompress(&m_cinfo);
+
+    if (format == XB_FMT_RGB8)
     {
-      jpeg_read_scanlines( &m_cinfo, &dst, 1 );
-      dst+=m_pitch;
+      while (m_cinfo.output_scanline < m_height)
+      {
+        jpeg_read_scanlines(&m_cinfo, &dst, 1);
+        dst += pitch;
+      }
     }
-    jpeg_finish_decompress( &m_cinfo );
+    else if (format == XB_FMT_A8R8G8B8)
+    {
+      unsigned char* row = new unsigned char[m_width * 3];
+      while (m_cinfo.output_scanline < m_height)
+      {
+        jpeg_read_scanlines(&m_cinfo, &row, 1);
+        unsigned char *dst2 = dst;
+        for (unsigned int x = 0; x < m_width; x++)
+        {
+          *dst2++ = row[(x*3)+2];
+          *dst2++ = row[(x*3)+1];
+          *dst2++ = row[(x*3)+0];
+          *dst2++ = 0xff;
+        }
+        dst += pitch;
+      }
+      delete[] row;
+    }
+    else
+    {
+      CLog::Log(LOGWARNING, "JpegIO: Incorrect output format specified");
+      return false;
+    }
+    jpeg_finish_decompress(&m_cinfo);
   }
   catch (CStdString &msg)
   {
@@ -259,6 +285,6 @@ bool CJpegIO::Decode(const unsigned char *pixels)
     jpeg_destroy_decompress(&m_cinfo);
     return false;
   }
-  jpeg_destroy_decompress( &m_cinfo );
+  jpeg_destroy_decompress(&m_cinfo);
   return true;
 }
