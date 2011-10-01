@@ -124,6 +124,7 @@ class CAdvancedSettings
     bool  m_videoAllowMpeg4VDPAU;
     std::vector<RefreshOverride> m_videoAdjustRefreshOverrides;
     bool m_videoDisableBackgroundDeinterlace;
+    int  m_videoCaptureUseOcclusionQuery;
     bool m_DXVACheckCompatibility;
     bool m_DXVACheckCompatibilityPresent;
     bool m_DXVAForceProcessorRenderer;
@@ -153,6 +154,7 @@ class CAdvancedSettings
     int m_busyDialogDelay;
     int m_logLevel;
     int m_logLevelHint;
+    bool m_logEnableAirtunes;//airtunes spams alot - so make it an option
     CStdString m_cddbAddress;
 
     bool m_handleMounting;

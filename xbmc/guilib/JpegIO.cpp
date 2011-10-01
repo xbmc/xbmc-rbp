@@ -30,15 +30,15 @@
 #include "XBTF.h"
 #include "JpegIO.h"
 
+#include <setjmp.h>
+
 #define EXIF_TAG_ORIENTATION    0x0112
 
-/*Override libjpeg's error function to avoid an exit() call.*/
-static void jpeg_error_exit (j_common_ptr cinfo)
+struct my_error_mgr
 {
-  CStdString msg;
-  msg.Format("Error %i: %s",cinfo->err->msg_code, cinfo->err->jpeg_message_table[cinfo->err->msg_code]);
-  throw msg;
-}
+  struct jpeg_error_mgr pub;    // "public" fields
+  jmp_buf setjmp_buffer;        // for return to caller
+};
 
 #if JPEG_LIB_VERSION < 80
 
@@ -170,8 +170,9 @@ bool CJpegIO::Open(const CStdString &texturePath, unsigned int minx, unsigned in
   else
     return false;
 
-  m_cinfo.err = jpeg_std_error(&m_jerr);
-  m_jerr.error_exit = jpeg_error_exit;
+  struct my_error_mgr jerr;
+  m_cinfo.err = jpeg_std_error(&jerr.pub);
+  jerr.pub.error_exit = jpeg_error_exit;
   jpeg_create_decompress(&m_cinfo);
 #if JPEG_LIB_VERSION < 80
   x_mem_src(&m_cinfo, m_inputBuff, m_inputBuffSize);
@@ -179,8 +180,12 @@ bool CJpegIO::Open(const CStdString &texturePath, unsigned int minx, unsigned in
   jpeg_mem_src(&m_cinfo, m_inputBuff, m_inputBuffSize);
 #endif
 
-
-  try
+  if (setjmp(jerr.setjmp_buffer))
+  {
+    jpeg_destroy_decompress(&m_cinfo);
+    return false;
+  }
+  else
   {
     jpeg_read_header(&m_cinfo, true);
 
@@ -197,16 +202,17 @@ bool CJpegIO::Open(const CStdString &texturePath, unsigned int minx, unsigned in
       m_miny = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iHeight;
     }
     m_cinfo.scale_denom = 8;
+    m_cinfo.out_color_space = JCS_RGB;
     unsigned int maxtexsize = g_Windowing.GetMaxTextureSize();
     for (m_cinfo.scale_num = 1; m_cinfo.scale_num <= 8; m_cinfo.scale_num++)
     {
       jpeg_calc_output_dimensions(&m_cinfo);
-      if ((m_cinfo.output_width * m_cinfo.output_height) > (maxtexsize * maxtexsize))
+      if ((m_cinfo.output_width > maxtexsize) || (m_cinfo.output_height > maxtexsize))
       {
         m_cinfo.scale_num--;
         break;
       }
-      if (m_cinfo.output_width >= m_minx && m_cinfo.output_height >= m_miny)
+      if (m_cinfo.output_width >= m_minx || m_cinfo.output_height >= m_miny)
         break;
     }
     jpeg_calc_output_dimensions(&m_cinfo);
@@ -216,18 +222,22 @@ bool CJpegIO::Open(const CStdString &texturePath, unsigned int minx, unsigned in
     GetExif();
     return true;
   }
-  catch (CStdString &msg)
-  {
-    CLog::Log(LOGWARNING, "JpegIO: %s", msg.c_str());
-    jpeg_destroy_decompress(&m_cinfo);
-    return false;
-  }
 }
 
 bool CJpegIO::Decode(const unsigned char *pixels, unsigned int pitch, unsigned int format)
 {
   unsigned char *dst = (unsigned char*)pixels;
-  try
+
+  struct my_error_mgr jerr;
+  m_cinfo.err = jpeg_std_error(&jerr.pub);
+  jerr.pub.error_exit = jpeg_error_exit;
+
+  if (setjmp(jerr.setjmp_buffer))
+  {
+    jpeg_destroy_decompress(&m_cinfo);
+    return false;
+  }
+  else
   {
     jpeg_start_decompress(&m_cinfo);
 
@@ -261,18 +271,24 @@ bool CJpegIO::Decode(const unsigned char *pixels, unsigned int pitch, unsigned i
     else
     {
       CLog::Log(LOGWARNING, "JpegIO: Incorrect output format specified");
+      jpeg_destroy_decompress(&m_cinfo);
       return false;
     }
     jpeg_finish_decompress(&m_cinfo);
   }
-  catch (CStdString &msg)
-  {
-    CLog::Log(LOGWARNING, "JpegIO: %s", msg.c_str());
-    jpeg_destroy_decompress(&m_cinfo);
-    return false;
-  }
   jpeg_destroy_decompress(&m_cinfo);
   return true;
+}
+
+// override libjpeg's error function to avoid an exit() call
+void CJpegIO::jpeg_error_exit(j_common_ptr cinfo)
+{
+  CStdString msg;
+  msg.Format("Error %i: %s",cinfo->err->msg_code, cinfo->err->jpeg_message_table[cinfo->err->msg_code]);
+  CLog::Log(LOGWARNING, "JpegIO: %s", msg.c_str());
+
+  my_error_mgr *myerr = (my_error_mgr*)cinfo->err;
+  longjmp(myerr->setjmp_buffer, 1);
 }
 
 /*helper function
@@ -288,14 +304,14 @@ unsigned int CJpegIO::findExifMarker( unsigned char *jpegData,
 {
   unsigned char *buffPtr = jpegData+2;//SKIP 0xFFD8
   unsigned char *endOfFile = jpegData + dataSize;
-  
+
   if(!jpegData || dataSize < 2 || jpegData[0] != 0xFF || jpegData[1] != 0xD8)
     return 0;
-  
+
   for(;;)
   {
     BYTE marker = 0;
-    for (int a=0; a<7 && (buffPtr < endOfFile); a++) 
+    for (int a=0; a<7 && (buffPtr < endOfFile); a++)
     {
       marker = *buffPtr;
       if (marker != 0xFF)
@@ -310,16 +326,16 @@ unsigned int CJpegIO::findExifMarker( unsigned char *jpegData,
     // 0xff is legal padding, but if we get that many, something's wrong.
     if (marker == 0xff)
       return 0;
-    
-    buffPtr++;//move to start of itemlen field   
-    if((buffPtr + 1) >= endOfFile)
-      return 0;    
+
+    buffPtr++;//move to start of itemlen field
+    if ((buffPtr + 1) >= endOfFile)
+      return 0;
 
     // Read the length of the section.
     unsigned short itemlen = (*buffPtr++) << 8;
     itemlen += *buffPtr;
-    
-    if(itemlen < sizeof(itemlen))
+
+    if (itemlen < sizeof(itemlen))
       return 0;
 
     switch(marker)
@@ -327,10 +343,10 @@ unsigned int CJpegIO::findExifMarker( unsigned char *jpegData,
       case M_EOI:
       case M_SOS:   // stop before hitting compressed data
         return 0;
-      case M_EXIF: 
-        /* found exifdata
-           buffPtr was pointing at the second length byte
-           +1 for getting the exif tag */
+      case M_EXIF:
+        // found exifdata
+        //   buffPtr was pointing at the second length byte
+        //   +1 for getting the exif tag
         exifPtr = buffPtr + 1;
         return itemlen;
       default://skip all other sections
@@ -338,7 +354,7 @@ unsigned int CJpegIO::findExifMarker( unsigned char *jpegData,
         break;
     }
   }
-  
+
   return 0;
 }
 
@@ -350,15 +366,14 @@ bool CJpegIO::GetExif()
   unsigned int tagNumber = 0;
   bool isMotorola = false;
   unsigned char *exif_data = NULL;
-  unsigned const char ExifHeader[]     = "Exif\0\0";  
-  
+  unsigned const char ExifHeader[] = "Exif\0\0";
+
   length = findExifMarker(m_inputBuff, m_imgsize, exif_data);
-  
-  /* read exif head, check for "Exif"
-     next we want to read to current offset + length
-     check if buffer is big enough*/
-  if (length                              &&
-      memcmp(exif_data, ExifHeader, 6) == 0)
+
+  // read exif head, check for "Exif"
+  //   next we want to read to current offset + length
+  //   check if buffer is big enough
+  if (length && memcmp(exif_data, ExifHeader, 6) == 0)
   {
     //read exif body
     exif_data += 6;
@@ -367,9 +382,9 @@ bool CJpegIO::GetExif()
   {
     return false;
   }
-  
+
   //check for broken files
-  if( (m_inputBuff + m_imgsize) < (exif_data + length))
+  if ((m_inputBuff + m_imgsize) < (exif_data + length))
   {
     return false;
   }
@@ -381,96 +396,96 @@ bool CJpegIO::GetExif()
     isMotorola = true;
   else
     return false;
-   
+
   // Check Tag Mark
-  if (isMotorola) 
+  if (isMotorola)
   {
     if (exif_data[2] != 0 || exif_data[3] != 0x2A)
       return false;
-  } 
-  else 
+  }
+  else
   {
-    if (exif_data[3] != 0 || exif_data[2] != 0x2A) 
+    if (exif_data[3] != 0 || exif_data[2] != 0x2A)
       return false;
   }
-  
+
   // Get first IFD offset (offset to IFD0)
-  if (isMotorola) 
+  if (isMotorola)
   {
-    if (exif_data[4] != 0 || exif_data[5] != 0) 
+    if (exif_data[4] != 0 || exif_data[5] != 0)
       return false;
     offset = exif_data[6];
     offset <<= 8;
     offset += exif_data[7];
-  } 
-  else 
+  }
+  else
   {
-    if (exif_data[7] != 0 || exif_data[6] != 0) 
+    if (exif_data[7] != 0 || exif_data[6] != 0)
       return false;
     offset = exif_data[5];
     offset <<= 8;
     offset += exif_data[4];
   }
-  
+
   if (offset > length - 2)
     return false; // check end of data segment
-  
+
   // Get the number of directory entries contained in this IFD
-  if (isMotorola) 
+  if (isMotorola)
   {
     numberOfTags = exif_data[offset];
     numberOfTags <<= 8;
     numberOfTags += exif_data[offset+1];
-  } 
-  else 
+  }
+  else
   {
     numberOfTags = exif_data[offset+1];
     numberOfTags <<= 8;
     numberOfTags += exif_data[offset];
   }
-  
-  if (numberOfTags == 0) 
+
+  if (numberOfTags == 0)
     return false;
   offset += 2;
-  
+
   // Search for Orientation Tag in IFD0 - hey almost there! :D
   while(1)//hopefully this jpeg has correct exif data...
   {
     if (offset > length - 12)
       return false; // check end of data segment
-    
+
     // Get Tag number
-    if (isMotorola) 
+    if (isMotorola)
     {
       tagNumber = exif_data[offset];
       tagNumber <<= 8;
       tagNumber += exif_data[offset+1];
-    } 
-    else 
+    }
+    else
     {
       tagNumber = exif_data[offset+1];
       tagNumber <<= 8;
       tagNumber += exif_data[offset];
     }
-    
-    if (tagNumber == EXIF_TAG_ORIENTATION) 
+
+    if (tagNumber == EXIF_TAG_ORIENTATION)
       break; //found orientation tag
-      
-    if ( --numberOfTags == 0) 
+
+    if ( --numberOfTags == 0)
       return false;//no orientation found
     offset += 12;//jump to next tag
   }
-  
+
   // Get the Orientation value
-  if (isMotorola) 
+  if (isMotorola)
   {
-    if (exif_data[offset+8] != 0) 
+    if (exif_data[offset+8] != 0)
       return false;
     m_orientation = exif_data[offset+9];
-  } 
-  else 
+  }
+  else
   {
-    if (exif_data[offset+9] != 0) 
+    if (exif_data[offset+9] != 0)
       return false;
     m_orientation = exif_data[offset+8];
   }
@@ -479,6 +494,6 @@ bool CJpegIO::GetExif()
     m_orientation = 0;
     return false;
   }
-  
+
   return true;//done
 }
