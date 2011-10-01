@@ -206,7 +206,11 @@ bool CAFPDirectory::GetDirectory(const CStdString& strPath, CFileItemList &items
           lock.Enter();
 
           if (gAfpConnection.GetImpl()->afp_wrap_getattr(gAfpConnection.GetVolume(), strFullName.c_str(), &info) == 0)
-          {
+          {            
+            //we don't overwrite bIsDir from info.stmode here
+            //because it isn't filled in some client/server constellations
+            //e.x. libafpclient and netatalk server
+            
             //resolve symlinks
             if(S_ISLNK(info.st_mode))
             {
@@ -217,8 +221,6 @@ bool CAFPDirectory::GetDirectory(const CStdString& strPath, CFileItemList &items
               }
               path = linkUrl.Get();              
             }
-          
-            bIsDir = (info.st_mode & S_IFDIR) ? true : false;
             lTimeDate = info.st_mtime;
             if (lTimeDate == 0) // if modification date is missing, use create date
               lTimeDate = info.st_ctime;
