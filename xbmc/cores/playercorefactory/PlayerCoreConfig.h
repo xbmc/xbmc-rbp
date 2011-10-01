@@ -26,6 +26,9 @@
 #include "cores/dvdplayer/DVDPlayer.h"
 #include "cores/paplayer/PAPlayer.h"
 #include "cores/ExternalPlayer/ExternalPlayer.h"
+#if defined(HAVE_OMXPLAYER)
+#include "cores/omxplayer/OMXPlayer.h"
+#endif
 #include "utils/log.h"
 
 class CPlayerCoreConfig
@@ -74,6 +77,9 @@ public:
       case EPC_DVDPLAYER: pPlayer = new CDVDPlayer(callback); break;
       case EPC_PAPLAYER: pPlayer = new PAPlayer(callback); break;
       case EPC_EXTPLAYER: pPlayer = new CExternalPlayer(callback); break;
+#if defined(HAVE_OMXPLAYER)
+      case EPC_OMXPLAYER: pPlayer = new COMXPlayer(callback);      break;
+#endif
       default: return NULL;
     }
 
