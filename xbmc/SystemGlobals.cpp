@@ -75,5 +75,6 @@
   PLAYLIST::CPlayListPlayer g_playlistPlayer;
   CApplication       g_application;
 
+#ifdef HAVE_LIBBCM_HOST
   CRBP               g_RBP;
-
+#endif

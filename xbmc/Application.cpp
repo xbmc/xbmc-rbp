@@ -299,7 +299,9 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
+#ifdef HAVE_LIBBCM_HOST
 #include "linux/RBP.h"
+#endif
 
 using namespace std;
 using namespace ADDON;
@@ -467,8 +469,10 @@ void CApplication::Preflight()
 
 bool CApplication::Create()
 {
+#ifdef HAVE_LIBBCM_HOST
   if(!g_RBP.Initialize())
     return false;
+#endif
 
   g_settings.Initialize(); //Initialize default AdvancedSettings
 
@@ -3380,7 +3384,9 @@ void CApplication::Stop(int exitCode)
     CLog::Log(LOGERROR, "Exception in CApplication::Stop()");
   }
 
+#ifdef HAVE_LIBBCM_HOST
   g_RBP.Initialize();
+#endif
 
   // we may not get to finish the run cycle but exit immediately after a call to g_application.Stop()
   // so we may never get to Destroy() in CXBApplicationEx::Run(), we call it here.
