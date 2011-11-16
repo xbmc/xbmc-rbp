@@ -20,15 +20,25 @@
  *
  */
 
+#if defined(HAVE_LIBCEC)
+
 #include "PeripheralHID.h"
 #include "interfaces/AnnouncementManager.h"
 #include "threads/Thread.h"
 #include "threads/CriticalSection.h"
 #include <queue>
 
+// undefine macro isset, it collides with function in cectypes.h
+#ifdef isset
+#undef isset
+#endif
+#include <cectypes.h>
+
+class DllLibCEC;
+
 namespace CEC
 {
-  class ICECDevice;
+  class ICECAdapter;
 };
 
 namespace PERIPHERALS
@@ -36,8 +46,7 @@ namespace PERIPHERALS
   typedef struct
   {
     WORD         iButton;
-    unsigned int iButtonPressed;
-    unsigned int iButtonReleased;
+    unsigned int iDuration;
   } CecButtonPress;
 
 
@@ -48,33 +57,41 @@ namespace PERIPHERALS
     virtual ~CPeripheralCecAdapter(void);
 
     virtual void Announce(ANNOUNCEMENT::EAnnouncementFlag flag, const char *sender, const char *message, const CVariant &data);
-    virtual bool PowerOffCecDevices(void);
-    virtual bool PowerOnCecDevices(void);
-    virtual bool StandbyCecDevices(void);
+    virtual bool PowerOnCecDevices(CEC::cec_logical_address iLogicalAddress);
+    virtual bool StandbyCecDevices(CEC::cec_logical_address iLogicalAddress);
 
     virtual bool SendPing(void);
-    virtual bool StartBootloader(void);
+    virtual bool SetHdmiPort(int iHdmiPort);
 
     virtual void OnSettingChanged(const CStdString &strChangedSetting);
 
     virtual WORD GetButton(void);
     virtual unsigned int GetHoldTime(void);
     virtual void ResetButton(void);
+    virtual CStdString GetComPort(void);
 
   protected:
     virtual void FlushLog(void);
+    virtual bool GetNextCecKey(CEC::cec_keypress &key);
     virtual bool GetNextKey(void);
     virtual bool InitialiseFeature(const PeripheralFeature feature);
     virtual void Process(void);
     virtual void ProcessNextCommand(void);
+    virtual void SetMenuLanguage(const char *strLanguage);
     static bool FindConfigLocation(CStdString &strString);
     static bool TranslateComPort(CStdString &strPort);
 
-    CEC::ICECDevice *m_cecParser;
-    bool             m_bStarted;
-    bool             m_bHasButton;
-    bool             m_bIsReady;
-    CecButtonPress   m_button;
-    CCriticalSection m_critSection;
+    DllLibCEC*                    m_dll;
+    CEC::ICECAdapter*             m_cecAdapter;
+    bool                          m_bStarted;
+    bool                          m_bHasButton;
+    bool                          m_bIsReady;
+    CStdString                    m_strMenuLanguage;
+    CDateTime                     m_screensaverLastActivated;
+    CecButtonPress                m_button;
+    std::queue<CEC::cec_keypress> m_buttonQueue;
+    CCriticalSection              m_critSection;
   };
 }
+
+#endif

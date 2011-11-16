@@ -41,6 +41,7 @@
 #include "utils/AutoPtrHandle.h"
 #include "settings/AdvancedSettings.h"
 #include "cores/VideoRenderers/RenderManager.h"
+#include "win32/WIN32Util.h"
 
 #define ALLOW_ADDING_SURFACES 0
 
@@ -81,6 +82,10 @@ DEFINE_GUID(DXVADDI_Intel_ModeH264_C, 0x604F8E66,0x4951,0x4c54,0x88,0xFE,0xAB,0x
 DEFINE_GUID(DXVADDI_Intel_ModeH264_E, 0x604F8E68,0x4951,0x4c54,0x88,0xFE,0xAB,0xD2,0x5C,0x15,0xB3,0xD6);
 DEFINE_GUID(DXVADDI_Intel_ModeVC1_E , 0xBCC5DB6D,0xA2B6,0x4AF0,0xAC,0xE4,0xAD,0xB1,0xF7,0x87,0xBC,0x89);
 
+DEFINE_GUID(DXVA_ModeMPEG2and1_VLD,   0x86695f12,0x340e,0x4f04,0x9f,0xd3,0x92,0x53,0xdd,0x32,0x74,0x60);
+// When exposed by an accelerator, indicates compliance with the August 2010 spec update
+DEFINE_GUID(DXVA_ModeVC1_D2010,       0x1b81beA4,0xa0c7,0x11d3,0xb9,0x84,0x00,0xc0,0x4f,0x2e,0x73,0xc5);
+
 typedef struct {
     const char   *name;
     const GUID   *guid;
@@ -90,6 +95,7 @@ typedef struct {
 /* XXX Prefered modes must come first */
 static const dxva2_mode_t dxva2_modes[] = {
     { "MPEG2 VLD",    &DXVA2_ModeMPEG2_VLD,     CODEC_ID_MPEG2VIDEO },
+    { "MPEG1/2 VLD",  &DXVA_ModeMPEG2and1_VLD,  CODEC_ID_MPEG2VIDEO },
     { "MPEG2 MoComp", &DXVA2_ModeMPEG2_MoComp,  0 },
     { "MPEG2 IDCT",   &DXVA2_ModeMPEG2_IDCT,    0 },
 
@@ -113,11 +119,13 @@ static const dxva2_mode_t dxva2_modes[] = {
     { "Windows Media Video 9 MoComp",           &DXVA2_ModeWMV9_B, 0 },
     { "Windows Media Video 9 post processing",  &DXVA2_ModeWMV9_A, 0 },
 
-    { "VC-1 VLD",             &DXVA2_ModeVC1_D, CODEC_ID_VC1 },
-    { "VC-1 VLD",             &DXVA2_ModeVC1_D, CODEC_ID_WMV3 },
-    { "VC-1 IDCT",            &DXVA2_ModeVC1_C, 0 },
-    { "VC-1 MoComp",          &DXVA2_ModeVC1_B, 0 },
-    { "VC-1 post processing", &DXVA2_ModeVC1_A, 0 },
+    { "VC-1 VLD",             &DXVA2_ModeVC1_D,    CODEC_ID_VC1 },
+    { "VC-1 VLD",             &DXVA2_ModeVC1_D,    CODEC_ID_WMV3 },
+    { "VC-1 VLD 2010",        &DXVA_ModeVC1_D2010, CODEC_ID_VC1 },
+    { "VC-1 VLD 2010",        &DXVA_ModeVC1_D2010, CODEC_ID_WMV3 },
+    { "VC-1 IDCT",            &DXVA2_ModeVC1_C,    0 },
+    { "VC-1 MoComp",          &DXVA2_ModeVC1_B,    0 },
+    { "VC-1 post processing", &DXVA2_ModeVC1_A,    0 },
 
     { NULL, NULL, 0 }
 };
@@ -368,8 +376,8 @@ do { \
 
 static bool CheckH264L41(AVCodecContext *avctx)
 {
-    unsigned widthmbs  = (avctx->width + 15) / 16;  // width in macroblocks
-    unsigned heightmbs = (avctx->height + 15) / 16; // height in macroblocks
+    unsigned widthmbs  = (avctx->coded_width + 15) / 16;  // width in macroblocks
+    unsigned heightmbs = (avctx->coded_height + 15) / 16; // height in macroblocks
     unsigned maxdpbmbs = 32768;                     // Decoded Picture Buffer (DPB) capacity in macroblocks for L4.1
 
     return (avctx->refs * widthmbs * heightmbs <= maxdpbmbs);
@@ -397,7 +405,7 @@ static bool HasVP3WidthBug(AVCodecContext *avctx)
   D3DADAPTER_IDENTIFIER9 AIdentifier = g_Windowing.GetAIdentifier();
 
   if(AIdentifier.VendorId == PCIV_nVidia
-  && !CDVDCodecUtils::IsVP3CompatibleWidth(avctx->width))
+  && !CDVDCodecUtils::IsVP3CompatibleWidth(avctx->coded_width))
   {
     // Find the card in a known list of problematic VP3 hardware
     for (unsigned idx = 0; VP3DeviceID[idx] != 0; idx++)
@@ -416,7 +424,7 @@ static bool CheckCompatibility(AVCodecContext *avctx)
   // Macroblock width incompatibility
   if (HasVP3WidthBug(avctx))
   {
-    CLog::Log(LOGWARNING,"DXVA - width %i is not supported with nVidia VP3 hardware. DXVA will not be used", avctx->width);
+    CLog::Log(LOGWARNING,"DXVA - width %i is not supported with nVidia VP3 hardware. DXVA will not be used", avctx->coded_width);
     return false;
   }
 
@@ -498,8 +506,8 @@ bool CDecoder::Open(AVCodecContext *avctx, enum PixelFormat fmt, unsigned int su
     return false;
   }
 
-  m_format.SampleWidth  = avctx->width;
-  m_format.SampleHeight = avctx->height;
+  m_format.SampleWidth  = avctx->coded_width;
+  m_format.SampleHeight = avctx->coded_height;
   m_format.SampleFormat.SampleFormat           = DXVA2_SampleProgressiveFrame;
   m_format.SampleFormat.VideoLighting          = DXVA2_VideoLighting_dim;
 
@@ -663,6 +671,7 @@ bool CDecoder::Open(AVCodecContext *avctx, enum PixelFormat fmt, unsigned int su
 #endif
   }
 
+  m_state = DXVA_OPEN;
   return true;
 }
 
@@ -801,6 +810,7 @@ bool CDecoder::OpenTarget(const GUID &guid)
 bool CDecoder::OpenDecoder()
 {
   SAFE_RELEASE(m_decoder);
+  m_context->decoder = NULL;
 
   m_context->surface_count = m_refs + 1 + 1 + m_shared; // refs + 1 decode + 1 libavcodec safety + processor buffer
 
@@ -865,8 +875,8 @@ void CDecoder::RelBuffer(AVCodecContext *avctx, AVFrame *pic)
 int CDecoder::GetBuffer(AVCodecContext *avctx, AVFrame *pic)
 {
   CSingleLock lock(m_section);
-  if(avctx->width  != m_format.SampleWidth
-  || avctx->height != m_format.SampleHeight)
+  if(avctx->coded_width  != m_format.SampleWidth
+  || avctx->coded_height != m_format.SampleHeight)
   {
     Close();
     if(!Open(avctx, avctx->pix_fmt, m_shared))
@@ -1395,7 +1405,7 @@ static DXVA2_Fixed32 ConvertRange(const DXVA2_ValueRange& range, int value, int 
     return range.DefaultValue;
 }
 
-bool CProcessor::Render(RECT src, RECT dst, IDirect3DSurface9* target, REFERENCE_TIME time, DWORD flags)
+bool CProcessor::Render(CRect src, CRect dst, IDirect3DSurface9* target, REFERENCE_TIME time, DWORD flags)
 {
   CSingleLock lock(m_section);
 
@@ -1439,8 +1449,11 @@ bool CProcessor::Render(RECT src, RECT dst, IDirect3DSurface9* target, REFERENCE
 
   D3DSURFACE_DESC desc;
   CHECK(target->GetDesc(&desc));
+  CRect rectTarget(0, 0, desc.Width, desc.Height);
+  CWIN32Util::CropSource(src, dst, rectTarget);
+  RECT sourceRECT = { src.x1, src.y1, src.x2, src.y2 };
+  RECT dstRECT    = { dst.x1, dst.y1, dst.x2, dst.y2 };
 
-  CWinRenderer::CropSource(src, dst, desc);
 
   // How to prepare the samples array for VideoProcessBlt
   // - always provide current picture + the number of forward and backward references required by the current processor.
@@ -1460,8 +1473,8 @@ bool CProcessor::Render(RECT src, RECT dst, IDirect3DSurface9* target, REFERENCE
     {
       DXVA2_VideoSample& vs = samp[(it->sample.Start - MinTime) / 2];
       vs = it->sample;
-      vs.SrcRect = src;
-      vs.DstRect = dst;
+      vs.SrcRect = sourceRECT;
+      vs.DstRect = dstRECT;
       if(vs.End == 0)
         vs.End = vs.Start + 2;
 
@@ -1500,7 +1513,7 @@ bool CProcessor::Render(RECT src, RECT dst, IDirect3DSurface9* target, REFERENCE
   blt.TargetFrame = time;
   if (flags & RENDER_FLAG_FIELD1)
     blt.TargetFrame += 1;
-  blt.TargetRect  = dst;
+  blt.TargetRect  = dstRECT;
   blt.ConstrictionSize.cx = 0;
   blt.ConstrictionSize.cy = 0;
 

@@ -181,7 +181,7 @@ COverlayQuadsDX::COverlayQuadsDX(CDVDOverlaySSA* o, double pts)
   SQuads quads;
   if(!convert_quad(o, pts, width, height, quads))
     return;
-
+  
   float u, v;
   if(!LoadTexture(quads.size_x
                 , quads.size_y

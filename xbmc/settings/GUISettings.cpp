@@ -41,6 +41,9 @@
 #include "cores/dvdplayer/DVDCodecs/Video/CrystalHD.h"
 #include "utils/PCMRemap.h"
 #include "guilib/GUIFont.h" // for FONT_STYLE_* definitions
+#include "guilib/GUIFontManager.h"
+#include "utils/Weather.h"
+#include "LangInfo.h"
 #if defined(__APPLE__)
   #include "osx/DarwinUtils.h"
 #endif
@@ -240,7 +243,7 @@ void CGUISettings::Initialize()
   AddBool(pic, "pictures.usetags", 14082, true);
   AddBool(pic,"pictures.generatethumbs",13360,true);
   AddBool(pic, "pictures.useexifrotation", 20184, true);
-  AddBool(pic, "pictures.showvideos", 22022, false);
+  AddBool(pic, "pictures.showvideos", 22022, true);
   // FIXME: hide this setting until it is properly respected. In the meanwhile, default to AUTO.
   AddInt(NULL, "pictures.displayresolution", 169, (int)RES_AUTORES, (int)RES_AUTORES, 1, (int)RES_AUTORES, SPIN_CONTROL_TEXT);
 
@@ -256,12 +259,8 @@ void CGUISettings::Initialize()
   AddGroup(2, 8);
   CSettingsCategory* wea = AddCategory(2, "weather", 16000);
   AddInt(NULL, "weather.currentlocation", 0, 1, 1, 1, 3, SPIN_CONTROL_INT_PLUS);
-  AddString(wea, "weather.areacode1", 14019, "USNY0996 - New York, NY", BUTTON_CONTROL_STANDARD);
-  AddString(wea, "weather.areacode2", 14020, "UKXX0085 - London, United Kingdom", BUTTON_CONTROL_STANDARD);
-  AddString(wea, "weather.areacode3", 14021, "JAXX0085 - Tokyo, Japan", BUTTON_CONTROL_STANDARD);
-  AddSeparator(wea, "weather.sep1");
-  AddDefaultAddon(wea, "weather.script", 24027, DEFAULT_WEATHER_ADDON, ADDON_SCRIPT_WEATHER);
-  AddString(wea, "weather.scriptsettings", 21417, "", BUTTON_CONTROL_STANDARD, true);
+  AddDefaultAddon(wea, "weather.addon", 24027, "", ADDON_SCRIPT_WEATHER);
+  AddString(wea, "weather.addonsettings", 21417, "", BUTTON_CONTROL_STANDARD, true);
 
   // My Music Settings
   AddGroup(3, 2);
@@ -484,7 +483,7 @@ void CGUISettings::Initialize()
   AddSeparator(in, "input.sep1");
 #endif
   AddBool(in, "input.remoteaskeyboard", 21449, false);
-#if (defined(__APPLE__) && defined(__arm_))
+#if defined(TARGET_DARWIN_IOS)
   AddBool(NULL, "input.enablemouse", 21369, true);
 #else
   AddBool(in, "input.enablemouse", 21369, true);
@@ -687,6 +686,7 @@ void CGUISettings::Initialize()
   AddInt(sub, "subtitles.style", 736, FONT_STYLE_BOLD, fontStyles, SPIN_CONTROL_TEXT);
   AddInt(sub, "subtitles.color", 737, SUBTITLE_COLOR_START + 1, SUBTITLE_COLOR_START, 1, SUBTITLE_COLOR_END, SPIN_CONTROL_TEXT);
   AddString(sub, "subtitles.charset", 735, "DEFAULT", SPIN_CONTROL_TEXT);
+  AddBool(sub,"subtitles.overrideassfonts", 21368, false);
   AddSeparator(sub, "subtitles.sep1");
   AddPath(sub, "subtitles.custompath", 21366, "", BUTTON_CONTROL_PATH_INPUT, false, 657);
 
@@ -705,7 +705,7 @@ void CGUISettings::Initialize()
 
   AddDefaultAddon(NULL, "scrapers.moviesdefault", 21413, "metadata.themoviedb.org", ADDON_SCRAPER_MOVIES);
   AddDefaultAddon(NULL, "scrapers.tvshowsdefault", 21414, "metadata.tvdb.com", ADDON_SCRAPER_TVSHOWS);
-  AddDefaultAddon(NULL, "scrapers.musicvideosdefault", 21415, "metadata.mtv.com", ADDON_SCRAPER_MUSICVIDEOS);
+  AddDefaultAddon(NULL, "scrapers.musicvideosdefault", 21415, "metadata.yahoomusic.com", ADDON_SCRAPER_MUSICVIDEOS);
   AddBool(NULL, "scrapers.langfallback", 21416, false);
 
   // network settings
@@ -740,7 +740,11 @@ void CGUISettings::Initialize()
 #endif
 #ifdef HAS_ZEROCONF
   AddSeparator(srv, "services.sep2");
+#ifdef TARGET_WINDOWS
+  AddBool(srv, "services.zeroconf", 1260, false);
+#else
   AddBool(srv, "services.zeroconf", 1260, true);
+#endif
 #endif
 
 #ifdef HAS_AIRPLAY
@@ -1379,4 +1383,41 @@ void CGUISettings::SetResolution(RESOLUTION res)
   }
   SetString("videoscreen.screenmode", mode);
   m_LookAndFeelResolution = res;
+}
+
+bool CGUISettings::SetLanguage(const CStdString &strLanguage)
+{
+  CStdString strPreviousLanguage = GetString("locale.language");
+  CStdString strNewLanguage = strLanguage;
+  if (strNewLanguage != strPreviousLanguage)
+  {
+    CStdString strLangInfoPath;
+    strLangInfoPath.Format("special://xbmc/language/%s/langinfo.xml", strNewLanguage.c_str());
+    if (!g_langInfo.Load(strLangInfoPath))
+      return false;
+
+    if (g_langInfo.ForceUnicodeFont() && !g_fontManager.IsFontSetUnicode())
+    {
+      CLog::Log(LOGINFO, "Language needs a ttf font, loading first ttf font available");
+      CStdString strFontSet;
+      if (g_fontManager.GetFirstFontSetUnicode(strFontSet))
+        strNewLanguage = strFontSet;
+      else
+        CLog::Log(LOGERROR, "No ttf font found but needed: %s", strFontSet.c_str());
+    }
+    SetString("locale.language", strNewLanguage);
+
+    g_charsetConverter.reset();
+
+    CStdString strLanguagePath;
+    strLanguagePath.Format("special://xbmc/language/%s/strings.xml", strNewLanguage.c_str());
+    if (!g_localizeStrings.Load(strLanguagePath))
+      return false;
+
+    // also tell our weather and skin to reload as these are localized
+    g_weatherManager.Refresh();
+    g_application.ReloadSkin();
+  }
+
+  return true;
 }

@@ -47,10 +47,12 @@ using namespace std;
 
 CAFPDirectory::CAFPDirectory(void)
 {
+  gAfpConnection.AddActiveConnection();
 }
 
 CAFPDirectory::~CAFPDirectory(void)
 {
+  gAfpConnection.AddIdleConnection();
 }
 
 bool CAFPDirectory::ResolveSymlink( const CStdString &dirName, const CStdString &fileName, 
@@ -64,7 +66,7 @@ bool CAFPDirectory::ResolveSymlink( const CStdString &dirName, const CStdString 
   URIUtils::AddSlashAtEnd(fullpath);
   fullpath += fileName;
   
-  resolvedUrl.Reset();
+  CPasswordManager::GetInstance().AuthenticateURL(resolvedUrl);
   resolvedUrl.SetProtocol("afp");
   resolvedUrl.SetHostName(gAfpConnection.GetConnectedIp());   
   
@@ -206,20 +208,18 @@ bool CAFPDirectory::GetDirectory(const CStdString& strPath, CFileItemList &items
           lock.Enter();
 
           if (gAfpConnection.GetImpl()->afp_wrap_getattr(gAfpConnection.GetVolume(), strFullName.c_str(), &info) == 0)
-          {            
-            //we don't overwrite bIsDir from info.stmode here
-            //because it isn't filled in some client/server constellations
-            //e.x. libafpclient and netatalk server
-            
+          {                       
             //resolve symlinks
             if(S_ISLNK(info.st_mode))
             {
-              CURL linkUrl;
+              CURL linkUrl(url);
               if(!ResolveSymlink(strDirName, strFile, &info, linkUrl))
               {
+                lock.Leave();              
                 continue;
               }
-              path = linkUrl.Get();              
+              path = linkUrl.Get();
+              bIsDir = info.st_mode & S_IFDIR;            
             }
             lTimeDate = info.st_mtime;
             if (lTimeDate == 0) // if modification date is missing, use create date

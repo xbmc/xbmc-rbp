@@ -55,7 +55,7 @@ JSON_STATUS CFileOperations::GetRootDirectory(const CStdString &method, ITranspo
       }
     }
 
-    CVariant param = parameterObject["properties"];
+    CVariant param(CVariant::VariantTypeObject);
     param["properties"] = CVariant(CVariant::VariantTypeArray);
     param["properties"].append("file");
 
@@ -159,6 +159,24 @@ JSON_STATUS CFileOperations::GetDirectory(const CStdString &method, ITransportLa
     return OK;
   }
 
+  return InvalidParams;
+}
+
+JSON_STATUS CFileOperations::PrepareDownload(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+{
+  std::string protocol;
+  if (transport->PrepareDownload(parameterObject["path"].asString().c_str(), result["details"], protocol))
+  {
+    result["protocol"] = protocol;
+
+    if ((transport->GetCapabilities() & FileDownloadDirect) == FileDownloadDirect)
+      result["mode"] = "direct";
+    else
+      result["mode"] = "redirect";
+
+    return OK;
+  }
+  
   return InvalidParams;
 }
 

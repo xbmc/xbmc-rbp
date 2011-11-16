@@ -175,6 +175,9 @@ lib/cmyth/Makefile
 /lib/cpluff/libcpluff/win32/Debug
 /lib/cpluff/libcpluff/win32/Release
 
+# /lib/libcec
+/lib/libcec/libcec
+
 # /lib/enca
 /lib/enca/libenca_win32/Debug
 /lib/enca/libenca_win32/Release
@@ -229,20 +232,6 @@ lib/cmyth/Makefile
 /lib/libass/m4/ltsugar.m4
 /lib/libass/m4/ltversion.m4
 /lib/libass/m4/lt~obsolete.m4
-
-# /lib/libcec
-/lib/libcec/Makefile
-/lib/libcec/Makefile.in
-/lib/libcec/aclocal.m4
-/lib/libcec/config.guess
-/lib/libcec/config.sub
-/lib/libcec/configure
-/lib/libcec/depcomp
-/lib/libcec/install-sh
-/lib/libcec/ltmain.sh
-/lib/libcec/missing
-/lib/libcec/src/lib/Makefile.in
-/lib/libcec/src/testclient/Makefile.in
 
 # /lib/libiconv
 /lib/libiconv/libiconv_win32/Debug
@@ -371,6 +360,9 @@ lib/cmyth/Makefile
 /system/sqlite3.dll
 /system/libsamplerate-0.dll
 /system/libnfs.dll
+/system/dnssd.dll
+/system/libcec.dll
+/system/pthreadVC2.dll
 
 # /system/cdrip
 /system/cdrip/lame_enc.dll
@@ -420,6 +412,8 @@ lib/cmyth/Makefile
 
 # /system/webserver
 /system/webserver
+
+/system/airplay
 
 # /system
 /system/zlib1.dll
@@ -1190,6 +1184,19 @@ lib/cmyth/Makefile
 /xbmc/visualizations/DirectXSpectrum/Release (DirectX)
 
 /xbmc/visualizations/Goom/Makefile
+/xbmc/visualizations/Goom/goom2k4-0/aclocal.m4
+/xbmc/visualizations/Goom/goom2k4-0/configure
+/xbmc/visualizations/Goom/goom2k4-0/Makefile.in
+/xbmc/visualizations/Goom/goom2k4-0/config.guess
+/xbmc/visualizations/Goom/goom2k4-0/config.sub
+/xbmc/visualizations/Goom/goom2k4-0/depcomp
+/xbmc/visualizations/Goom/goom2k4-0/install-sh
+/xbmc/visualizations/Goom/goom2k4-0/ltmain.sh
+/xbmc/visualizations/Goom/goom2k4-0/missing
+/xbmc/visualizations/Goom/goom2k4-0/sdl-goom/Makefile.in
+/xbmc/visualizations/Goom/goom2k4-0/src/Makefile.in
+/xbmc/visualizations/Goom/goom2k4-0/xmms-goom/Makefile.in
+/xbmc/visualizations/Goom/goom2k4-0/ylwrap
 
 /xbmc/visualizations/Milkdrop/Debug
 /xbmc/visualizations/Milkdrop/Release

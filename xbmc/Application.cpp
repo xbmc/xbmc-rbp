@@ -89,6 +89,7 @@
 #include "utils/CPUInfo.h"
 
 #include "input/KeyboardStat.h"
+#include "input/XBMC_vkeys.h"
 #include "input/MouseStat.h"
 
 #if defined(FILESYSTEM) && !defined(_LINUX)
@@ -103,6 +104,9 @@
 #endif
 #ifdef HAS_FILESYSTEM_NFS
 #include "filesystem/FileNFS.h"
+#endif
+#ifdef HAS_FILESYSTEM_AFP
+#include "filesystem/FileAFP.h"
 #endif
 #ifdef HAS_FILESYSTEM_SFTP
 #include "filesystem/FileSFTP.h"
@@ -128,8 +132,8 @@
 #ifdef HAS_EVENT_SERVER
 #include "network/EventServer.h"
 #endif
-#ifdef HAS_DBUS_SERVER
-#include "interfaces/DbusServer.h"
+#ifdef HAS_DBUS
+#include <dbus/dbus.h>
 #endif
 #ifdef HAS_HTTPAPI
 #include "interfaces/http-api/XBMChttp.h"
@@ -306,9 +310,6 @@ using namespace VIDEO;
 using namespace MUSIC_INFO;
 #ifdef HAS_EVENT_SERVER
 using namespace EVENTSERVER;
-#endif
-#ifdef HAS_DBUS_SERVER
-using namespace DBUSSERVER;
 #endif
 #ifdef HAS_JSONRPC
 using namespace JSONRPC;
@@ -509,8 +510,10 @@ bool CApplication::Create()
   g_settings.LoadProfiles(PROFILES_FILE);
 
   CLog::Log(LOGNOTICE, "-----------------------------------------------------------------------");
-#if defined(__APPLE__)
-  CLog::Log(LOGNOTICE, "Starting XBMC, Platform: Mac OS X (%s). Built on %s (Git:%s)", g_sysinfo.GetUnameVersion().c_str(), __DATE__, GIT_REV);
+#if defined(TARGET_DARWIN_OSX)
+  CLog::Log(LOGNOTICE, "Starting XBMC, Platform: Darwin OSX (%s). Built on %s (Git:%s)", g_sysinfo.GetUnameVersion().c_str(), __DATE__, GIT_REV);
+#elif defined(TARGET_DARWIN_IOS)
+  CLog::Log(LOGNOTICE, "Starting XBMC, Platform: Darwin iOS (%s). Built on %s (Git:%s)", g_sysinfo.GetUnameVersion().c_str(), __DATE__, GIT_REV);
 #elif defined(__FreeBSD__)
   CLog::Log(LOGNOTICE, "Starting XBMC, Platform: FreeBSD (%s). Built on %s (Git:%s)", g_sysinfo.GetUnameVersion().c_str(), __DATE__, GIT_REV);
 #elif defined(_LINUX)
@@ -596,6 +599,10 @@ bool CApplication::Create()
     CLog::Log(LOGFATAL, "XBAppEx: Unable to initialize SDL: %s", SDL_GetError());
     return false;
   }
+  #if defined(TARGET_DARWIN)
+  // SDL_Init will install a handler for segfaults, restore the default handler.
+  signal(SIGSEGV, SIG_DFL);
+  #endif
 #endif
 
   // for python scripts that check the OS
@@ -1212,6 +1219,10 @@ bool CApplication::Initialize()
   CCrystalHD::GetInstance();
 #endif
 
+#ifdef HAS_JSONRPC
+  CJSONRPC::Initialize();
+#endif
+
   CAddonMgr::Get().StartServices(false);
 
   CLog::Log(LOGNOTICE, "initialize done");
@@ -1276,9 +1287,9 @@ void CApplication::StopWebServer()
     if(! m_WebServer.IsStarted() )
     {
       CLog::Log(LOGNOTICE, "Webserver: Stopped...");
-      CZeroconf::GetInstance()->RemoveService("services.webserver");
+      CZeroconf::GetInstance()->RemoveService("servers.webserver");
       CZeroconf::GetInstance()->RemoveService("servers.webjsonrpc");
-      CZeroconf::GetInstance()->RemoveService("services.webapi");
+      CZeroconf::GetInstance()->RemoveService("servers.webapi");
     } else
       CLog::Log(LOGWARNING, "Webserver: Failed to stop.");
   }
@@ -1290,28 +1301,38 @@ void CApplication::StartAirplayServer()
 #ifdef HAS_AIRPLAY
   if (g_guiSettings.GetBool("services.airplay") && m_network.IsAvailable())
   {
+    int listenPort = g_advancedSettings.m_airPlayPort;
     CStdString password = g_guiSettings.GetString("services.airplaypassword");
     bool usePassword = g_guiSettings.GetBool("services.useairplaypassword");
     
-    if (CAirPlayServer::StartServer(9091, true))
+    if (CAirPlayServer::StartServer(listenPort, true))
     {
       CAirPlayServer::SetCredentials(usePassword, password);
       std::map<std::string, std::string> txt;
-      txt["deviceid"] = m_network.GetFirstConnectedInterface()->GetMacAddress();
+      CNetworkInterface* iface = g_application.getNetwork().GetFirstConnectedInterface();
+      if (iface)
+      {
+        txt["deviceid"] = iface->GetMacAddress();
+      }
+      else
+      {
+        txt["deviceid"] = "FF:FF:FF:FF:FF:F2";
+      }
       txt["features"] = "0x77";
       txt["model"] = "AppleTV2,1";
       txt["srcvers"] = "101.28";
-      CZeroconf::GetInstance()->PublishService("servers.airplay", "_airplay._tcp", "XBMC", 9091, txt);
+      CZeroconf::GetInstance()->PublishService("servers.airplay", "_airplay._tcp", g_infoManager.GetLabel(SYSTEM_FRIENDLY_NAME), listenPort, txt);
     }
   }
 #endif
 #ifdef HAS_AIRTUNES
   if (g_guiSettings.GetBool("services.airplay") && m_network.IsAvailable())
   {   
+    int listenPort = g_advancedSettings.m_airTunesPort;  
     CStdString password = g_guiSettings.GetString("services.airplaypassword");
     bool usePassword = g_guiSettings.GetBool("services.useairplaypassword");
       
-    if (!CAirTunesServer::StartServer(5000, true, usePassword, password))
+    if (!CAirTunesServer::StartServer(listenPort, true, usePassword, password))
     {
       CLog::Log(LOGERROR, "Failed to start AirTunes Server");
     }
@@ -1335,8 +1356,6 @@ bool CApplication::StartJSONRPCServer()
 #ifdef HAS_JSONRPC
   if (g_guiSettings.GetBool("services.esenabled"))
   {
-    CJSONRPC::Initialize();
-
     if (CTCPServer::StartServer(g_advancedSettings.m_jsonTcpPort, g_guiSettings.GetBool("services.esallinterfaces")))
     {
       std::map<std::string, std::string> txt;  
@@ -1443,34 +1462,6 @@ void CApplication::RefreshEventServer()
     CEventServer::GetInstance()->RefreshSettings();
   }
 #endif
-}
-
-void CApplication::StartDbusServer()
-{
-#ifdef HAS_DBUS_SERVER
-  CDbusServer* serverDbus = CDbusServer::GetInstance();
-  if (!serverDbus)
-  {
-    CLog::Log(LOGERROR, "DS: Out of memory");
-    return;
-  }
-  CLog::Log(LOGNOTICE, "DS: Starting dbus server");
-  serverDbus->StartServer( this );
-#endif
-}
-
-bool CApplication::StopDbusServer(bool bWait)
-{
-#ifdef HAS_DBUS_SERVER
-  CDbusServer* serverDbus = CDbusServer::GetInstance();
-  if (!serverDbus)
-  {
-    CLog::Log(LOGERROR, "DS: Out of memory");
-    return false;
-  }
-  CDbusServer::GetInstance()->StopServer(bWait);
-#endif
-  return true;
 }
 
 void CApplication::StartUPnPRenderer()
@@ -1695,6 +1686,8 @@ void CApplication::LoadSkin(const SkinPtr& skin)
   URIUtils::AddFileToFolder(skinEnglishPath, "strings.xml", skinEnglishPath);
 
   g_localizeStrings.LoadSkinStrings(langPath, skinEnglishPath);
+
+  g_SkinInfo->LoadIncludes();
 
   int64_t start;
   start = CurrentHostCounter();
@@ -2050,6 +2043,7 @@ void CApplication::Render()
   if(!g_Windowing.BeginRender())
     return;
 
+  CDirtyRegionList dirtyRegions = g_windowManager.GetDirty();
   if (RenderNoPresent())
     hasRendered = true;
 
@@ -2089,7 +2083,7 @@ void CApplication::Render()
   m_lastFrameTime = XbmcThreads::SystemClockMillis();
 
   if (flip)
-    g_graphicsContext.Flip(g_windowManager.GetDirty());
+    g_graphicsContext.Flip(dirtyRegions);
   CTimeUtils::UpdateFrameTime(flip);
 
   g_renderManager.UpdateResolution();
@@ -2193,7 +2187,7 @@ bool CApplication::OnKey(const CKey& key)
 
         // If the key pressed is shift-A to shift-Z set usekeyboard to true.
         // This causes the keypress to be used for list navigation.
-        if (control->IsContainer() && key.GetModifiers() == CKey::MODIFIER_SHIFT && key.GetVKey() >= 'a' && key.GetVKey() <= 'z')
+        if (control->IsContainer() && key.GetModifiers() == CKey::MODIFIER_SHIFT && key.GetVKey() >= XBMCVK_A && key.GetVKey() <= XBMCVK_Z)
           useKeyboard = true;
       }
     }
@@ -3216,9 +3210,6 @@ bool CApplication::Cleanup()
 #ifdef HAS_EVENT_SERVER
     CEventServer::RemoveInstance();
 #endif
-#ifdef HAS_DBUS_SERVER
-    CDbusServer::RemoveInstance();
-#endif
     DllLoaderContainer::Clear();
     g_playlistPlayer.Clear();
     g_settings.Clear();
@@ -3440,7 +3431,12 @@ bool CApplication::PlayMedia(const CFileItem& item, int iPlaylist)
     {
 
       if (iPlaylist != PLAYLIST_NONE)
-        return ProcessAndStartPlaylist(item.GetPath(), *pPlayList, iPlaylist);
+      {
+        int track=0;
+        if (item.HasProperty("playlist_starting_track"))
+          track = item.GetProperty("playlist_starting_track").asInteger();
+        return ProcessAndStartPlaylist(item.GetPath(), *pPlayList, iPlaylist, track);
+      }
       else
       {
         CLog::Log(LOGWARNING, "CApplication::PlayMedia called to play a playlist %s but no idea which playlist to use, playing first item", item.GetPath().c_str());
@@ -3575,7 +3571,7 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
 #ifdef HAS_DVD_DRIVE
     // Display the Play Eject dialog
     if (CGUIDialogPlayEject::ShowAndGetInput(item))
-      return MEDIA_DETECT::CAutorun::PlayDisc(!MEDIA_DETECT::CAutorun::CanResumePlayDVD() || CGUIDialogYesNo::ShowAndGetInput(341, -1, -1, -1, 13404, 12021));
+      return MEDIA_DETECT::CAutorun::PlayDiscAskResume(item.GetPath());
 #endif
     return true;
   }
@@ -3704,7 +3700,7 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
   // this really aught to be inside !bRestart, but since PlayStack
   // uses that to init playback, we have to keep it outside
   int playlist = g_playlistPlayer.GetCurrentPlaylist();
-  if (playlist == PLAYLIST_VIDEO && g_playlistPlayer.GetPlaylist(playlist).size() > 1)
+  if (item.IsVideo() && g_playlistPlayer.GetPlaylist(playlist).size() > 1)
   { // playing from a playlist by the looks
     // don't switch to fullscreen if we are not playing the first item...
     options.fullscreen = !g_playlistPlayer.HasPlayedFirstFile() && g_advancedSettings.m_fullScreenOnMovieStart && !g_settings.m_bStartVideoWindowed;
@@ -4335,7 +4331,8 @@ void CApplication::CheckScreenSaverAndDPMS()
   // * Are we playing a video and it is not paused?
   if ((IsPlayingVideo() && !m_pPlayer->IsPaused())
       // * Are we playing some music in fullscreen vis?
-      || (IsPlayingAudio() && g_windowManager.GetActiveWindow() == WINDOW_VISUALISATION))
+      || (IsPlayingAudio() && g_windowManager.GetActiveWindow() == WINDOW_VISUALISATION 
+          && !g_guiSettings.GetString("musicplayer.visualisation").IsEmpty()))
   {
     ResetScreenSaverTimer();
     return;
@@ -4836,6 +4833,10 @@ void CApplication::ProcessSlow()
   gNfsConnection.CheckIfIdle();
 #endif
 
+#ifdef HAS_FILESYSTEM_AFP
+  gAfpConnection.CheckIfIdle();
+#endif
+
 #ifdef HAS_FILESYSTEM_SFTP
   CSFTPSessionManager::ClearOutIdleSessions();
 #endif
@@ -5323,7 +5324,7 @@ void CApplication::CheckPlayingProgress()
   }
 }
 
-bool CApplication::ProcessAndStartPlaylist(const CStdString& strPlayList, CPlayList& playlist, int iPlaylist)
+bool CApplication::ProcessAndStartPlaylist(const CStdString& strPlayList, CPlayList& playlist, int iPlaylist, int track)
 {
   CLog::Log(LOGDEBUG,"CApplication::ProcessAndStartPlaylist(%s, %i)",strPlayList.c_str(), iPlaylist);
 
@@ -5352,7 +5353,7 @@ bool CApplication::ProcessAndStartPlaylist(const CStdString& strPlayList, CPlayL
     // start playing it
     g_playlistPlayer.SetCurrentPlaylist(iPlaylist);
     g_playlistPlayer.Reset();
-    g_playlistPlayer.Play();
+    g_playlistPlayer.Play(track);
     return true;
   }
   return false;

@@ -867,12 +867,6 @@ void CGUIWindowSettingsCategory::UpdateSettings()
       if (strSetting.Equals("screensaver.usedimonpause") && g_guiSettings.GetString("screensaver.mode").Equals("screensaver.xbmc.builtin.dim"))
         pControl->SetEnabled(false);
     }
-    else if (strSetting.Left(16).Equals("weather.areacode"))
-    {
-      CSettingString *pSetting = (CSettingString *)GetSetting(strSetting)->GetSetting();
-      CGUIButtonControl *pControl = (CGUIButtonControl *)GetControl(GetSetting(strSetting)->GetID());
-      pControl->SetLabel2(CWeather::GetAreaCity(pSetting->GetData()));
-    }
     else if (strSetting.Equals("musicfiles.trackformat"))
     {
       if (m_strOldTrackFormat != g_guiSettings.GetString("musicfiles.trackformat"))
@@ -937,15 +931,21 @@ void CGUIWindowSettingsCategory::UpdateSettings()
         pControl->SetEnabled(enabled);
       }
     }
-    else if (strSetting.Equals("weather.scriptsettings"))
+    else if (strSetting.Equals("weather.addonsettings"))
     {
       AddonPtr addon;
-      if (CAddonMgr::Get().GetAddon(g_guiSettings.GetString("weather.script"), addon, ADDON_SCRIPT_WEATHER))
+      if (CAddonMgr::Get().GetAddon(g_guiSettings.GetString("weather.addon"), addon, ADDON_SCRIPT_WEATHER))
       {
         CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
         if (pControl)
           pControl->SetEnabled(addon->HasSettings());
       }
+    }
+    else if (strSetting.Equals("input.peripherals"))
+    {
+      CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
+      if (pControl)
+        pControl->SetEnabled(g_peripherals.GetNumberOfPeripherals() > 0);
     }
 #if defined(_LINUX) && !defined(__APPLE__)
     else if (strSetting.Equals("audiooutput.custompassthrough"))
@@ -977,26 +977,9 @@ void CGUIWindowSettingsCategory::UpdateRealTimeSettings()
 void CGUIWindowSettingsCategory::OnClick(CBaseSettingControl *pSettingControl)
 {
   CStdString strSetting = pSettingControl->GetSetting()->GetSetting();
-  if (strSetting.Left(16).Equals("weather.areacode"))
+  if (strSetting.Equals("weather.addonsettings"))
   {
-    CStdString strSearch;
-    if (CGUIDialogKeyboard::ShowAndGetInput(strSearch, g_localizeStrings.Get(14024), false))
-    {
-      strSearch.Replace(" ", "+");
-      CStdString strResult = ((CSettingString *)pSettingControl->GetSetting())->GetData();
-      if (g_weatherManager.GetSearchResults(strSearch, strResult))
-      {
-        ((CSettingString *)pSettingControl->GetSetting())->SetData(strResult);
-        // Update the labels on the location spinner
-        g_weatherManager.Reset();
-        // Refresh the weather using the new location
-        g_weatherManager.Refresh();
-      }
-    }
-  }
-  else if (strSetting.Equals("weather.scriptsettings"))
-  {
-    CStdString name = g_guiSettings.GetString("weather.script");
+    CStdString name = g_guiSettings.GetString("weather.addon");
     AddonPtr addon;
     if (CAddonMgr::Get().GetAddon(name, addon, ADDON_SCRIPT_WEATHER))
     { // TODO: maybe have ShowAndGetInput return a bool if settings changed, then only reset weather if true.
@@ -1020,7 +1003,7 @@ void CGUIWindowSettingsCategory::OnClick(CBaseSettingControl *pSettingControl)
   { // prompt for the addon
     CSettingAddon *setting = (CSettingAddon *)pSettingControl->GetSetting();
     CStdString addonID = setting->GetData();
-    if (CGUIWindowAddonBrowser::SelectAddonID(setting->m_type, addonID, setting->m_type == ADDON_SCREENSAVER || setting->m_type == ADDON_VIZ) == 1)
+    if (CGUIWindowAddonBrowser::SelectAddonID(setting->m_type, addonID, setting->m_type == ADDON_SCREENSAVER || setting->m_type == ADDON_VIZ || setting->m_type == ADDON_SCRIPT_WEATHER) == 1)
       setting->SetData(addonID);
     else
       return;
@@ -1290,16 +1273,37 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
   {
 #ifdef HAS_ZEROCONF
     //ifdef zeroconf here because it's only found in guisettings if defined
-    CZeroconf::GetInstance()->Stop();
     if(g_guiSettings.GetBool("services.zeroconf"))
+    {
+      CZeroconf::GetInstance()->Stop();
       CZeroconf::GetInstance()->Start();
+    }
+#ifdef HAS_AIRPLAY
+    else
+    {
+      g_application.StopAirplayServer(true);
+      g_guiSettings.SetBool("services.airplay", false);
+      CZeroconf::GetInstance()->Stop();
+    }
+#endif
 #endif
   }
   else if (strSetting.Equals("services.airplay"))
   {  
 #ifdef HAS_AIRPLAY  
     if (g_guiSettings.GetBool("services.airplay"))
+    {
+#ifdef HAS_ZEROCONF
+      // AirPlay needs zeroconf
+      if(!g_guiSettings.GetBool("services.zeroconf"))
+      {
+        g_guiSettings.SetBool("services.zeroconf", true);
+        CZeroconf::GetInstance()->Stop();
+        CZeroconf::GetInstance()->Start();
+      }
+#endif //HAS_ZEROCONF
       g_application.StartAirplayServer();//will stop the server before internal
+    }
     else
       g_application.StopAirplayServer(true);//will stop the server before internal    
 #endif//HAS_AIRPLAY      
@@ -1464,32 +1468,7 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
     CGUISpinControlEx *pControl = (CGUISpinControlEx *)GetControl(pSettingControl->GetID());
     CStdString strLanguage = pControl->GetCurrentLabel();
     if (strLanguage != ".svn" && strLanguage != pSettingString->GetData())
-    {
-      CStdString strLangInfoPath;
-      strLangInfoPath.Format("special://xbmc/language/%s/langinfo.xml", strLanguage.c_str());
-      g_langInfo.Load(strLangInfoPath);
-
-      if (g_langInfo.ForceUnicodeFont() && !g_fontManager.IsFontSetUnicode())
-      {
-        CLog::Log(LOGINFO, "Language needs a ttf font, loading first ttf font available");
-        CStdString strFontSet;
-        if (g_fontManager.GetFirstFontSetUnicode(strFontSet))
-          strLanguage = strFontSet;
-        else
-          CLog::Log(LOGERROR, "No ttf font found but needed: %s", strFontSet.c_str());
-      }
-      g_guiSettings.SetString("locale.language", strLanguage);
-
-      g_charsetConverter.reset();
-
-      CStdString strLanguagePath;
-      strLanguagePath.Format("special://xbmc/language/%s/strings.xml", strLanguage.c_str());
-      g_localizeStrings.Load(strLanguagePath);
-
-      // also tell our weather and skin to reload as these are localized
-      g_weatherManager.Refresh();
-      g_application.ReloadSkin();
-    }
+      g_guiSettings.SetLanguage(strLanguage);
   }
   else if (strSetting.Equals("lookandfeel.skintheme"))
   { //a new Theme was chosen
@@ -1560,18 +1539,19 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
     CStdString path = g_guiSettings.GetString(strSetting,false);
     VECSOURCES shares;
 
-    g_mediaManager.GetNetworkLocations(shares);
-    g_mediaManager.GetLocalDrives(shares);
-
-    UpdateSettings();
     bool bWriteOnly = true;
 
     if (strSetting.Equals("subtitles.custompath"))
     {
       bWriteOnly = false;
       shares = g_settings.m_videoSources;
-      g_mediaManager.GetLocalDrives(shares);
     }
+
+    g_mediaManager.GetNetworkLocations(shares);
+    g_mediaManager.GetLocalDrives(shares);
+
+    UpdateSettings();
+
     if (CGUIDialogFileBrowser::ShowAndGetDirectory(shares, g_localizeStrings.Get(pSettingString->m_iHeadingString), path, bWriteOnly))
     {
       pSettingString->SetData(path);

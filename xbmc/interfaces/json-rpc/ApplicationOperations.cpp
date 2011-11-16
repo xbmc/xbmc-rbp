@@ -52,7 +52,7 @@ JSON_STATUS CApplicationOperations::GetProperties(const CStdString &method, ITra
 JSON_STATUS CApplicationOperations::SetVolume(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
   int oldVolume = g_application.GetVolume();
-  int volume = (int)parameterObject["value"].asInteger();
+  int volume = (int)parameterObject["volume"].asInteger();
   
   g_application.SetVolume(volume);
 
@@ -61,10 +61,15 @@ JSON_STATUS CApplicationOperations::SetVolume(const CStdString &method, ITranspo
   return GetPropertyValue("volume", result);
 }
 
-JSON_STATUS CApplicationOperations::ToggleMute(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+JSON_STATUS CApplicationOperations::SetMute(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
-  g_application.getApplicationMessenger().SendAction(CAction(ACTION_MUTE));
-  return GetPropertyValue("volume", result);
+  if ((parameterObject["mute"].isString() && parameterObject["mute"].asString().compare("toggle") == 0) ||
+      (parameterObject["mute"].isBoolean() && parameterObject["mute"].asBoolean() != g_application.IsMuted()))
+    g_application.getApplicationMessenger().SendAction(CAction(ACTION_MUTE));
+  else if (!parameterObject["mute"].isBoolean() && !parameterObject["mute"].isString())
+    return InvalidParams;
+
+  return GetPropertyValue("muted", result);
 }
 
 JSON_STATUS CApplicationOperations::Quit(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)

@@ -149,6 +149,21 @@
     ],
     "returns":  { "$ref": "Player.Property.Value", "required": true }
   },
+	"Player.GetItem": {
+    "type": "method",
+    "description": "Retrieves the currently played item",
+    "transport": "Response",
+    "permission": "ReadData",
+    "params": [
+      { "name": "playerid", "$ref": "Player.Id", "required": true },
+      { "name": "properties", "$ref": "List.Fields.All" }
+    ],
+    "returns": { "type": "object",
+      "properties": {
+        "item": { "$ref": "List.Item.All", "required": true }
+      }
+    }
+  },
   "Player.PlayPause": {
     "type": "method",
     "description": "Pauses or unpause playback and returns the new state",
@@ -426,7 +441,7 @@
     "returns": { "type": "object",
       "properties": {
         "limits": { "$ref": "List.LimitsReturned", "required": true },
-        "items": { "$ref": "List.Items.All", "required": true }
+				"items": { "type": "array", "items": { "$ref": "List.Item.All" }, "required": true }
       }
     }
   },
@@ -504,9 +519,10 @@
       }
     }
   },
-  "Files.Download": {
+  "Files.PrepareDownload": {
     "type": "method",
-    "transport": [ "Response", "FileDownload" ],
+		"description": "Provides a way to download a given file (e.g. providing an URL to the real file location)",
+    "transport": [ "Response", "FileDownloadRedirect" ],
     "permission": "ReadData",
     "params": [
       { "name": "path", "type": "string", "required": true }
@@ -514,12 +530,25 @@
     "returns": {
       "type": "object",
       "properties": {
-        "path": { "type": "string", "required": true }
+				"protocol": { "type": "string", "enum": [ "http" ], "required": true },
+        "details": { "type": "any", "required": true, "description": "Transport specific details on how/from where to download the given file" },
+				"mode": { "type": "string", "enum": [ "redirect", "direct" ], "required": true, "description": "Direct mode allows using Files.Download whereas redirect mode requires the usage of a different protocol" }
       }
     }
   },
+  "Files.Download": {
+    "type": "method",
+		"description": "Downloads the given file",
+    "transport": [ "Response", "FileDownloadDirect" ],
+    "permission": "ReadData",
+    "params": [
+      { "name": "path", "type": "string", "required": true }
+    ],
+    "returns": { "type": "any", "required": true }
+  },
   "Files.GetDirectory": {
     "type": "method",
+		"description": "Get the directories and files in the given directory",
     "transport": "Response",
     "permission": "ReadData",
     "params": [
@@ -532,7 +561,7 @@
       "type": "object",
       "properties": {
         "limits": { "$ref": "List.LimitsReturned", "required": true },
-        "files": { "$ref": "List.Items.Files", "required": true }
+				"files": { "type": "array", "items": { "$ref": "List.Item.File" }, "required": true }
       }
     }
   },
@@ -654,7 +683,6 @@
     "transport": "Response",
     "permission": "ReadData",
     "params": [
-      { "name": "albums", "$ref": "List.Amount" },
       { "name": "properties", "$ref": "Audio.Fields.Album" },
       { "name": "limits", "$ref": "List.Limits" },
       { "name": "sort", "$ref": "List.Sort" }
@@ -675,7 +703,7 @@
     "transport": "Response",
     "permission": "ReadData",
     "params": [
-      { "name": "albums", "$ref": "List.Amount", "description": "The amount of recently added albums from which to return the songs" },
+      { "name": "albumlimit", "$ref": "List.Amount", "description": "The amount of recently added albums from which to return the songs" },
       { "name": "properties", "$ref": "Audio.Fields.Song" },
       { "name": "limits", "$ref": "List.Limits" },
       { "name": "sort", "$ref": "List.Sort" }
@@ -724,10 +752,20 @@
     "transport": "Response",
     "permission": "WriteFile",
     "params": [
-      { "name": "singlefile", "type": "boolean", "default": true, "description": "Whether to export the data into one or multiple files" },
-      { "name": "images", "type": "boolean", "default": false, "description": "Whether to export thumbnails and fanart images" },
-      { "name": "overwrite", "type": "boolean", "default": false, "description": "Whether to overwrite existing exported files" },
-      { "name": "path", "type": "string", "default": "", "description": "Path to the directory to where the data should be exported" }
+			{ "name": "options", "type": [
+					{ "type": "object", "required": true, "additionalProperties": false,
+						"properties": {
+							"path": { "type": "string", "required": true, "minLength": 1, "description": "Path to the directory to where the data should be exported" }
+						}
+					},
+					{ "type": "object", "required": true, "additionalProperties": false,
+						"properties": {
+							"overwrite": { "type": "boolean", "default": false, "description": "Whether to overwrite existing exported files" },
+							"images": { "type": "boolean", "default": false, "description": "Whether to export thumbnails and fanart images" }
+						}
+					}
+				]
+			}
     ],
     "returns": "string"
   },
@@ -1033,11 +1071,21 @@
     "transport": "Response",
     "permission": "WriteFile",
     "params": [
-      { "name": "singlefile", "type": "boolean", "default": true, "description": "Whether to export the data into one or multiple files" },
-      { "name": "images", "type": "boolean", "default": false, "description": "Whether to export thumbnails and fanart images" },
-      { "name": "actorthumbs", "type": "boolean", "default": false, "description": "Whether to export actor thumbnails" },
-      { "name": "overwrite", "type": "boolean", "default": false, "description": "Whether to overwrite existing exported files" },
-      { "name": "path", "type": "string", "default": "", "description": "Path to the directory to where the data should be exported" }
+			{ "name": "options", "type": [
+					{ "type": "object", "required": true, "additionalProperties": false,
+						"properties": {
+							"path": { "type": "string", "required": true, "minLength": 1, "description": "Path to the directory to where the data should be exported" }
+						}
+					},
+					{ "type": "object", "required": true, "additionalProperties": false,
+						"properties": {
+							"overwrite": { "type": "boolean", "default": false, "description": "Whether to overwrite existing exported files" },
+							"images": { "type": "boolean", "default": false, "description": "Whether to export thumbnails and fanart images" },
+							"actorthumbs": { "type": "boolean", "default": false, "description": "Whether to export actor thumbnails" }
+						}
+					}
+				]
+			}
     ],
     "returns": "string"
   },
@@ -1163,17 +1211,23 @@
     "transport": "Response",
     "permission": "ControlPlayback",
     "params": [
-      { "name": "value", "type": "integer", "minimum": 0, "maximum": 100, "required": true }
+      { "name": "volume", "type": "integer", "minimum": 0, "maximum": 100, "required": true }
     ],
     "returns": "integer"
   },
-  "Application.ToggleMute": {
+  "Application.SetMute": {
     "type": "method",
     "description": "Toggle mute/unmute",
     "transport": "Response",
     "permission": "ControlPlayback",
-    "params": [],
-    "returns": { "type": "integer", "description": "New volume" }
+    "params": [
+			{ "name": "mute", "required": true, "type": [
+					{ "type": "boolean", "required": true },
+					{ "type": "string", "enum": [ "toggle" ], "required": true }
+				]
+			}
+		],
+    "returns": { "type": "boolean", "description": "Mute state" }
   },
   "Application.Quit": {
     "type": "method",

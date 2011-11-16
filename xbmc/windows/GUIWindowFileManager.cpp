@@ -173,7 +173,7 @@ bool CGUIWindowFileManager::OnAction(const CAction &action)
     {
 #ifdef HAS_DVD_DRIVE
       if (m_vecItems[list]->Get(GetSelectedItem(list))->IsDVD())
-        return MEDIA_DETECT::CAutorun::PlayDisc(!MEDIA_DETECT::CAutorun::CanResumePlayDVD() || CGUIDialogYesNo::ShowAndGetInput(341, -1, -1, -1, 13404, 12021));
+        return MEDIA_DETECT::CAutorun::PlayDiscAskResume(m_vecItems[list]->Get(GetSelectedItem(list))->GetPath());
 #endif
     }
   }
@@ -652,7 +652,7 @@ bool CGUIWindowFileManager::HaveDiscOrConnection( CStdString& strPath, int iDriv
 {
   if ( iDriveType == CMediaSource::SOURCE_TYPE_DVD )
   {
-    if ( !g_mediaManager.IsDiscInDrive() )
+    if ( !g_mediaManager.IsDiscInDrive(strPath) )
     {
       CGUIDialogOK::ShowAndGetInput(218, 219, 0, 0);
       int iList = GetFocusedList();

@@ -115,6 +115,11 @@ bool CGUIWindowVideoNav::OnMessage(CGUIMessage& message)
       m_rootDir.AllowNonLocalSources(false);
 
       SetProperty("flattened", g_settings.m_bMyVideoNavFlatten);
+      if (message.GetNumStringParams() && message.GetStringParam(0).Equals("Files") &&
+          g_settings.GetSourcesFromType("video")->empty())
+      {
+        message.SetStringParam("");
+      }
       
       if (!CGUIWindowVideoBase::OnMessage(message))
         return false;
@@ -418,7 +423,7 @@ void CGUIWindowVideoNav::LoadVideoInfo(CFileItemList &items)
 
   bool fileMetaData = (g_guiSettings.GetBool("myvideos.filemetadata") &&
                       !content.IsEmpty() &&
-                       m_stackingAvailable);
+                       m_stackingAvailable && g_settings.m_videoStacking);
 
   CFileItemList dbItems;
   /* NOTE: In the future when GetItemsForPath returns all items regardless of whether they're "in the library"
@@ -477,8 +482,8 @@ void CGUIWindowVideoNav::LoadVideoInfo(CFileItemList &items)
       }
       
       // set the watched overlay
-      if (pItem->HasVideoInfoTag())
-        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, pItem->GetVideoInfoTag()->m_playCount > 0);
+      if (pItem->IsVideo())
+        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, pItem->HasVideoInfoTag() && pItem->GetVideoInfoTag()->m_playCount > 0);
 
       // Since the item is not in our db, as an alternative clean its name
       if (fileMetaData)
@@ -662,7 +667,7 @@ void CGUIWindowVideoNav::OnDeleteItem(CFileItemPtr pItem)
   if (m_vecItems->IsParentFolder())
     return;
 
-  if (!m_vecItems->IsVideoDb())
+  if (!m_vecItems->IsVideoDb() && !pItem->IsVideoDb())
   {
     if (!pItem->GetPath().Equals("newsmartplaylist://video") &&
         !pItem->GetPath().Equals("special://videoplaylists/") &&
@@ -1069,7 +1074,11 @@ void CGUIWindowVideoNav::GetContextButtons(int itemNumber, CContextButtons &butt
           if (!pScanDlg || (pScanDlg && !pScanDlg->IsScanning()))
           {
             if (info && info->Content() != CONTENT_NONE)
+            {
               buttons.Add(CONTEXT_BUTTON_SET_CONTENT, 20442);
+              if (info && (!pScanDlg || (pScanDlg && !pScanDlg->IsScanning())))
+                buttons.Add(CONTEXT_BUTTON_SCAN, 13349);
+            }
             else
               buttons.Add(CONTEXT_BUTTON_SET_CONTENT, 20333);
           }
@@ -1315,7 +1324,7 @@ bool CGUIWindowVideoNav::OnContextButton(int itemNumber, CONTEXT_BUTTON button)
     }
   case CONTEXT_BUTTON_UPDATE_LIBRARY:
     {
-      OnScan("");
+      OnScan("",true);
       return true;
     }
   case CONTEXT_BUTTON_UNLINK_MOVIE:

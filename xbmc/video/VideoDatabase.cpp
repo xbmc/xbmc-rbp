@@ -3328,9 +3328,6 @@ bool CVideoDatabase::UpdateOldVersion(int iVersion)
 {
   BeginTransaction();
 
-  // when adding/removing an index or altering the table ensure that you call
-  // CreateViews() after all modifications.
-
   try
   {
     if (iVersion < 43)
@@ -3431,10 +3428,6 @@ bool CVideoDatabase::UpdateOldVersion(int iVersion)
       m_pDS->exec("CREATE INDEX ixEpisodeBasePath ON episode ( c18(255) )");
       m_pDS->exec("CREATE INDEX ixTVShowBasePath ON tvshow ( c16(255) )");
     }
-    if(iVersion < 49)
-    {
-      CreateViews();
-    }
     if (iVersion < 50)
     {
       m_pDS->exec("ALTER TABLE settings ADD ScalingMethod integer");
@@ -3468,10 +3461,6 @@ bool CVideoDatabase::UpdateOldVersion(int iVersion)
       UpdateBasePathID("episode", "idEpisode", VIDEODB_ID_EPISODE_BASEPATH, VIDEODB_ID_EPISODE_PARENTPATHID);
       UpdateBasePathID("tvshow", "idShow", VIDEODB_ID_TV_BASEPATH, VIDEODB_ID_TV_PARENTPATHID);
     }
-    if ( iVersion < 53 )
-    {
-      CreateViews();
-    }
     if (iVersion < 54)
     { // Change INDEX for bookmark table
       m_pDS->dropIndex("bookmark", "ix_bookmark");
@@ -3484,19 +3473,9 @@ bool CVideoDatabase::UpdateOldVersion(int iVersion)
       m_pDS->exec("UPDATE settings SET DeinterlaceMode = 1 WHERE Deinterlace = 1"); // method auto => mode auto
       m_pDS->exec("UPDATE settings SET DeinterlaceMode = 0, Deinterlace = 1 WHERE Deinterlace = 0"); // method none => mode off, method auto
     }
-    if ( iVersion < 56 )
-    {
-      // Add the tv shows basepath to the episodeview
-      m_pDS->exec("DROP VIEW IF EXISTS episodeview");
-      CStdString episodeview = PrepareSQL("create view episodeview as select episode.*,files.strFileName as strFileName,"
-                                          "path.strPath as strPath,files.playCount as playCount,files.lastPlayed as lastPlayed,tvshow.c%02d as strTitle,tvshow.c%02d as strStudio,tvshow.idShow as idShow,"
-                                          "tvshow.c%02d as premiered, tvshow.c%02d as mpaa, tvshow.c%02d as strShowPath from episode "
-                                          "join files on files.idFile=episode.idFile "
-                                          "join tvshowlinkepisode on episode.idEpisode=tvshowlinkepisode.idEpisode "
-                                          "join tvshow on tvshow.idShow=tvshowlinkepisode.idShow "
-                                          "join path on files.idPath=path.idPath",VIDEODB_ID_TV_TITLE, VIDEODB_ID_TV_STUDIOS, VIDEODB_ID_TV_PREMIERED, VIDEODB_ID_TV_MPAA, VIDEODB_ID_TV_BASEPATH);
-      m_pDS->exec(episodeview.c_str());
-    }
+
+    // always recreate the view after any table change
+    CreateViews();
   }
   catch (...)
   {
@@ -3584,8 +3563,14 @@ bool CVideoDatabase::GetPlayCounts(const CStdString &strPath, CFileItemList &ite
 
     return ret;
   }
-
-  int pathID = GetPathId(strPath);
+  int pathID;
+  if (URIUtils::IsPlugin(strPath))
+  {
+    CURL url(strPath);
+    pathID = GetPathId(url.GetWithoutFilename());
+  }
+  else
+    pathID = GetPathId(strPath);
   if (pathID < 0)
     return false; // path (and thus files) aren't in the database
 
@@ -3678,7 +3663,16 @@ void CVideoDatabase::UpdateFanart(const CFileItem &item, VIDEODB_CONTENT_TYPE ty
 
 void CVideoDatabase::SetPlayCount(const CFileItem &item, int count, const CStdString &date)
 {
-  int id = AddFile(item);
+  int id;
+  if (item.HasProperty("original_listitem_url") &&
+      URIUtils::IsPlugin(item.GetProperty("original_listitem_url").asString()))
+  {
+    CFileItem item2(item);
+    item2.SetPath(item.GetProperty("original_listitem_url").asString());
+    id = AddFile(item2);
+  }
+  else
+    id = AddFile(item);
   if (id < 0)
     return;
 
@@ -4604,6 +4598,7 @@ bool CVideoDatabase::GetSeasonsNav(const CStdString& strBaseDir, CFileItemList& 
         pItem->GetVideoInfoTag()->m_strGenre = it->second.genre;
         pItem->GetVideoInfoTag()->m_strStudio = showStudio;
         pItem->GetVideoInfoTag()->m_strMPAARating = showMPAARating;
+        pItem->GetVideoInfoTag()->m_iIdShow = idShow;
         pItem->GetVideoInfoTag()->m_strShowTitle = showTitle;
         pItem->GetVideoInfoTag()->m_iEpisode = it->second.numEpisodes;
         pItem->SetProperty("totalepisodes", it->second.numEpisodes);
@@ -4639,6 +4634,7 @@ bool CVideoDatabase::GetSeasonsNav(const CStdString& strBaseDir, CFileItemList& 
         pItem->GetVideoInfoTag()->m_strGenre = m_pDS->fv(3).get_asString();
         pItem->GetVideoInfoTag()->m_strStudio = showStudio;
         pItem->GetVideoInfoTag()->m_strMPAARating = showMPAARating;
+        pItem->GetVideoInfoTag()->m_iIdShow = idShow;
         pItem->GetVideoInfoTag()->m_strShowTitle = showTitle;
         int totalEpisodes = m_pDS->fv(6).get_asInt();
         int watchedEpisodes = m_pDS->fv(7).get_asInt();
@@ -6664,8 +6660,8 @@ void CVideoDatabase::CleanDatabase(IVideoInfoScannerObserver* pObserver, const v
       m_pDS->exec(sql.c_str());
     }
 
-    CLog::Log(LOGDEBUG, "%s: Cleaning paths that don't exist and don't have content set...", __FUNCTION__);
-    sql = "select * from path where strContent not like ''";
+    CLog::Log(LOGDEBUG, "%s: Cleaning paths that don't exist and have content set...", __FUNCTION__);
+    sql = "select * from path where strContent != ''";
     m_pDS->query(sql.c_str());
     CStdString strIds;
     while (!m_pDS->eof())
@@ -7690,7 +7686,8 @@ bool CVideoDatabase::ArbitraryExec(const CStdString& strExec)
 
 void CVideoDatabase::ConstructPath(CStdString& strDest, const CStdString& strPath, const CStdString& strFileName)
 {
-  if (URIUtils::IsStack(strFileName) || URIUtils::IsInArchive(strFileName))
+  if (URIUtils::IsStack(strFileName) || 
+      URIUtils::IsInArchive(strFileName) || URIUtils::IsPlugin(strPath))
     strDest = strFileName;
   else
     URIUtils::AddFileToFolder(strPath, strFileName, strDest);
@@ -7701,6 +7698,12 @@ void CVideoDatabase::SplitPath(const CStdString& strFileNameAndPath, CStdString&
   if (URIUtils::IsStack(strFileNameAndPath) || strFileNameAndPath.Mid(0,6).Equals("rar://") || strFileNameAndPath.Mid(0,6).Equals("zip://"))
   {
     URIUtils::GetParentPath(strFileNameAndPath,strPath);
+    strFileName = strFileNameAndPath;
+  }
+  else if (URIUtils::IsPlugin(strFileNameAndPath))
+  {
+    CURL url(strFileNameAndPath);
+    strPath = url.GetWithoutFilename();
     strFileName = strFileNameAndPath;
   }
   else

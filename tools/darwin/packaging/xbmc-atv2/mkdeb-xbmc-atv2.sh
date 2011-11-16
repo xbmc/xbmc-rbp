@@ -23,7 +23,7 @@ fi
 #copy bzip2 of dsym to xbmc-depends install dir
 if [ -d $DSYM ]; then
   if [ -d $DSYM_TARGET_DIR ]; then
-    tar -C $DSYM/.. -c $DSYM_FILENAME/ | bzip2 > $DSYM_TARGET_DIR/`../../../buildbot/gitrev-posix`-${DSYM_FILENAME}.tar.bz2
+    tar -C $DSYM/.. -c $DSYM_FILENAME/ | bzip2 > $DSYM_TARGET_DIR/`$DIRNAME/../../../buildbot/gitrev-posix`-${DSYM_FILENAME}.tar.bz2
   fi
 fi
 
@@ -78,12 +78,18 @@ chmod +x $DIRNAME/$PACKAGE/DEBIAN/prerm
 
 # postinst: symlink XBMC.frappliance into correct location and reload Lowtide/AppleTV.
 echo "#!/bin/sh"                                  >  $DIRNAME/$PACKAGE/DEBIAN/postinst
+echo "chown -R mobile:mobile /Applications/XBMC.frappliance" >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "if [ \"\`uname -r\`\" = \"10.3.1\" ]; then" >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "  ln -sf /Applications/XBMC.frappliance /Applications/Lowtide.app/Appliances/XBMC.frappliance" >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "  killall Lowtide"                          >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "else"                                       >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "  ln -sf /Applications/XBMC.frappliance /Applications/AppleTV.app/Appliances/XBMC.frappliance" >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "  killall AppleTV"                          >> $DIRNAME/$PACKAGE/DEBIAN/postinst
+echo "fi"                                         >> $DIRNAME/$PACKAGE/DEBIAN/postinst
+echo "FILE=/var/mobile/Media/Photos/seas0nTV.png" >> $DIRNAME/$PACKAGE/DEBIAN/postinst
+echo "if [ -f \$FILE ]; then"                     >> $DIRNAME/$PACKAGE/DEBIAN/postinst
+echo "   echo \"File \$FILE exists. removing...\"" >> $DIRNAME/$PACKAGE/DEBIAN/postinst
+echo "   rm \$FILE"                               >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 echo "fi"                                         >> $DIRNAME/$PACKAGE/DEBIAN/postinst
 chmod +x $DIRNAME/$PACKAGE/DEBIAN/postinst
 

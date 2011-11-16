@@ -23,6 +23,7 @@
 
 #if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
 #include "config.h"
+#define DECLARE_UNUSED(a,b) a __attribute__(unused) b;
 #endif
 
 /*****************
@@ -112,6 +113,11 @@
 #define HAVE_YAJL_YAJL_VERSION_H
 #define HAS_FILESYSTEM_SMB
 #define HAS_FILESYSTEM_NFS
+#define HAS_ZEROCONF
+#define HAS_AIRPLAY
+#define HAVE_LIBCEC
+
+#define DECLARE_UNUSED(a,b) a b;
 #endif
 
 /*****************
@@ -144,7 +150,6 @@
 
 #ifdef HAVE_DBUS
 #define HAS_DBUS
-#define HAS_DBUS_SERVER
 #endif
 
 #define HAS_GL

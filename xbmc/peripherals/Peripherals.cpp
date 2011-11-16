@@ -27,7 +27,7 @@
 #include "devices/PeripheralNIC.h"
 #include "devices/PeripheralNyxboard.h"
 #include "devices/PeripheralTuner.h"
-#ifdef HAVE_LIBCEC
+#if defined(HAVE_LIBCEC)
 #include "devices/PeripheralCecAdapter.h"
 #endif
 #include "bus/PeripheralBusUSB.h"
@@ -111,6 +111,9 @@ void CPeripherals::Clear(void)
   /* reset class state */
   m_bIsStarted   = false;
   m_bInitialised = false;
+#if !defined(HAVE_LIBCEC)
+  m_bMissingLibCecWarningDisplayed = false;
+#endif
 }
 
 void CPeripherals::TriggerDeviceScan(const PeripheralBusType type /* = PERIPHERAL_BUS_UNKNOWN */)
@@ -196,6 +199,18 @@ int CPeripherals::GetPeripheralsWithFeature(vector<CPeripheral *> &results, cons
   return iReturn;
 }
 
+size_t CPeripherals::GetNumberOfPeripherals() const
+{
+  size_t iReturn(0);
+  CSingleLock lock(m_critSection);
+  for (unsigned int iBusPtr = 0; iBusPtr < m_busses.size(); iBusPtr++)
+  {
+    iReturn += m_busses.at(iBusPtr)->GetNumberOfPeripherals();
+  }
+
+  return iReturn;
+}
+
 bool CPeripherals::HasPeripheralWithFeature(const PeripheralFeature feature, PeripheralBusType busType /* = PERIPHERAL_BUS_UNKNOWN */) const
 {
   vector<CPeripheral *> dummy;
@@ -204,101 +219,103 @@ bool CPeripherals::HasPeripheralWithFeature(const PeripheralFeature feature, Per
 
 CPeripheral *CPeripherals::CreatePeripheral(CPeripheralBus &bus, const PeripheralType type, const CStdString &strLocation, int iVendorId /* = 0 */, int iProductId /* = 0 */)
 {
-  CPeripheral *peripheral = GetPeripheralAtLocation(strLocation, bus.Type());
-
-  /* only create a new device instances if there's no device at the given location */
-  if (!peripheral)
+  CPeripheral *peripheral = NULL;
+  /* check whether there's something mapped in peripherals.xml */
+  PeripheralType mappedType = type;
+  CStdString strDeviceName;
+  int iMappingPtr = GetMappingForDevice(bus, type, iVendorId, iProductId);
+  bool bHasMapping(iMappingPtr >= 0);
+  if (bHasMapping)
   {
-    /* check whether there's something mapped in peripherals.xml */
-    PeripheralType mappedType = type;
-    CStdString strDeviceName;
-    int iMappingPtr = GetMappingForDevice(bus, type, iVendorId, iProductId);
-    bool bHasMapping(iMappingPtr >= 0);
-    if (bHasMapping)
+    mappedType    = m_mappings[iMappingPtr].m_mappedTo;
+    strDeviceName = m_mappings[iMappingPtr].m_strDeviceName;
+  }
+  else
+  {
+    /* don't create instances for devices that aren't mapped in peripherals.xml */
+    return NULL;
+  }
+
+  switch(mappedType)
+  {
+  case PERIPHERAL_HID:
+    peripheral = new CPeripheralHID(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+    break;
+
+  case PERIPHERAL_NIC:
+    peripheral = new CPeripheralNIC(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+    break;
+
+  case PERIPHERAL_DISK:
+    peripheral = new CPeripheralDisk(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+    break;
+
+  case PERIPHERAL_NYXBOARD:
+    peripheral = new CPeripheralNyxboard(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+    break;
+
+  case PERIPHERAL_TUNER:
+    peripheral = new CPeripheralTuner(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+    break;
+
+  case PERIPHERAL_BLUETOOTH:
+    peripheral = new CPeripheralBluetooth(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+    break;
+
+  case PERIPHERAL_CEC:
+#if defined(HAVE_LIBCEC)
+    peripheral = new CPeripheralCecAdapter(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
+#else
+    if (!m_bMissingLibCecWarningDisplayed)
     {
-      mappedType    = m_mappings[iMappingPtr].m_mappedTo;
-      strDeviceName = m_mappings[iMappingPtr].m_strDeviceName;
+      m_bMissingLibCecWarningDisplayed = true;
+      CLog::Log(LOGWARNING, "%s - libCEC support has not been compiled in, so the CEC adapter cannot be used.", __FUNCTION__);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Warning, g_localizeStrings.Get(36000), g_localizeStrings.Get(36017));
     }
-
-    switch(mappedType)
-    {
-    case PERIPHERAL_HID:
-      peripheral = new CPeripheralHID(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-
-    case PERIPHERAL_NIC:
-      peripheral = new CPeripheralNIC(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-
-    case PERIPHERAL_DISK:
-      peripheral = new CPeripheralDisk(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-
-    case PERIPHERAL_NYXBOARD:
-      peripheral = new CPeripheralNyxboard(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-
-    case PERIPHERAL_TUNER:
-      peripheral = new CPeripheralTuner(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-
-    case PERIPHERAL_BLUETOOTH:
-      peripheral = new CPeripheralBluetooth(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-
-#ifdef HAVE_LIBCEC
-    case PERIPHERAL_CEC:
-      peripheral = new CPeripheralCecAdapter(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
 #endif
+    break;
 
-    default:
-      peripheral = new CPeripheral(type, bus.Type(), strLocation, strDeviceName, iVendorId, iProductId);
-      break;
-    }
+  default:
+    break;
+  }
 
-    if (peripheral)
+  if (peripheral)
+  {
+    /* try to initialise the new peripheral
+     * Initialise() will make sure that each device is only initialised once */
+    if (peripheral->Initialise())
     {
-      /* try to initialise the new peripheral
-       * Initialise() will make sure that each device is only initialised once */
-      if (peripheral->Initialise())
-      {
-        if (!bHasMapping)
-          peripheral->SetHidden(true);
-        bus.Register(peripheral);
-      }
-      else
-      {
-        CLog::Log(LOGDEBUG, "%s - failed to initialise peripheral on '%s'", __FUNCTION__, strLocation.c_str());
-        delete peripheral;
-        peripheral = NULL;
-      }
+      if (!bHasMapping)
+        peripheral->SetHidden(true);
+      bus.Register(peripheral);
+    }
+    else
+    {
+      CLog::Log(LOGDEBUG, "%s - failed to initialise peripheral on '%s'", __FUNCTION__, strLocation.c_str());
+      delete peripheral;
+      peripheral = NULL;
     }
   }
 
   return peripheral;
 }
 
-void CPeripherals::OnDeviceAdded(const CPeripheralBus &bus, const CStdString &strLocation)
+void CPeripherals::OnDeviceAdded(const CPeripheralBus &bus, const CPeripheral &peripheral)
 {
   CGUIDialogPeripheralManager *dialog = (CGUIDialogPeripheralManager *)g_windowManager.GetWindow(WINDOW_DIALOG_PERIPHERAL_MANAGER);
   if (dialog && dialog->IsActive())
     dialog->Update();
 
-  CPeripheral *peripheral = GetByPath(strLocation);
-  if (peripheral)
-    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(35005), peripheral->DeviceName());
+  CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(35005), peripheral.DeviceName());
 }
 
-void CPeripherals::OnDeviceDeleted(const CPeripheralBus &bus, const CStdString &strLocation)
+void CPeripherals::OnDeviceDeleted(const CPeripheralBus &bus, const CPeripheral &peripheral)
 {
   CGUIDialogPeripheralManager *dialog = (CGUIDialogPeripheralManager *)g_windowManager.GetWindow(WINDOW_DIALOG_PERIPHERAL_MANAGER);
   if (dialog && dialog->IsActive())
     dialog->Update();
 
-  CPeripheral *peripheral = GetByPath(strLocation);
-  if (peripheral)
-    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(35006), peripheral->DeviceName());
+  CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(35006), peripheral.DeviceName());
 }
 
 int CPeripherals::GetMappingForDevice(const CPeripheralBus &bus, const PeripheralType classType, int iVendorId, int iProductId) const
@@ -314,7 +331,10 @@ int CPeripherals::GetMappingForDevice(const CPeripheralBus &bus, const Periphera
 
     if (bBusMatch && bVendorMatch && bProductMatch && bClassMatch)
     {
-      CLog::Log(LOGDEBUG, "%s - device (%s:%s) mapped to %s (type = %s)", __FUNCTION__, PeripheralTypeTranslator::IntToHexString(iVendorId), PeripheralTypeTranslator::IntToHexString(iProductId), mapping.m_strDeviceName.c_str(), PeripheralTypeTranslator::TypeToString(mapping.m_mappedTo));
+      CStdString strVendorId, strProductId;
+      PeripheralTypeTranslator::FormatHexString(iVendorId, strVendorId);
+      PeripheralTypeTranslator::FormatHexString(iProductId, strProductId);
+      CLog::Log(LOGDEBUG, "%s - device (%s:%s) mapped to %s (type = %s)", __FUNCTION__, strVendorId.c_str(), strProductId.c_str(), mapping.m_strDeviceName.c_str(), PeripheralTypeTranslator::TypeToString(mapping.m_mappedTo));
       return iMappingPtr;
     }
   }
@@ -405,8 +425,8 @@ void CPeripherals::GetSettingsFromMappingsFile(TiXmlElement *xmlNode, map<CStdSt
     {
       int iValue = currentNode->Attribute("value") ? atoi(currentNode->Attribute("value")) : 0;
       int iMin   = currentNode->Attribute("min") ? atoi(currentNode->Attribute("min")) : 0;
-      int iStep  = currentNode->Attribute("step") ? atoi(currentNode->Attribute("step")) : 0;
-      int iMax   = currentNode->Attribute("max") ? atoi(currentNode->Attribute("max")) : 0;
+      int iStep  = currentNode->Attribute("step") ? atoi(currentNode->Attribute("step")) : 1;
+      int iMax   = currentNode->Attribute("max") ? atoi(currentNode->Attribute("max")) : 255;
       CStdString strFormat(currentNode->Attribute("format"));
       setting = new CSettingInt(0, strKey, iLabelId, iValue, iMin, iStep, iMax, SPIN_CONTROL_INT, strFormat);
     }

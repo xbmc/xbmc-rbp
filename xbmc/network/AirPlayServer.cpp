@@ -34,6 +34,10 @@
 #include "utils/md5.h"
 #include "utils/Variant.h"
 
+#ifdef TARGET_WINDOWS
+#define close closesocket
+#endif
+
 #define RECEIVEBUFFER 1024
 
 #define AIRPLAY_STATUS_OK 200
@@ -673,7 +677,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
           {
             double tmpDouble = 0;
             m_pLibPlist->plist_get_real_val(tmpNode, &tmpDouble);
-            position = tmpDouble;
+            position = (float)tmpDouble;
           }
 
           tmpNode = m_pLibPlist->plist_dict_get_item(dict, "Content-Location");
@@ -682,7 +686,11 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
             char *tmpStr = NULL;
             m_pLibPlist->plist_get_string_val(tmpNode, &tmpStr);
             location=tmpStr;
+#ifdef TARGET_WINDOWS
+            m_pLibPlist->plist_free_string_val(tmpStr);
+#else
             free(tmpStr);
+#endif
           }
 
           if (dict)
@@ -713,7 +721,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
         start += strlen("Start-Position: ");
         int end = body.Find('\n', start);
         CStdString positionStr = body.Mid(start, end - start);
-        position = atof(positionStr.c_str());
+        position = (float)atof(positionStr.c_str());
       }
     }
 
