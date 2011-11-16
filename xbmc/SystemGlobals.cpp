@@ -43,6 +43,8 @@
 #include "interfaces/python/XBPython.h"
 #endif
 
+#include "linux/RBP.h"
+
   CGUISettings       g_guiSettings;
   CSettings          g_settings;
 
@@ -72,3 +74,6 @@
   CAlarmClock        g_alarmClock;
   PLAYLIST::CPlayListPlayer g_playlistPlayer;
   CApplication       g_application;
+
+  CRBP               g_RBP;
+

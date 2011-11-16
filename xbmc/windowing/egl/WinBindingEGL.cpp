@@ -27,7 +27,6 @@
 #include "utils/log.h"
 
 #include <string>
-#include <interface/vmcs_host/vc_dispmanx.h>
 
 CWinBindingEGL::CWinBindingEGL()
 {

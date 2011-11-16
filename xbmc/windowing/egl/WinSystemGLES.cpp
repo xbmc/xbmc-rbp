@@ -22,6 +22,12 @@
 
 #ifdef HAS_EGLGLES
 
+#ifndef __VIDEOCORE4__
+#define __VIDEOCORE4__
+#endif
+
+#define __VCCOREVER__ 0x04000000
+
 #include "WinSystemGLES.h"
 #include "filesystem/SpecialProtocol.h"
 #include "settings/Settings.h"
@@ -30,8 +36,6 @@
 #include "WinBindingEGL.h"
 
 #include <vector>
-#include "interface/vmcs_host/vc_dispmanx.h"
-#include "interface/vchiq_arm/vchiq_if.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 CWinSystemGLES::CWinSystemGLES() : CWinSystemBase()
@@ -50,34 +54,18 @@ CWinSystemGLES::~CWinSystemGLES()
 
 bool CWinSystemGLES::InitWindowSystem()
 {
+  if(!m_DllBcmHostDisplay.Load())
+    return false;
+
   m_display = EGL_DEFAULT_DISPLAY;
   m_window  = (EGL_DISPMANX_WINDOW_T*)calloc(1, sizeof(EGL_DISPMANX_WINDOW_T));
 
-  // vchiq/vc_dispmanx specific inits, move out later.
-  static VCHI_INSTANCE_T vchiq_instance;
-  static VCHI_CONNECTION_T *vchi_connection;
-
-  vcos_init();
-  if (vchi_initialise(&vchiq_instance) != VCHIQ_SUCCESS)
-  {
-    CLog::Log(LOGERROR, "CWinSystemGLES::InitWindowSystem: failed to open vchiq instance");
-    return false;
-  }
-  //create a vchi connection
-  if (vchi_connect(NULL, 0, vchiq_instance) != 0)
-  {
-    CLog::Log(LOGERROR, "CWinSystemGLES::InitWindowSystem: VCHI connection failed");
-    return false;
-  }
-
-  vc_vchi_dispmanx_init(vchiq_instance, &vchi_connection, 1);
-
-  DISPMANX_DISPLAY_HANDLE_T dispman_display = vc_dispmanx_display_open(0);
-  DISPMANX_UPDATE_HANDLE_T  dispman_update  = vc_dispmanx_update_start(0);
+  DISPMANX_DISPLAY_HANDLE_T dispman_display = m_DllBcmHostDisplay.vc_dispmanx_display_open(0);
+  DISPMANX_UPDATE_HANDLE_T  dispman_update  = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
      
   DISPMANX_MODEINFO_T mode_info;
   memset(&mode_info, 0x0, sizeof(DISPMANX_MODEINFO_T));
-  vc_dispmanx_display_get_info(dispman_display, &mode_info);
+  m_DllBcmHostDisplay.vc_dispmanx_display_get_info(dispman_display, &mode_info);
 
   m_fb_width  = mode_info.width;
   m_fb_height = mode_info.height;
@@ -96,21 +84,36 @@ bool CWinSystemGLES::InitWindowSystem()
   src_rect.height = m_fb_height << 16;        
 
   DISPMANX_ELEMENT_HANDLE_T dispman_element;
-  dispman_element = vc_dispmanx_element_add(dispman_update,
+
+  VC_DISPMANX_ALPHA_T alpha;
+  memset(&alpha, 0x0, sizeof(VC_DISPMANX_ALPHA_T));
+  alpha.flags = DISPMANX_FLAGS_ALPHA_FROM_SOURCE;
+
+  DISPMANX_CLAMP_T clamp;
+  memset(&clamp, 0x0, sizeof(DISPMANX_CLAMP_T));
+  clamp.mode = DISPMANX_FLAGS_CLAMP_REPLACE;
+  clamp.key_mask = DISPMANX_FLAGS_KEYMASK_OVERRIDE;
+
+  DISPMANX_TRANSFORM_T transform = DISPMANX_ROTATE_180;
+
+  dispman_element = m_DllBcmHostDisplay.vc_dispmanx_element_add(dispman_update,
     dispman_display,
-    0,                              // layer
+    1,                              // layer
     &dst_rect,
     (DISPMANX_RESOURCE_HANDLE_T)0,  // src
     &src_rect,
     DISPMANX_PROTECTION_NONE,
-    (VC_DISPMANX_ALPHA_T*)0,        // alpha
-    (DISPMANX_CLAMP_T*)0,           // clamp
-    (DISPMANX_TRANSFORM_T)0);       // transform
-    
+    //(VC_DISPMANX_ALPHA_T*)0,        // alpha
+    &alpha,
+    //(DISPMANX_CLAMP_T*)0,           // clamp
+    &clamp,
+    //(DISPMANX_TRANSFORM_T)0);       // transform
+    transform);       // transform
+
   m_window->element = dispman_element;
   m_window->width   = m_fb_width;
   m_window->height  = m_fb_height;
-  vc_dispmanx_update_submit_sync(dispman_update);
+  m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(dispman_update);
 
   if (!CWinSystemBase::InitWindowSystem())
     return false;
@@ -125,6 +128,9 @@ bool CWinSystemGLES::DestroyWindowSystem()
 {
   free(m_window);
   m_window = NULL;
+
+  if(m_DllBcmHostDisplay.IsLoaded())
+    m_DllBcmHostDisplay.Unload();
 
   return true;
 }
@@ -240,14 +246,28 @@ bool CWinSystemGLES::Show(bool raise)
   return true;
 }
 
+EGLNativeWindowType CWinSystemGLES::GetEGLGetNativeWindow() const
+{
+  return m_eglBinding->GetNativeWindow();
+}
+
+EGLNativeDisplayType CWinSystemGLES::GetEGLNativeDispla() const
+{
+  return m_eglBinding->GetNativeDisplay();
+}
+
 EGLContext CWinSystemGLES::GetEGLContext() const
 {
   return m_eglBinding->GetContext();
+}
+
+EGLContext CWinSystemGLES::GetEGLSurface() const
+{
+  return m_eglBinding->GetSurface();
 }
 
 EGLDisplay CWinSystemGLES::GetEGLDisplay() const
 {
   return m_eglBinding->GetDisplay();
 }
-
 #endif

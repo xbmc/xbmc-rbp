@@ -30,6 +30,13 @@
 
 #include <EGL/eglplatform.h>
 
+// TODO: remove after we have it in configure
+#ifndef HAVE_LIBBCM_HOST
+#define HAVE_LIBBCM_HOST
+#endif
+
+#include "linux/DllBCM.h"
+
 typedef void *EGLDisplay;
 typedef void *EGLContext;
 class CWinBindingEGL;
@@ -58,8 +65,11 @@ public:
   virtual bool  Hide();
   virtual bool  Show(bool raise = true);
 
-  EGLContext GetEGLContext() const;
-  EGLDisplay GetEGLDisplay() const;
+  EGLNativeWindowType   GetEGLGetNativeWindow() const;
+  EGLNativeDisplayType  GetEGLNativeDispla() const;
+  EGLContext            GetEGLContext() const;
+  EGLDisplay            GetEGLSurface() const;
+  EGLDisplay            GetEGLDisplay() const;
 protected:
   virtual bool  PresentRenderImpl(const CDirtyRegionList &dirty);
   virtual void  SetVSyncImpl(bool enable);
@@ -69,6 +79,7 @@ protected:
   int                   m_fb_width;
   int                   m_fb_height;
   int                   m_fb_bpp;
+  DllBcmHostDisplay     m_DllBcmHostDisplay;
 };
 
 XBMC_GLOBAL_REF(CWinSystemGLES,g_Windowing);

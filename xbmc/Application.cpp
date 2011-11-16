@@ -299,6 +299,8 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
+#include "linux/RBP.h"
+
 using namespace std;
 using namespace ADDON;
 using namespace XFILE;
@@ -465,6 +467,9 @@ void CApplication::Preflight()
 
 bool CApplication::Create()
 {
+  if(!g_RBP.Initialize())
+    return false;
+
   g_settings.Initialize(); //Initialize default AdvancedSettings
 
   m_bSystemScreenSaverEnable = g_Windowing.IsSystemScreenSaverEnabled();
@@ -3374,6 +3379,8 @@ void CApplication::Stop(int exitCode)
   {
     CLog::Log(LOGERROR, "Exception in CApplication::Stop()");
   }
+
+  g_RBP.Initialize();
 
   // we may not get to finish the run cycle but exit immediately after a call to g_application.Stop()
   // so we may never get to Destroy() in CXBApplicationEx::Run(), we call it here.
