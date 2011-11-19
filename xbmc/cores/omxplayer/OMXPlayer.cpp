@@ -1524,9 +1524,17 @@ void COMXPlayer::Process()
         }
       }
 
+      bool bVideoBufferFull = false;
+      if(m_VideoCodecOpen) {
+        if(bBuffering && (m_video_decoder->GetFreeSpace() == 0))
+        {
+          bBuffering = false;
+        }
+      }
+
       if(m_AudioRenderOpen)
       {
-        if(bBuffering && (m_audio_render->GetDelay() > 1.0f))
+        if(bBuffering && ((m_audio_render->GetDelay() > 1.0f) || bVideoBufferFull))
         {
           m_av_clock->Resume();
           bBuffering = false;
@@ -1534,6 +1542,10 @@ void COMXPlayer::Process()
           m_av_clock->Pause();
           bBuffering = true;
         }
+
+      } else if(bVideoBufferFull && bBuffering) {
+        m_av_clock->Resume();
+        bBuffering = false;
       }
 
       if( ( m_pVideoStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_VideoCodecOpen )
