@@ -43,6 +43,10 @@
 #include "ALSADirectSound.h"
 #endif
 
+#if defined(HAVE_LIBOPENMAX)
+#include "cores/omxplayer/OMXAudio.h"
+#endif
+
 #define ReturnOnValidInitialize(rendererName)    \
 {                                                \
   if (audioSink->Initialize(pCallback, device, iChannels, channelMap, uiSamplesPerSec, uiBitsPerSample, bResample, bIsMusic, bPassthrough)) \
@@ -136,7 +140,11 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
 
   device = deviceString;
 
-/* First pass creation */
+#if defined(HAVE_LIBOPENMAX)
+  CreateAndReturnOnValidInitialize(COMXAudio);
+#endif
+
+  /* First pass creation */
 #ifdef HAS_PULSEAUDIO
   CreateAndReturnOnValidInitialize(CPulseAudioDirectSound);
 #endif
@@ -163,6 +171,10 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
 
 void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool passthrough)
 {
+#if defined(HAVE_LIBOPENMAX)
+  COMXAudio::EnumerateAudioSinks(vAudioSinks, passthrough);
+#endif
+
 #ifdef HAS_PULSEAUDIO
   CPulseAudioDirectSound::EnumerateAudioSinks(vAudioSinks, passthrough);
 #endif
@@ -183,6 +195,11 @@ void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool
 
 IAudioRenderer *CAudioRendererFactory::CreateFromUri(const CStdString &soundsystem, CStdString &renderer)
 {
+#if defined(HAVE_LIBOPENMAX)
+  if (soundsystem.Equals("omx"))
+    ReturnNewRenderer(COMXAudio);
+#endif
+
 #ifdef HAS_PULSEAUDIO
   if (soundsystem.Equals("pulse"))
     ReturnNewRenderer(CPulseAudioDirectSound);

@@ -24,6 +24,32 @@
 #include "cores/IPlayer.h"
 #include "dialogs/GUIDialogBusy.h"
 #include "threads/Thread.h"
+#include "OMXStreamInfo.h"
+
+#include "DllAvUtil.h"
+#include "DllAvFormat.h"
+#include "DllAvFilter.h"
+#include "DllAvCodec.h"
+#include "DllAvCore.h"
+
+#include "threads/SingleLock.h"
+
+#include "utils/PCMRemap.h"
+
+#include "OMXAudioCodecOMX.h"
+#include "OMXCore.h"
+#include "OMXClock.h"
+#include "OMXVideo.h"
+#include "OMXAudio.h"
+
+#define MAX_CHAPTERS 64
+
+typedef struct Chapter
+{
+  std::string name;
+  int64_t     seekto_ms;
+  double      ts;
+} Chapter;
 
 class COMXPlayer : public IPlayer, public CThread
 {
@@ -82,7 +108,7 @@ public:
   virtual int   GetAudioStream();
   virtual void  GetAudioStreamName(int iStream, CStdString &strStreamName);
   virtual void  SetAudioStream(int iStream);
-  virtual void  GetAudioStreamLanguage(int iStream, CStdString &strLanguage) {};
+  virtual void  GetAudioStreamLanguage(int iStream, CStdString &strLanguage);
 
   virtual TextCacheStruct_t* GetTeletextCache()                   {return NULL;};
   virtual void  LoadPage(int p, int sp, unsigned char* buffer)    {};
@@ -132,7 +158,24 @@ protected:
   virtual void  OnExit();
   virtual void  Process();
 
+  std::string m_filename; // holds the actual filename
+
 private:
+
+  std::vector<AVStream*> m_video_streams;
+  std::vector<AVStream*> m_audio_streams;
+ 
+  virtual bool GetStreams();
+  virtual bool GetHints(AVStream *stream, COMXStreamInfo *hints);
+  virtual bool OpenVideoDecoder(AVStream *stream);
+  virtual void CloseVideoDecoder();
+  virtual bool OpenAudioCodec(AVStream *stream);
+  virtual void CloseAudioCodec();
+  virtual bool OpenAudioDecoder(AVStream *stream);
+  virtual void CloseAudioDecoder();
+
+  virtual void GetStreamCodecName(AVStream *stream, CStdString &strStreamName);
+
   int                     m_speed;
   bool                    m_paused;
   bool                    m_StopPlaying;
@@ -147,9 +190,6 @@ private:
   int                     m_audio_index;
   int                     m_audio_count;
   CStdString              m_audio_info;
-  uint32_t                m_audio_bits;
-  uint32_t                m_audio_channels;
-  uint32_t                m_audio_samplerate;
   int64_t                 m_audio_offset_ms;
   int                     m_video_index;
   int                     m_video_count;
@@ -160,15 +200,50 @@ private:
   int64_t                 m_subtitle_offset_ms;
 
   int                     m_chapter_count;
-  struct chapters
-  {
-    std::string name;
-    int64_t     seekto_ms;
-  }                       m_chapters[64];
+
+  Chapter                 m_chapters[MAX_CHAPTERS];
 
   float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;
   CRect                   m_dst_rect;
   int                     m_view_mode;
+
+  XFILE::CFile            *m_pFile;
+  COMXStreamInfo          m_hints_audio;
+  COMXStreamInfo          m_hints_video;
+  AVFormatContext         *m_pFormatContext;
+  ByteIOContext           *m_ioContext;
+  DllAvUtil               m_dllAvUtil;
+  DllAvCodec              m_dllAvCodec;
+  DllAvFormat             m_dllAvFormat;
+
+  CCriticalSection        m_SeekSection;
+  int64_t                 m_seek_ms;
+  int                     m_seek_req;
+
+  AVStream                *m_pVideoStream;
+  AVStream                *m_pAudioStream;
+  bool                    m_AudioCodecOpen;
+  bool                    m_VideoCodecOpen;
+  bool                    m_AudioRenderOpen;
+  OMXClock                *m_av_clock;
+  COMXAudioCodecOMX       *m_pAudioCodec;
+  COMXAudio               *m_audio_render;
+  COMXVideo               *m_video_decoder;
+  enum PCMChannels        *m_pChannelMap;
+
+  CStdString              m_audio_codec_name;
+  CStdString              m_video_codec_name;
+
+  COMXCore                m_OMX;
+
+  bool                    m_bMatroska;
+  bool                    m_bAVI;
+  double                  m_last_pts;
+  double                  m_videoClock;
+  double                  m_audioClock;
+  double                  m_frametime;
+  bool                    m_pkt_consumed;
+  AVPacket                m_pkt;
 };

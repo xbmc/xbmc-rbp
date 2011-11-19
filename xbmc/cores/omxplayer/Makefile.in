@@ -1,5 +1,14 @@
+CXXFLAGS+=-D__STDC_FORMAT_MACROS
+
 SRCS=	\
 	OMXPlayer.cpp \
+	OMXClock.cpp \
+	OMXCore.cpp \
+	OMXStreamInfo.cpp \
+	OMXAudioCodecOMX.cpp \
+	OMXAudio.cpp \
+	OMXVideo.cpp \
+	BitstreamConverter.cpp
 
 LIB=	OMXPlayer.a
 

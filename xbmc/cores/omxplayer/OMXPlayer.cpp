@@ -41,6 +41,21 @@
 #include "utils/URIUtils.h"
 #include "utils/XMLUtils.h"
 
+#include "FileItem.h"
+#include "filesystem/File.h"
+#include "utils/BitstreamStats.h"
+
+#include <sstream>
+#include <iomanip>
+
+#include "BitstreamConverter.h"
+
+#define FFMPEG_FILE_BUFFER_SIZE   32768 // default reading size for ffmpeg
+#ifndef MAX_STREAMS
+#define MAX_STREAMS 100
+#endif
+
+using namespace XFILE;
 
 // ****************************************************************
 // ****************************************************************
@@ -52,11 +67,22 @@ COMXPlayer::COMXPlayer(IPlayerCallback &callback)
   m_speed = 1;
   m_paused = false;
   m_StopPlaying = false;
+
+  m_OMX.Initialize();
+
+  m_av_clock = new OMXClock();
+  m_av_clock->Initialize();
 }
 
 COMXPlayer::~COMXPlayer()
 {
   CloseFile();
+
+  if(m_av_clock)
+    delete m_av_clock;
+  m_av_clock = NULL;
+
+  m_OMX.Deinitialize();
 }
 
 bool COMXPlayer::Initialize(TiXmlElement* pConfig)
@@ -64,15 +90,337 @@ bool COMXPlayer::Initialize(TiXmlElement* pConfig)
   return true;
 }
 
+bool COMXPlayer::GetHints(AVStream *stream, COMXStreamInfo *hints)
+{
+  if(!hints || !stream)
+    return false;
+
+  //hints->codec_fourcc  = stream->codec->codec_tag;
+  hints->width         = stream->codec->width;
+  hints->height        = stream->codec->height;
+  hints->codec         = stream->codec->codec_id;
+  hints->extradata     = stream->codec->extradata;
+  hints->extrasize     = stream->codec->extradata_size;
+  hints->profile       = stream->codec->profile;
+  hints->fpsscale      = stream->r_frame_rate.num;
+  hints->fpsrate       = stream->r_frame_rate.den;
+  hints->codec         = stream->codec->codec_id;
+  hints->extradata     = stream->codec->extradata;
+  hints->extrasize     = stream->codec->extradata_size;
+  hints->channels      = stream->codec->channels;
+  hints->samplerate    = stream->codec->sample_rate;
+  hints->blockalign    = stream->codec->block_align;
+  hints->bitrate       = stream->codec->bit_rate;
+  hints->bitspersample = stream->codec->bits_per_coded_sample;
+  if(hints->bitspersample == 0)
+    hints->bitspersample = 16;
+
+
+  return true;
+}
+
+bool COMXPlayer::GetStreams()
+{
+  if(!m_pFormatContext)
+    return false;
+
+  unsigned int    m_program         = UINT_MAX;
+
+  if (m_pFormatContext->nb_programs)
+  {
+    // look for first non empty stream and discard nonselected programs
+    for (unsigned int i = 0; i < m_pFormatContext->nb_programs; i++)
+    {
+      if(m_program == UINT_MAX && m_pFormatContext->programs[i]->nb_stream_indexes > 0)
+        m_program = i;
+      if(i != m_program)
+        m_pFormatContext->programs[i]->discard = AVDISCARD_ALL;
+      if(m_program != UINT_MAX)
+      {
+        // TODO: build stream array
+        // add streams from selected program
+        for (unsigned int i = 0; i < m_pFormatContext->programs[m_program]->nb_stream_indexes; i++)
+        {
+          if(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+          {
+            m_video_streams.push_back(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]);
+          }
+          if(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+          {
+            m_audio_streams.push_back(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]);
+          }
+        }
+      }
+    }
+  }
+
+  // if there were no programs or they were all empty, add all streams
+  if (m_program == UINT_MAX)
+  {
+    // TODO: build stream array
+    for (unsigned int i = 0; i < m_pFormatContext->nb_streams; i++)
+    {
+      if(m_pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+      {
+        m_video_streams.push_back(m_pFormatContext->streams[i]);
+      }
+      if(m_pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+      {
+        m_audio_streams.push_back(m_pFormatContext->streams[i]);
+      }
+    }
+  }
+
+  m_video_count = m_video_streams.size();
+  m_audio_count = m_audio_streams.size();
+
+  if(m_video_count)
+  {
+    m_pVideoStream = m_video_streams[0];
+    m_video_index = 0;
+  }
+
+  if(m_audio_count)
+  {
+    m_pAudioStream = m_audio_streams[0];
+    m_audio_index = 0;
+  }
+
+  return true;
+}
+
+bool COMXPlayer::OpenVideoDecoder(AVStream *stream)
+{
+  if(!stream)
+    return false;
+  
+  GetHints(stream, &m_hints_video);
+
+  RESOLUTION res = g_graphicsContext.GetVideoResolution();
+  m_video_width   = g_settings.m_ResInfo[res].iWidth;
+  m_video_height  = g_settings.m_ResInfo[res].iHeight;
+
+  m_hints_video.fpsrate       = stream->r_frame_rate.num;
+  m_hints_video.fpsscale      = stream->r_frame_rate.den;
+
+  if(m_bMatroska && stream->avg_frame_rate.den && stream->avg_frame_rate.num)
+  {
+    m_hints_video.fpsrate      = stream->avg_frame_rate.num;
+    m_hints_video.fpsscale     = stream->avg_frame_rate.den;
+  }
+  else if(stream->r_frame_rate.num && stream->r_frame_rate.den)
+  {
+    m_hints_video.fpsrate      = stream->r_frame_rate.num;
+    m_hints_video.fpsscale     = stream->r_frame_rate.den;
+  }
+  else
+  {
+    m_hints_video.fpsscale     = 0;
+    m_hints_video.fpsrate      = 0;
+  }
+
+  if (stream->sample_aspect_ratio.num == 0)
+    m_hints_video.aspect = 0.0f;
+  else
+    m_hints_video.aspect = av_q2d(stream->sample_aspect_ratio) * stream->codec->width / stream->codec->height;
+
+  m_hints_video.extradata     = stream->codec->extradata;
+  m_hints_video.extrasize     = stream->codec->extradata_size;
+
+  if (m_hints_video.fpsrate && m_hints_video.fpsscale)
+    m_video_fps = DVD_TIME_BASE / OMXClock::NormalizeFrameduration((double)DVD_TIME_BASE * m_hints_video.fpsscale / m_hints_video.fpsrate);
+  else
+    m_video_fps = 25;
+
+  if( m_video_fps > 100 || m_video_fps < 5 )
+  {
+    printf("Invalid framerate %d, using forced 25fps and just trust timestamps\n", (int)m_video_fps);
+    m_video_fps = 25;
+  }
+
+  m_frametime = (double)DVD_TIME_BASE / m_video_fps;
+
+  m_video_decoder = new COMXVideo();
+  m_VideoCodecOpen = m_video_decoder->Open(m_hints_video, m_av_clock);
+
+  if(!m_VideoCodecOpen)
+  {
+    delete m_video_decoder;
+    m_video_decoder = NULL;
+    return false;
+  }
+  else
+  {
+    printf("Video codec 0x%08x width %d height %d profile %d r_frame_rate.num %d r_frame_rate.den %d m_VideoCodecOpen %d\n",
+        m_hints_video.codec, m_hints_video.width, m_hints_video.height, m_hints_video.profile, m_hints_video.fpsscale, m_hints_video.fpsrate, m_VideoCodecOpen);
+
+    int i = 0;
+    for(i = 0; i < MAX_CHAPTERS; i++)
+    {
+      m_chapters[i].name      = "";
+      m_chapters[i].seekto_ms = 0;
+      m_chapters[i].ts        = 0;
+    }
+
+    //m_current_chapter = 0;
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,14,0)
+    m_chapter_count = (m_pFormatContext->nb_chapters > MAX_CHAPTERS) ? MAX_CHAPTERS : m_pFormatContext->nb_chapters;
+    for(i = 0; i < m_chapter_count; i++)
+    {
+      if(i > MAX_CHAPTERS)
+        break;
+
+      AVChapter *chapter = m_pFormatContext->chapters[i];
+      if(!chapter)
+        continue;
+
+      m_chapters[i].seekto_ms = OMXClock::ConvertTimestamp(chapter->start, m_pFormatContext->start_time, &m_pVideoStream->time_base) / AV_TIME_BASE / 1000;
+      m_chapters[i].ts        = m_chapters[i].seekto_ms / 1000;
+
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
+      AVMetadataTag *titleTag = m_dllAvFormat.av_metadata_get(m_pFormatContext->chapters[i]->metadata,"title", NULL, 0);
+      if (titleTag)
+        m_chapters[i].name = titleTag->value;
+#else
+      if(m_pFormatContext->chapters[i]->title)
+        m_chapters[i].name = m_pFormatContext->chapters[i]->title;
+#endif
+      printf("Chapter : \t%d \t%s \t%8.2f\n", i, m_chapters[i].name.c_str(), m_chapters[i].ts);
+    }
+#endif
+  }
+
+  m_video_codec_name = m_video_decoder->GetDecoderName();
+  return true;
+}
+
+void COMXPlayer::CloseVideoDecoder()
+{
+  if(m_video_decoder)
+    delete m_video_decoder;
+  m_video_decoder   = NULL;
+  m_VideoCodecOpen  = false;
+
+  m_chapter_count   = 0;
+
+  m_video_codec_name = "";
+}
+
+bool COMXPlayer::OpenAudioCodec(AVStream *stream)
+{
+  if(!stream)
+    return false;
+
+  GetHints(stream, &m_hints_audio);
+
+  m_pAudioCodec = new COMXAudioCodecOMX();
+  m_AudioCodecOpen = m_pAudioCodec->Open(m_hints_audio);
+
+  if(!m_AudioCodecOpen)
+  {
+    delete m_pAudioCodec; m_pAudioCodec = NULL;
+    return false;
+  }
+
+  GetStreamCodecName(stream, m_audio_codec_name);
+  return true;
+}
+
+void COMXPlayer::CloseAudioCodec()
+{
+  if(m_pAudioCodec)
+    delete m_pAudioCodec;
+  m_pAudioCodec = NULL;
+
+  m_AudioCodecOpen  = false;
+
+  m_audio_codec_name = "";
+}
+
+bool COMXPlayer::OpenAudioDecoder(AVStream *stream)
+{
+  if(!stream || !m_pAudioCodec)
+    return false;
+
+  GetHints(stream, &m_hints_audio);
+
+  m_pChannelMap = m_pAudioCodec->GetChannelMap();
+
+  m_audio_render = new COMXAudio();
+  m_audio_render->SetClock(m_av_clock);
+
+  m_AudioRenderOpen = m_audio_render->Initialize(NULL, "local", m_pAudioCodec->GetChannels(), m_pChannelMap,
+      m_pAudioCodec->GetSampleRate(), m_pAudioCodec->GetBitsPerSample(), false, false, false);
+
+  if(!m_AudioRenderOpen)
+  {
+    delete m_audio_render; m_audio_render = NULL;
+    return false;
+  }
+  else
+  {
+    printf("Audio codec 0x%08x channels %d samplerate %d bitspersample %d m_AudioCodecOpen %d\n",
+        m_hints_audio.codec, m_hints_audio.channels, m_hints_audio.samplerate, m_hints_audio.bitspersample, m_AudioCodecOpen);
+  }
+
+  GetStreamCodecName(stream, m_audio_codec_name);
+  return true;
+}
+
+void COMXPlayer::CloseAudioDecoder()
+{
+  if(m_audio_render)
+    delete m_audio_render;
+  m_audio_render  = NULL;
+
+  m_AudioRenderOpen = false;
+
+  m_audio_codec_name = "";
+}
+
+unsigned int g_abort = false;
+
+static int interrupt_cb(void)
+{
+  if(g_abort)
+    return 1;
+  return 0;
+}
+
+static int dvd_file_read(void *h, uint8_t* buf, int size)
+{
+  if(interrupt_cb())
+    return -1;
+
+  XFILE::CFile *pFile = (XFILE::CFile *)h;
+  return pFile->Read(buf, size);
+}
+
+static offset_t dvd_file_seek(void *h, offset_t pos, int whence)
+{
+  if(interrupt_cb())
+    return -1;
+
+  XFILE::CFile *pFile = (XFILE::CFile *)h;
+  if(whence == AVSEEK_SIZE)
+    return pFile->GetLength();
+  else
+    return pFile->Seek(pos, whence & ~AVSEEK_FORCE);
+}
+
 bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 {
   try
   {
-    CLog::Log(LOGNOTICE, "COMXPlayer: Opening: %s", file.m_strPath.c_str());
+    CLog::Log(LOGNOTICE, "COMXPlayer: Opening: %s", file.GetPath().c_str());
     // if playing a file close it first
     // this has to be changed so we won't have to close it.
     if(ThreadHandle())
       CloseFile();
+
+    unsigned char *buffer = NULL;
+    int           result  = -1;
+    AVInputFormat       *iformat          = NULL;
 
     std::string url;
 
@@ -85,10 +433,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_audio_index = 0;
     m_audio_count = 0;
-    m_audio_bits  = 0;
-    m_audio_channels = 0;
-    m_audio_samplerate = 0;
-    m_audio_offset_ms = g_settings.m_currentVideoSettings.m_AudioDelay;
 
     m_video_index = 0;
     m_video_count = 0;
@@ -98,14 +442,128 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_subtitle_index = 0;
     m_subtitle_count = 0;
-    m_subtitle_show  = g_settings.m_currentVideoSettings.m_SubtitleOn;
     m_chapter_count  = 0;
-    m_subtitle_offset_ms = g_settings.m_currentVideoSettings.m_SubtitleDelay;
+
+    m_subtitle_show  = g_settings.m_currentVideoSettings.m_SubtitleOn;
+
+    SetAVDelay(g_settings.m_currentVideoSettings.m_AudioDelay);
+    SetSubTitleDelay(g_settings.m_currentVideoSettings.m_SubtitleDelay);
+
+    m_pFile          = NULL;
+    
+    m_hints_audio.Clear();
+    m_hints_video.Clear();
+
+    m_pFormatContext  = NULL;
+    m_ioContext       = NULL;
+
+    m_seek_ms         = 0;
+    m_seek_req        = false;
+
+    m_pVideoStream    = NULL;
+    m_pAudioStream    = NULL;
+
+    m_AudioCodecOpen  = false;
+    m_VideoCodecOpen  = false;
+    m_AudioRenderOpen = false;
+
+    m_pAudioCodec     = NULL;
+    m_audio_render    = NULL;
+    m_video_decoder   = NULL;
+
+    m_audio_codec_name = "";
+    m_video_codec_name = "";
 
     // open file and start playing here.
+
+    m_bMatroska       = false;
+    m_bAVI            = false;
+    m_last_pts        = 0;
+    m_videoClock      = 0;
+    m_audioClock      = 0;
+    m_frametime       = 0;
+    m_pkt_consumed    = true;
+
+    m_filename = file.GetPath();
     
+    if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load())
+      return false;
+
+    unsigned int flags = READ_TRUNCATED | READ_BITRATE | READ_CHUNKED;
+    if( CFileItem(m_filename, false).IsInternetStream() )
+      flags |= READ_CACHED;
+
+    m_pFile = new CFile();
+    if (!m_pFile->Open(m_filename, flags))
+    {
+      CloseFile();
+      return false;
+    }
+
+    m_dllAvFormat.av_register_all();
+
+    m_dllAvFormat.url_set_interrupt_cb(interrupt_cb);
+
+    buffer = (unsigned char*)m_dllAvUtil.av_malloc(FFMPEG_FILE_BUFFER_SIZE);
+    m_ioContext = m_dllAvFormat.av_alloc_put_byte(buffer, FFMPEG_FILE_BUFFER_SIZE, 0, m_pFile, dvd_file_read, NULL, dvd_file_seek);
+    m_ioContext->max_packet_size = m_pFile->GetChunkSize();
+    if(m_ioContext->max_packet_size)
+      m_ioContext->max_packet_size *= FFMPEG_FILE_BUFFER_SIZE / m_ioContext->max_packet_size;
+
+    if(m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL) == 0)
+      m_ioContext->is_streamed = 1;
+
+    m_dllAvFormat.av_probe_input_buffer(m_ioContext, &iformat, m_filename.c_str(), NULL, 0, 0);
+
+    result = m_dllAvFormat.av_open_input_stream(&m_pFormatContext, m_ioContext, m_filename.c_str(), iformat, NULL);
+    if(result < 0)
+    {
+      CloseFile();
+      return false;
+    }
+
+    printf("file : %s reult %d format %s\n", m_filename.c_str(), result, m_pFormatContext->iformat->name);
+
+    m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
+    m_pFormatContext->max_analyze_duration = 0;
+
+    result = m_dllAvFormat.av_find_stream_info(m_pFormatContext);
+    if(result < 0)
+    {
+      m_dllAvFormat.av_close_input_file(m_pFormatContext);
+      CloseFile();
+      return false;
+    }
+
+    m_bMatroska = strncmp(m_pFormatContext->iformat->name, "matroska", 8) == 0; // for "matroska.webm"
+    m_bAVI = strcmp(m_pFormatContext->iformat->name, "avi") == 0;
+
+    // if format can be nonblocking, let's use that
+    m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
+
+    m_dllAvFormat.dump_format(m_pFormatContext, 0, m_filename.c_str(), 0);
+
+    if(!GetStreams())
+    {
+      CloseFile();
+      return false;
+    }
+
+    int64_t len = m_pFile->GetLength();
+    int64_t tim = (int)(m_pFormatContext->duration / (AV_TIME_BASE / 1000));
+
+    if(len > 0 && tim > 0)
+    {
+      unsigned rate = len * 1000 / tim;
+      unsigned maxrate = rate + 1024 * 1024 / 8;
+      if(m_pFile->IoControl(IOCTRL_CACHE_SETRATE, &maxrate) >= 0)
+        CLog::Log(LOGDEBUG, "COMXPlayer::OpenFile - set cache throttle rate to %u bytes per second", maxrate);
+    }
+
     m_ready.Reset();
+
     Create();
+
     if (!m_ready.WaitMSec(100))
     {
       CGUIDialogBusy* dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
@@ -142,6 +600,53 @@ bool COMXPlayer::CloseFile()
   // we are done after the StopThread call
   StopThread();
   
+  m_av_clock->Pause();
+
+  CloseVideoDecoder();
+  CloseAudioDecoder();
+  CloseAudioCodec();
+
+  m_video_streams.clear();
+  m_audio_streams.clear();
+
+  /* nobody tooked care about the av packet */
+  if(!m_pkt_consumed)
+  {
+    m_dllAvCodec.av_free_packet(&m_pkt);
+    m_pkt_consumed = true;
+  }
+
+  if (m_pFormatContext)
+  {
+    if (m_ioContext)
+    {
+      if(m_pFormatContext->pb && m_pFormatContext->pb != m_ioContext)
+      {
+        CLog::Log(LOGWARNING, "OMXPlayer::CloseFile - demuxer changed our byte context behind our back, possible memleak");
+        m_ioContext = m_pFormatContext->pb;
+      }
+      m_dllAvFormat.av_close_input_stream(m_pFormatContext);
+      if (m_ioContext->buffer)
+        m_dllAvUtil.av_free(m_ioContext->buffer);
+      m_dllAvUtil.av_free(m_ioContext);
+    }
+    else
+      m_dllAvFormat.av_close_input_file(m_pFormatContext);
+  }
+  m_ioContext       = NULL;
+  m_pFormatContext  = NULL;
+
+  if (m_pFile)
+  {
+    m_pFile->Close();
+    delete m_pFile;
+    m_pFile = NULL;
+  }
+
+  m_dllAvUtil.Unload();
+  m_dllAvCodec.Unload();
+  m_dllAvFormat.Unload();
+
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
   g_renderManager.UnInit();
 
@@ -156,6 +661,9 @@ bool COMXPlayer::IsPlaying() const
 void COMXPlayer::Pause()
 {
   CSingleLock lock(m_csection);
+
+  if(!m_av_clock)
+    return;
 
   if (m_StopPlaying)
     return;
@@ -210,7 +718,7 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
       return;
     }
     // seek to previous chapter
-    if (!bPlus && chapter_index > 1)
+    if (!bPlus && chapter_index)
     {
       SeekChapter(chapter_index - 1);
       return;
@@ -308,7 +816,7 @@ void COMXPlayer::SetAVDelay(float fValue)
 
 float COMXPlayer::GetAVDelay()
 {
-  return m_audio_offset_ms;
+  return ((float)m_audio_offset_ms / 1e3);
 }
 
 void COMXPlayer::SetSubTitleDelay(float fValue)
@@ -320,7 +828,7 @@ void COMXPlayer::SetSubTitleDelay(float fValue)
 
 float COMXPlayer::GetSubTitleDelay()
 {
-  return m_subtitle_offset_ms;
+  return ((float)m_subtitle_offset_ms / 1e3);
 }
 
 void COMXPlayer::SetVolume(long nVolume)
@@ -328,33 +836,39 @@ void COMXPlayer::SetVolume(long nVolume)
   // nVolume is a milliBels from -6000 (-60dB or mute) to 0 (0dB or full volume)
   CSingleLock lock(m_csection);
 
-  float volume;
+  /*
+  float volume = 0.0f;
   if (nVolume == -6000) {
     // We are muted
     volume = 0.0f;
   } else {
-    volume = (double)nVolume / -10000.0f;
     // Convert what XBMC gives into what omx needs
+    volume = (double)nVolume / -10000.0f;
   }
-  //set volume here
+
+  if(m_AudioRenderOpen && m_audio_render)
+    m_audio_render->SetCurrentVolume(volume);
+  */
+
+  if(m_AudioRenderOpen && m_audio_render)
+    m_audio_render->SetCurrentVolume(nVolume);
 }
 
 void COMXPlayer::GetAudioInfo(CStdString &strAudioInfo)
 {
-  /*
-  m_audio_info.Format("Audio stream (%d) [%s-%s]",
-    m_audio_index, acodec_name[m_audio_index], acodec_language[m_audio_index]);
-  */
-  strAudioInfo = m_audio_info;
+  std::ostringstream s;
+    s << "kB/s:" << fixed << setprecision(2) << (double)m_hints_audio.bitrate / 1024.0;
+
+  strAudioInfo.Format("Audio stream (%s) [%s]", m_audio_codec_name.c_str(), s.str());
 }
 
 void COMXPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
-  /*
-  m_video_info.Format("Video stream (%d) [%s-%s]",
-    m_video_index, vcodec_name[m_video_index], vcodec_language[m_video_index]);
-  */
-  strVideoInfo = m_video_info;
+  std::ostringstream s;
+    s << "fr:"     << fixed << setprecision(3) << m_video_fps;
+    s << ", Mb/s:" << fixed << setprecision(2) << (double)m_hints_video.bitrate / (1024.0*1024.0);
+
+  strVideoInfo.Format("Video stream (%s) [%s]", m_video_codec_name.c_str(), s.str());
 }
 
 void COMXPlayer::GetGeneralInfo(CStdString& strGeneralInfo)
@@ -372,15 +886,88 @@ int COMXPlayer::GetAudioStream()
 	return m_audio_index;
 }
 
+void COMXPlayer::GetStreamCodecName(AVStream *stream, CStdString &strStreamName)
+{
+  strStreamName = "";
+
+  if(!stream)
+    return;
+
+  unsigned int in = stream->codec->codec_tag;
+  // FourCC codes are only valid on video streams, audio codecs in AVI/WAV
+  // are 2 bytes and audio codecs in transport streams have subtle variation
+  // e.g AC-3 instead of ac3
+  if (stream->codec->codec_type == AVMEDIA_TYPE_VIDEO && in != 0)
+  {
+    char fourcc[5];
+    memcpy(fourcc, &in, 4);
+    fourcc[4] = 0;
+    // fourccs have to be 4 characters
+    if (strlen(fourcc) == 4)
+    {
+      strStreamName = fourcc;
+      strStreamName.MakeLower();
+      return;
+    }
+  }
+
+#ifdef FF_PROFILE_DTS_HD_MA
+  /* use profile to determine the DTS type */
+  if (stream->codec->codec_id == CODEC_ID_DTS)
+  {
+    if (stream->codec->profile == FF_PROFILE_DTS_HD_MA)
+      strStreamName = "dtshd_ma";
+    else if (stream->codec->profile == FF_PROFILE_DTS_HD_HRA)
+      strStreamName = "dtshd_hra";
+    else
+      strStreamName = "dca";
+    return;
+  }
+#endif
+
+  AVCodec *codec = m_dllAvCodec.avcodec_find_decoder(stream->codec->codec_id);
+
+  if (codec)
+    strStreamName = codec->name;
+}
+
 void COMXPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 {
-  //strStreamName = acodec_name[iStream];
+  if((unsigned int)iStream > m_audio_streams.size())
+    return;
+
+  //AVStream *stream = m_audio_streams[iStream];
+  //GetStreamCodecName(stream, strStreamName);
+  GetAudioStreamLanguage(iStream, strStreamName);
 }
  
 void COMXPlayer::SetAudioStream(int SetAudioStream)
 {
   m_audio_index = SetAudioStream;
-  // set audio index here
+}
+
+void COMXPlayer::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
+{
+  char language[4];
+  memset(language, 0, sizeof(language));
+
+  strLanguage = "";
+  
+  if((unsigned int)iStream > m_audio_streams.size())
+    return;
+
+  AVStream *stream = m_audio_streams[iStream];
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
+    // API added on: 2010-10-15
+    // (Note that while the function was available earlier, the generic
+    // metadata tags were not populated by default)
+  AVMetadataTag *langTag = m_dllAvFormat.av_metadata_get(stream->metadata, "language", NULL, 0);
+  if (langTag)
+    strncpy(language, langTag->value, 3);
+#else
+  strcpy(language, stream->language );
+#endif
+  strLanguage = language;
 }
 
 int COMXPlayer::GetSubtitleCount()
@@ -401,7 +988,6 @@ void COMXPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 void COMXPlayer::SetSubtitle(int iStream)
 {
   m_subtitle_index = iStream;
-  // set audio index here
 }
 
 bool COMXPlayer::GetSubtitleVisible()
@@ -451,7 +1037,7 @@ void COMXPlayer::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   CRect gui, display, dst_rect;
   RESOLUTION res = g_graphicsContext.GetVideoResolution();
   gui.SetRect(0, 0, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
-  display.SetRect(0, 0, g_settings.m_ResInfo[res].iScreenWidth, g_settings.m_ResInfo[res].iScreenHeight);
+  display.SetRect(0, 0, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
   
   dst_rect = m_dst_rect;
   if (gui != display)
@@ -473,11 +1059,6 @@ void COMXPlayer::GetVideoAspectRatio(float &fAR)
 
 int COMXPlayer::GetChapterCount()
 {
-  // check for avi/mkv chapters.
-  if (m_chapter_count == 0)
-  {
-  }
-  //CLog::Log(LOGDEBUG, "COMXPlayer::GetChapterCount:m_chapter_count(%d)", m_chapter_count);
   return m_chapter_count;
 }
 
@@ -485,24 +1066,29 @@ int COMXPlayer::GetChapter()
 {
   // returns a one based value.
   // if we have a chapter list, we need to figure out which chapter we are in.
-  int chapter_index = 0;
+  if(m_pFormatContext == NULL || m_chapter_count < 1)
+    return 0;
 
-  //CLog::Log(LOGDEBUG, "COMXPlayer::GetChapter:chapter_index(%d)", chapter_index);
-  return chapter_index + 1;
+  for(int i = 0; i < m_chapter_count - 1; i++)
+  {
+    if(m_elapsed_ms >= m_chapters[i].seekto_ms && m_elapsed_ms < m_chapters[i + 1].seekto_ms)
+      return i + 1;
+  }
+
+  return 0;
 }
 
 void COMXPlayer::GetChapterName(CStdString& strChapterName)
 {
-  if (m_chapter_count)
+  if(m_chapter_count)
     strChapterName = m_chapters[GetChapter() - 1].name;
-  //CLog::Log(LOGDEBUG, "COMXPlayer::GetChapterName:strChapterName(%s)", strChapterName.c_str());
 }
 
 int COMXPlayer::SeekChapter(int chapter_index)
 {
   // chapter_index is a one based value.
   CLog::Log(LOGDEBUG, "COMXPlayer::SeekChapter:chapter_index(%d)", chapter_index);
-  /*
+  if(m_chapter_count > 1)
   {
     if (chapter_index < 0)
       chapter_index = 0;
@@ -511,6 +1097,7 @@ int COMXPlayer::SeekChapter(int chapter_index)
 
     // Seek to the chapter.
     SeekTime(m_chapters[chapter_index - 1].seekto_ms);
+    m_callback.OnPlayBackSeekChapter(chapter_index);
   }
   else
   {
@@ -520,99 +1107,96 @@ int COMXPlayer::SeekChapter(int chapter_index)
     else
       Seek(false, true);
   }
-  */
+
   return 0;
 }
 
 float COMXPlayer::GetActualFPS()
 {
-  CLog::Log(LOGDEBUG, "COMXPlayer::GetActualFPS:m_video_fps(%f)", m_video_fps);
   return m_video_fps;
 }
 
 void COMXPlayer::SeekTime(__int64 seek_ms)
 {
-  // seek here
+  CSingleLock lock(m_SeekSection);
+  
+  if(m_pFile && m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL))
+  {
+    m_seek_ms = seek_ms;
+    //printf("m_seek_ms %lld seek_ms %lld\n", m_seek_ms, seek_ms);
+    m_seek_req = true;
+  }
   m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
 }
 
 __int64 COMXPlayer::GetTime()
 {
-  // get elapsed ms here
   return m_elapsed_ms;
 }
 
 int COMXPlayer::GetTotalTime()
 {
-  // get total ms here
 	return m_duration_ms / 1000;
 }
 
 int COMXPlayer::GetAudioBitrate()
 {
-  CLog::Log(LOGDEBUG, "COMXPlayer::GetAudioBitrate");
-  return 0;
+  return m_hints_audio.bitrate;
 }
 int COMXPlayer::GetVideoBitrate()
 {
-  CLog::Log(LOGDEBUG, "COMXPlayer::GetVideoBitrate");
-  return 0;
+  return m_hints_video.bitrate;
 }
 
 int COMXPlayer::GetSourceBitrate()
 {
-  CLog::Log(LOGDEBUG, "COMXPlayer::GetSourceBitrate");
-  return 0;
+  int ret = 0;
+
+  if(!m_pFile)
+    return 0;
+
+  if(m_pFile->GetBitstreamStats())
+  {
+    BitstreamStats *status = m_pFile->GetBitstreamStats();
+    ret = status->GetBitrate();
+  }
+
+  return ret;
 }
 
 int COMXPlayer::GetChannels()
 {
-  // returns number of audio channels (ie 5.1 = 6)
-  return m_audio_channels;
+  return m_hints_audio.channels;
 }
 
 int COMXPlayer::GetBitsPerSample()
 {
-  return m_audio_bits;
+  return m_hints_audio.bitspersample;
 }
 
 int COMXPlayer::GetSampleRate()
 {
-  return m_audio_samplerate;
+  return m_hints_audio.samplerate;
 }
 
 CStdString COMXPlayer::GetAudioCodecName()
 {
-  if (m_audio_count && m_audio_index >= 0)
-  {
-    return acodec_name[m_audio_index];
-  }
-  else
-  {
-    return "";
-  }
+  return m_audio_codec_name;
 }
 
 CStdString COMXPlayer::GetVideoCodecName()
 {
-  if (m_video_count && m_video_index >= 0)
-  {
-    return vcodec_name[m_video_index];
-  }
-  else
-  {
-    return "";
-  }
+  return m_video_codec_name;
 }
 
 int COMXPlayer::GetPictureWidth()
 {
-  return m_video_width;
+  return m_hints_video.width;//m_video_width;
 }
 
 int COMXPlayer::GetPictureHeight()
 {
-  return m_video_height;
+  return m_hints_video.height;//m_video_height;
 }
 
 bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
@@ -653,7 +1237,8 @@ bool COMXPlayer::SetPlayerState(CStdString state)
 
 CStdString COMXPlayer::GetPlayingTitle()
 {
-  return video_title;
+  //return video_title;
+  return "";
 }
 
 int COMXPlayer::GetCacheLevel() const
@@ -684,57 +1269,395 @@ void COMXPlayer::OnExit()
 
 void COMXPlayer::Process()
 {
+  if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
+    CLog::Log(LOGDEBUG, "COMXPlayer: SetThreadPriority failed");
+
+  int                 result            = -1;
+  int                 m_video_index_use = -1;
+  int                 m_audio_index_use = -1;
+
+  if(!m_pFile)
+    goto do_exit;
+
+  m_video_index_use = m_video_index;
+  m_audio_index_use = m_audio_index;
+
+  if(!OpenVideoDecoder(m_pVideoStream))
+    goto do_exit;
+
+  if(!OpenAudioCodec(m_pAudioStream))
+    goto do_exit;
+
+  if(!OpenAudioDecoder(m_pAudioStream))
+    goto do_exit;
+
+  if(!m_av_clock->StateExecute())
+    goto do_exit;
+
+  m_av_clock->UpdateCurrentPTS(m_pFormatContext);
+
+  m_duration_ms = (int)(m_pFormatContext->duration / (AV_TIME_BASE /  1000));
+
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
   try
   {
-    // wait for playing
+    // starttime has units of seconds (SeekTime will start playback)
+    if (m_options.starttime > 0)
+      SeekTime(m_options.starttime * 1000);
+    SetVolume(g_settings.m_nVolumeLevel);
+    SetAVDelay(m_audio_offset_ms);
+    SetSubTitleDelay(m_subtitle_offset_ms);
 
-    if (waitplaying(4000))
+    // we are done initializing now, set the readyevent which will
+    // drop CGUIDialogBusy, and release the hold in OpenFile
+    m_ready.Set();
+
+    // at this point we should know all info about audio/video stream.
+
+    if (m_video_count)
     {
-      // starttime has units of seconds (SeekTime will start playback)
-      if (m_options.starttime > 0)
-        SeekTime(m_options.starttime * 1000);
-      SetVolume(g_settings.m_nVolumeLevel);
-      SetAVDelay(m_audio_offset_ms);
-      SetSubTitleDelay(m_subtitle_offset_ms);
-        
-      // we are done initializing now, set the readyevent which will
-      // drop CGUIDialogBusy, and release the hold in OpenFile
-      m_ready.Set();
+      unsigned int flags = 0;
+      flags |= CONF_FLAGS_FORMAT_BYPASS;
+      flags |= CONF_FLAGS_FULLSCREEN;
+      //flags |= RENDER_FLAG_NOOSD;
+      flags |= RENDER_FLAG_NOOSDALPHA;
+      CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
+        __FUNCTION__, m_video_width, m_video_height, m_video_fps);
 
-      // at this point we should know all info about audio/video stream.
-
-      if (m_video_count)
+      if(!g_renderManager.Configure(m_video_width, m_video_height,
+        m_video_width, m_video_height, m_video_fps, flags, 0))
       {
-        unsigned int flags = 0;
-        flags |= CONF_FLAGS_FORMAT_BYPASS;
-        flags |= CONF_FLAGS_FULLSCREEN;
-        CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
-          __FUNCTION__, m_video_width, m_video_height, m_video_fps);
-
-        if(!g_renderManager.Configure(m_video_width, m_video_height,
-          m_video_width, m_video_height, m_video_fps, flags))
-        {
-          CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
-        }
-        if (!g_renderManager.IsStarted())
-        {
-          CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
-        }
+        CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
       }
-    }
-    else
-    {
-      CLog::Log(LOGERROR, "COMXPlayer::Process: WaitFoPlaying() failed");
-      goto do_exit;
+      if (!g_renderManager.IsStarted())
+      {
+        CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
+      }
     }
 
     if (m_options.identify == false)
       m_callback.OnPlayBackStarted();
 
+    bool bBuffering = false;
+
     while (!m_bStop && !m_StopPlaying)
     {
-      usleep(50*1000);
+
+      if(g_abort)
+        goto do_exit;
+      
+      if(m_paused)
+      {
+        if(!m_av_clock->IsPaused())
+          m_av_clock->Pause();
+
+        OMXSleep(2);
+        continue;
+      }
+      else if (!bBuffering)
+      {
+        if(m_av_clock->IsPaused())
+          m_av_clock->Resume();
+      }
+
+      if(m_seek_req)
+      {
+        /*
+        if(m_last_pts == AV_NOPTS_VALUE)
+          m_last_pts = 0;
+        */
+
+        //int64_t pos = (m_elapsed_ms + m_seek_ms) * 1000;
+        int64_t pos = m_seek_ms * 1000;
+        if(pos < 0)
+          pos = 0;
+
+        //printf("seek %f m_seek_ms %d\n", (double)pos / AV_TIME_BASE, m_seek_ms);
+
+        int     seek_flags  = (m_seek_ms - m_elapsed_ms) < 0 ? AVSEEK_FLAG_BACKWARD : 0;
+
+        if(m_pFormatContext->start_time != (int64_t)AV_NOPTS_VALUE)
+          pos += m_pFormatContext->start_time;
+
+        int ret = m_dllAvFormat.av_seek_frame(m_pFormatContext, -1, pos, seek_flags);
+
+        if(ret < 0)
+        {
+          printf("error while seeking seek_flags %d pos %f\n", seek_flags, (double)pos / AV_TIME_BASE);
+          //goto do_exit;
+        }
+        else
+        {
+          m_pAudioCodec->Reset();
+
+          if(m_VideoCodecOpen)
+          {
+            m_video_decoder->Reset();
+          }
+          if(m_AudioCodecOpen)
+          {
+            m_audio_render->Flush();
+          }
+          m_av_clock->WaitStart(pos * 1000); 
+          m_av_clock->UpdateCurrentPTS(m_pFormatContext);
+        }
+
+        CSingleLock lock(m_SeekSection);
+        m_SeekSection.lock();
+        m_seek_req = false;
+        m_SeekSection.unlock();
+      }
+
+      if(m_pkt_consumed)
+      {
+        m_pkt.size = 0;
+        m_pkt.data = NULL;
+        m_pkt.stream_index = MAX_STREAMS;
+  
+        result = m_dllAvFormat.av_read_frame(m_pFormatContext, &m_pkt);
+        if (result < 0)
+        {
+          printf("error read packet\n");
+          goto do_exit;
+        }
+        else if (m_pkt.size < 0 || m_pkt.stream_index >= MAX_STREAMS)
+        {
+          m_dllAvCodec.av_free_packet(&m_pkt);
+          goto do_exit;
+        }
+
+        m_pkt_consumed = false;
+
+        if(m_pkt.dts == 0)
+          m_pkt.dts = AV_NOPTS_VALUE;
+        if(m_pkt.pts == 0)
+          m_pkt.pts = AV_NOPTS_VALUE;
+
+        AVStream *pStream = m_pFormatContext->streams[m_pkt.stream_index];
+
+        if(m_bMatroska && pStream->codec && pStream->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+        { // matroska can store different timestamps
+          // for different formats, for native stored
+          // stuff it is pts, but for ms compatibility
+          // tracks, it is really dts. sadly ffmpeg
+          // sets these two timestamps equal all the
+          // time, so we select it here instead
+          if(pStream->codec->codec_tag == 0)
+            m_pkt.dts = AV_NOPTS_VALUE;
+          else
+            m_pkt.pts = AV_NOPTS_VALUE;
+        }
+  
+        // we need to get duration slightly different for matroska embedded text subtitels
+        if(m_bMatroska && pStream->codec->codec_id == CODEC_ID_TEXT && m_pkt.convergence_duration != 0)
+          m_pkt.duration = m_pkt.convergence_duration;
+
+        if(m_bAVI && pStream->codec && pStream->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+        {
+          // AVI's always have borked pts, specially if m_pFormatContext->flags includes
+          // AVFMT_FLAG_GENPTS so always use dts
+          m_pkt.pts = AV_NOPTS_VALUE;
+        }
+
+        m_pkt.dts = OMXClock::ConvertTimestamp(m_pkt.dts, m_pFormatContext->start_time, &pStream->time_base);
+        m_pkt.pts = OMXClock::ConvertTimestamp(m_pkt.pts, m_pFormatContext->start_time, &pStream->time_base);
+        m_pkt.duration = DVD_SEC_TO_TIME((double)m_pkt.duration * pStream->time_base.num / pStream->time_base.den);
+
+        // used to guess streamlength
+        if ((uint64_t)m_pkt.dts != AV_NOPTS_VALUE && (m_pkt.dts > m_av_clock->GetCurrentPts() || m_av_clock->GetCurrentPts() == AV_NOPTS_VALUE))
+          m_av_clock->SetCurrentPts(m_pkt.dts);
+
+        // check if stream has passed full duration, needed for live streams
+        if(m_pkt.dts != (int64_t)AV_NOPTS_VALUE)
+        {
+          int64_t duration;
+          duration = m_pkt.dts;
+          if(pStream->start_time != (int64_t)AV_NOPTS_VALUE)
+            duration -= pStream->start_time;
+
+          if(duration > pStream->duration)
+          {
+            pStream->duration = duration;
+            duration = m_dllAvUtil.av_rescale_rnd(pStream->duration, pStream->time_base.num * AV_TIME_BASE, pStream->time_base.den, AV_ROUND_NEAR_INF);
+            if ((m_pFormatContext->duration == (int64_t)AV_NOPTS_VALUE && m_pFormatContext->file_size > 0)
+                ||  (m_pFormatContext->duration != (int64_t)AV_NOPTS_VALUE && duration > m_pFormatContext->duration))
+              m_pFormatContext->duration = duration;
+          }
+        }
+
+        // check if stream seem to have grown since start
+        if(m_pFormatContext->file_size > 0 && m_pFormatContext->pb)
+        {
+          if(m_pFormatContext->pb->pos > m_pFormatContext->file_size)
+            m_pFormatContext->file_size = m_pFormatContext->pb->pos;
+        }
+
+        // Audio Stream changed
+        if(m_audio_index != m_audio_index_use)
+        {
+          m_av_clock->Pause();
+
+          CloseAudioDecoder();
+          CloseAudioCodec();
+
+          m_audio_index_use = m_audio_index;
+          if((unsigned int)m_audio_index > m_audio_streams.size())
+          {
+            CLog::Log(LOGERROR, "COMXPlayer::Process: Audio stream index error");
+            goto do_exit;
+          }
+          m_pAudioStream = m_audio_streams[m_audio_index];
+
+          m_AudioCodecOpen = OpenAudioCodec(m_pAudioStream);
+          if(!m_AudioCodecOpen)
+            goto do_exit;
+
+          m_AudioRenderOpen = false; //OpenAudioDecoder(m_pAudioStream);
+
+          /*
+          if(!m_AudioRenderOpen)
+            goto do_exit;
+
+          m_av_clock->StateExecute();
+          m_av_clock->Resume();
+          */
+        }
+      }
+
+      if(m_AudioRenderOpen)
+      {
+        if(bBuffering && (m_audio_render->GetDelay() > 1.0f))
+        {
+          m_av_clock->Resume();
+          bBuffering = false;
+        } else if(!bBuffering && (m_audio_render->GetDelay() < 0.25)) {
+          m_av_clock->Pause();
+          bBuffering = true;
+        }
+      }
+
+      if( ( m_pVideoStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_VideoCodecOpen )
+      {
+        if ((uint64_t)m_pkt.dts == AV_NOPTS_VALUE && (uint64_t)m_pkt.pts == AV_NOPTS_VALUE)
+          m_videoClock = m_pkt.pts;
+        else if ((uint64_t)m_pkt.pts == AV_NOPTS_VALUE)
+          m_videoClock = m_pkt.dts;
+        else if ((uint64_t)m_pkt.pts != AV_NOPTS_VALUE)
+          m_videoClock = m_pkt.pts;
+
+        m_video_decoder->Decode(m_pkt.data, m_pkt.size, m_videoClock + (m_audio_offset_ms * 1000), m_videoClock + (m_audio_offset_ms * 1000));
+        m_av_clock->UpdateVideoClock(m_videoClock);
+
+        m_last_pts = m_videoClock;
+
+        if ((uint64_t)m_pkt.dts == AV_NOPTS_VALUE && (uint64_t)m_pkt.pts == AV_NOPTS_VALUE)
+          m_videoClock += m_frametime;
+
+        if(m_AudioRenderOpen && m_VideoCodecOpen)
+        {
+          printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, 80*1024*VIDEO_BUFFERS,
+             m_video_decoder->GetFreeSpace(), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
+        }
+
+        m_pkt_consumed = true;
+      }
+      else if( ( m_pAudioStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_AudioCodecOpen )
+      {
+        const uint8_t *data_dec = m_pkt.data;
+        int           data_len  = m_pkt.size;
+
+        if ((uint64_t)m_pkt.pts != AV_NOPTS_VALUE)
+          m_audioClock = m_pkt.pts;
+        else if ((uint64_t)m_pkt.dts != AV_NOPTS_VALUE)
+          m_audioClock = m_pkt.dts;
+
+        while(data_len > 0)
+        {
+          int len = m_pAudioCodec->Decode((BYTE *)data_dec, data_len);
+          if (len < 0)
+          {
+            printf("reset\n");
+            m_pAudioCodec->Reset();
+            break;
+          }
+
+          if( len >  data_len )
+          {
+            printf("len >  data_len\n");
+            m_pAudioCodec->Reset();
+            break;
+          }
+   
+          data_dec+= len;
+          data_len -= len;
+  
+          uint8_t *decoded;
+          int decoded_size = m_pAudioCodec->GetData(&decoded);
+  
+          if(decoded_size <=0)
+            continue;
+  
+          int ret = 0;
+
+          if(!m_AudioRenderOpen)
+          {
+            m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
+            if(!m_AudioRenderOpen)
+              goto do_exit;
+            m_av_clock->StateExecute();
+            m_av_clock->Pause();
+          }
+
+          if(m_AudioRenderOpen)
+          {
+            ret = m_audio_render->AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
+            if(ret != decoded_size)
+            {
+              printf("error ret %d decoded_size %d\n", ret, decoded_size);
+            }
+            m_av_clock->StateExecute();
+          }
+
+          // TODO: 2 channel output for now
+          //int n = (2 * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
+          int n = (m_hints_audio.channels * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
+          if (n > 0)
+          {
+            //int real_size = (decoded_size / m_hints_audio.channels) * 2;
+            //m_audioClock += ((double)real_size * DVD_TIME_BASE) / n;
+            m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
+          }
+
+        }
+
+        m_av_clock->UpdateAudioClock(m_audioClock);
+
+        m_last_pts = m_audioClock;
+
+        if(m_AudioRenderOpen && m_VideoCodecOpen)
+        {
+          printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, 80*1024*VIDEO_BUFFERS,
+             m_video_decoder->GetFreeSpace(), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
+        }
+
+        m_av_clock->UpdateAudioClock(m_audioClock);
+
+        m_pkt_consumed = true;
+      }
+      else
+      {
+        m_pkt_consumed = true;
+      }
+
+      if(m_audioClock != AV_NOPTS_VALUE)
+        m_elapsed_ms = m_audioClock / 1000;
+      else if(m_videoClock != AV_NOPTS_VALUE)
+        m_elapsed_ms = m_videoClock / 1000;
+      else
+        m_elapsed_ms = 0;
+
+      if(m_pkt_consumed)
+        m_dllAvCodec.av_free_packet(&m_pkt);
     }
   }
   catch(...)
@@ -743,6 +1666,18 @@ void COMXPlayer::Process()
   }
 
 do_exit:
+
+  m_av_clock->Pause();
+
+  /* nobody tooked care about the av packet */
+  if(!m_pkt_consumed)
+  {
+    m_dllAvCodec.av_free_packet(&m_pkt);
+    m_pkt_consumed = true;
+  }
+
+  m_StopPlaying = true;
+
   m_ready.Set();
 
 }
