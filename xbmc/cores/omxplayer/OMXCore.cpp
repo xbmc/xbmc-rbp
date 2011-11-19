@@ -390,6 +390,12 @@ OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetInputBuffer()
   if(!m_handle)
     return NULL;
 
+  //int val; sem_getvalue(&m_input_buffer_count_sem, &val);printf("GetInputBuffer1: m_input_buffer_count=%d\n", val);
+
+  sem_wait(&m_input_buffer_count_sem);
+
+  //sem_getvalue(&m_input_buffer_count_sem, &val);printf("GetInputBuffer2: m_input_buffer_count=%d\n", val);
+
   pthread_mutex_lock(&m_omx_input_mutex);
   if(m_omx_input_avaliable.empty())
   {
@@ -408,6 +414,12 @@ OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetOutputBuffer()
 
   if(!m_handle)
     return NULL;
+
+  //int val; sem_getvalue(&m_output_buffer_count_sem, &val);printf("GetOutputBuffer1: m_output_buffer_count=%d\n", val);
+
+  sem_wait(&m_output_buffer_count_sem);
+
+  //sem_getvalue(&m_output_buffer_count_sem, &val);printf("GetOutputBuffer2: m_output_buffer_count=%d\n", val);
 
   pthread_mutex_lock(&m_omx_output_mutex);
   if(m_omx_output_avaliable.empty())
@@ -455,6 +467,8 @@ OMX_ERRORTYPE COMXCoreComponent::AllocInputBuffers(void)
   m_input_alignment     = portFormat.nBufferAlignment;
   m_input_buffer_count  = portFormat.nBufferCountActual;
   m_input_buffer_size   = portFormat.nBufferSize;
+
+  sem_init(&m_input_buffer_count_sem, 0, m_input_buffer_count);
 
   CLog::Log(LOGDEBUG, "COMXCoreComponent::AllocInputBuffers component(%s) - iport(%d), nBufferCountMin(%lu), nBufferCountActual(%lu), nBufferSize(%lu), nBufferAlignmen(%lu)\n",
             m_componentName.c_str(), GetInputPort(), portFormat.nBufferCountMin,
@@ -524,6 +538,8 @@ OMX_ERRORTYPE COMXCoreComponent::AllocOutputBuffers(void)
   m_output_alignment     = portFormat.nBufferAlignment;
   m_output_buffer_count  = portFormat.nBufferCountActual;
   m_output_buffer_size   = portFormat.nBufferSize;
+
+  sem_init(&m_output_buffer_count_sem, 0, m_output_buffer_count);
 
   CLog::Log(LOGDEBUG, "COMXCoreComponent::AllocOutputBuffers component(%s) - iport(%d), nBufferCountMin(%lu), nBufferCountActual(%lu), nBufferSize(%lu) nBufferAlignmen(%lu)\n",
             m_componentName.c_str(), m_output_port, portFormat.nBufferCountMin,
@@ -604,6 +620,8 @@ OMX_ERRORTYPE COMXCoreComponent::FreeInputBuffers(bool wait)
   m_input_buffer_size   = 0;
   m_input_buffer_count  = 0;
 
+  sem_destroy(&m_input_buffer_count_sem);
+
   return omx_err;
 }
 
@@ -649,6 +667,8 @@ OMX_ERRORTYPE COMXCoreComponent::FreeOutputBuffers(bool wait)
   m_output_alignment    = 0;
   m_output_buffer_size  = 0;
   m_output_buffer_count = 0;
+
+  sem_destroy(&m_output_buffer_count_sem);
 
   return omx_err;
 }
@@ -1100,6 +1120,9 @@ OMX_ERRORTYPE COMXCoreComponent::DecoderEmptyBufferDone(OMX_HANDLETYPE hComponen
   ctx->m_omx_input_avaliable.push(pBuffer);
   pthread_mutex_unlock(&ctx->m_omx_input_mutex);
 
+  sem_post(&m_input_buffer_count_sem);
+  //int val; sem_getvalue(&m_input_buffer_count_sem, &val);printf("DecoderEmptyBufferDone: m_input_buffer_count=%d\n", val);
+
   return OMX_ErrorNone;
 }
 
@@ -1113,6 +1136,9 @@ OMX_ERRORTYPE COMXCoreComponent::DecoderFillBufferDone(OMX_HANDLETYPE hComponent
   pthread_mutex_lock(&ctx->m_omx_output_mutex);
   ctx->m_omx_output_avaliable.push(pBuffer);
   pthread_mutex_unlock(&ctx->m_omx_output_mutex);
+
+  sem_post(&m_output_buffer_count_sem);
+  //int val; sem_getvalue(&m_output_buffer_count_sem, &val);printf("DecoderFillBufferDone: m_output_buffer_count=%d\n", val);
 
   return OMX_ErrorNone;
 }
