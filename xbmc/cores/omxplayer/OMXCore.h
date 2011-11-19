@@ -192,7 +192,7 @@ private:
   DllOMX        *m_DllOMX;
   bool          m_DllOMXOpen;
   sem_t         m_input_buffer_count_sem;
-  sem_t         m_output_buffer_count_sem;
+  //sem_t         m_output_buffer_count_sem;
 };
 
 class COMXCore
