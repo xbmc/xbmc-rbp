@@ -1528,22 +1528,26 @@ void COMXPlayer::Process()
       if(m_VideoCodecOpen) {
         if(bBuffering && (m_video_decoder->GetFreeSpace() == 0))
         {
-          bBuffering = false;
+          bVideoBufferFull = true;
         }
       }
 
       if(m_AudioRenderOpen)
       {
-        if(bBuffering && ((m_audio_render->GetDelay() > 1.0f) || bVideoBufferFull))
+        if(bBuffering && ((m_audio_render->GetDelay() > AUDIO_BUFFER_SECONDS - 0.25f) || bVideoBufferFull))
         {
           m_av_clock->Resume();
           bBuffering = false;
-        } else if(!bBuffering && (m_audio_render->GetDelay() < 0.25)) {
+        } 
+        else if(!bBuffering && (m_audio_render->GetDelay() < 0.25)) 
+        {
           m_av_clock->Pause();
           bBuffering = true;
         }
 
-      } else if(bVideoBufferFull && bBuffering) {
+      } 
+      else if(bVideoBufferFull && bBuffering) 
+      {
         m_av_clock->Resume();
         bBuffering = false;
       }
