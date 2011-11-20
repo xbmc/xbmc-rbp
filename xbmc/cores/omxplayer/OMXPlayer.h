@@ -169,6 +169,7 @@ private:
   virtual bool GetHints(AVStream *stream, COMXStreamInfo *hints);
   virtual bool OpenVideoDecoder(AVStream *stream);
   virtual void CloseVideoDecoder();
+  virtual bool IsPassthrough(AVStream *stream);
   virtual bool OpenAudioCodec(AVStream *stream);
   virtual void CloseAudioCodec();
   virtual bool OpenAudioDecoder(AVStream *stream);
@@ -246,4 +247,6 @@ private:
   double                  m_frametime;
   bool                    m_pkt_consumed;
   AVPacket                m_pkt;
+
+  bool                    m_Passthrough;
 };

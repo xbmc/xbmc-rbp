@@ -337,6 +337,47 @@ void COMXPlayer::CloseAudioCodec()
   m_audio_codec_name = "";
 }
 
+bool COMXPlayer::IsPassthrough(AVStream *stream)
+{
+  if(!stream || !m_pAudioCodec)
+    return false;
+
+  GetHints(stream, &m_hints_audio);
+
+  int  m_outputmode = 0;
+  bool bitstream = false;
+  bool passthrough = false;
+
+  m_outputmode = g_guiSettings.GetInt("audiooutput.mode");
+
+  switch(m_outputmode)
+  {
+    case 0:
+      passthrough = false;
+      break;
+    case 1:
+      bitstream = true;
+      break;
+    case 2:
+      bitstream = true;
+      break;
+  }
+
+  if(bitstream)
+  {
+    if(m_hints_audio.codec == CODEC_ID_AC3 && g_guiSettings.GetBool("audiooutput.ac3passthrough"))
+    {
+      passthrough = true;
+    }
+    if(m_hints_audio.codec == CODEC_ID_DTS && g_guiSettings.GetBool("audiooutput.dtspassthrough"))
+    {
+      passthrough = true;
+    }
+  }
+
+  return passthrough;
+}
+
 bool COMXPlayer::OpenAudioDecoder(AVStream *stream)
 {
   if(!stream || !m_pAudioCodec)
@@ -349,8 +390,24 @@ bool COMXPlayer::OpenAudioDecoder(AVStream *stream)
   m_audio_render = new COMXAudio();
   m_audio_render->SetClock(m_av_clock);
 
-  m_AudioRenderOpen = m_audio_render->Initialize(NULL, "local", m_pAudioCodec->GetChannels(), m_pChannelMap,
-      m_pAudioCodec->GetSampleRate(), m_pAudioCodec->GetBitsPerSample(), false, false, false);
+  CStdString deviceString;
+
+  if(m_Passthrough)
+  {
+    deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
+    m_audio_render->SetCodingType(m_hints_audio.codec);
+
+    m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), 2, m_pChannelMap,
+        m_hints_audio.samplerate, m_hints_audio.bitspersample, false, false, m_Passthrough);
+  }
+  else
+  {
+    deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
+    m_audio_render->SetCodingType(CODEC_ID_PCM_S16LE);
+
+    m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), m_pAudioCodec->GetChannels(), m_pChannelMap,
+        m_pAudioCodec->GetSampleRate(), m_pAudioCodec->GetBitsPerSample(), false, false, m_Passthrough);
+  }
 
   if(!m_AudioRenderOpen)
   {
@@ -359,8 +416,16 @@ bool COMXPlayer::OpenAudioDecoder(AVStream *stream)
   }
   else
   {
-    printf("Audio codec 0x%08x channels %d samplerate %d bitspersample %d m_AudioCodecOpen %d\n",
+    if(m_Passthrough)
+    {
+      printf("Audio codec 0x%08x channels %d samplerate %d bitspersample %d m_AudioCodecOpen %d\n",
+        m_hints_audio.codec, 2, m_hints_audio.samplerate, m_hints_audio.bitspersample, m_AudioCodecOpen);
+    }
+    else
+    {
+      printf("Audio codec 0x%08x channels %d samplerate %d bitspersample %d m_AudioCodecOpen %d\n",
         m_hints_audio.codec, m_hints_audio.channels, m_hints_audio.samplerate, m_hints_audio.bitspersample, m_AudioCodecOpen);
+    }
   }
 
   GetStreamCodecName(stream, m_audio_codec_name);
@@ -483,6 +548,8 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_audioClock      = 0;
     m_frametime       = 0;
     m_pkt_consumed    = true;
+
+    m_Passthrough     = false;
 
     m_filename = file.GetPath();
     
@@ -1288,8 +1355,12 @@ void COMXPlayer::Process()
   if(!OpenAudioCodec(m_pAudioStream))
     goto do_exit;
 
+  m_Passthrough = IsPassthrough(m_pAudioStream);
+
+  /*
   if(!OpenAudioDecoder(m_pAudioStream))
     goto do_exit;
+  */
 
   if(!m_av_clock->StateExecute())
     goto do_exit;
@@ -1388,13 +1459,14 @@ void COMXPlayer::Process()
         }
         else
         {
-          m_pAudioCodec->Reset();
+          if(m_AudioCodecOpen)
+            m_pAudioCodec->Reset();
 
           if(m_VideoCodecOpen)
           {
             m_video_decoder->Reset();
           }
-          if(m_AudioCodecOpen)
+          if(m_AudioRenderOpen)
           {
             m_audio_render->Flush();
           }
@@ -1587,36 +1659,72 @@ void COMXPlayer::Process()
         else if ((uint64_t)m_pkt.dts != AV_NOPTS_VALUE)
           m_audioClock = m_pkt.dts;
 
-        while(data_len > 0)
+        if(!m_Passthrough)
         {
-          int len = m_pAudioCodec->Decode((BYTE *)data_dec, data_len);
-          if (len < 0)
+          while(data_len > 0)
           {
-            printf("reset\n");
-            m_pAudioCodec->Reset();
-            break;
-          }
+            int len = m_pAudioCodec->Decode((BYTE *)data_dec, data_len);
+            if (len < 0)
+            {
+              printf("reset\n");
+              m_pAudioCodec->Reset();
+              break;
+            }
 
-          if( len >  data_len )
-          {
-            printf("len >  data_len\n");
-            m_pAudioCodec->Reset();
-            break;
-          }
+            if( len >  data_len )
+            {
+              printf("len >  data_len\n");
+              m_pAudioCodec->Reset();
+              break;
+            }
    
-          data_dec+= len;
-          data_len -= len;
+            data_dec+= len;
+            data_len -= len;
+    
+            uint8_t *decoded;
+            int decoded_size = m_pAudioCodec->GetData(&decoded);
+    
+            if(decoded_size <=0)
+              continue;
+    
+            int ret = 0;
   
-          uint8_t *decoded;
-          int decoded_size = m_pAudioCodec->GetData(&decoded);
+            if(!m_AudioRenderOpen)
+            {
+              m_Passthrough = IsPassthrough(m_pAudioStream);
+              m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
+              if(!m_AudioRenderOpen)
+                goto do_exit;
+              m_av_clock->StateExecute();
+              m_av_clock->Pause();
+            }
   
-          if(decoded_size <=0)
-            continue;
-  
-          int ret = 0;
+            if(m_AudioRenderOpen)
+            {
+              ret = m_audio_render->AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
+              if(ret != decoded_size)
+              {
+                printf("error ret %d decoded_size %d\n", ret, decoded_size);
+              }
+              m_av_clock->StateExecute();
+            }
 
+            // TODO: 2 channel output for now
+            //int n = (2 * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
+            int n = (m_hints_audio.channels * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
+            if (n > 0)
+            {
+              //int real_size = (decoded_size / m_hints_audio.channels) * 2;
+              //m_audioClock += ((double)real_size * DVD_TIME_BASE) / n;
+              m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
+            }
+          }
+        }
+        else
+        {
           if(!m_AudioRenderOpen)
           {
+            m_Passthrough = IsPassthrough(m_pAudioStream);
             m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
             if(!m_AudioRenderOpen)
               goto do_exit;
@@ -1626,24 +1734,14 @@ void COMXPlayer::Process()
 
           if(m_AudioRenderOpen)
           {
-            ret = m_audio_render->AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
-            if(ret != decoded_size)
+            int ret = 0;
+            ret = m_audio_render->AddPackets(m_pkt.data, m_pkt.size, m_audioClock, m_audioClock);
+            if(ret != m_pkt.size)
             {
-              printf("error ret %d decoded_size %d\n", ret, decoded_size);
+              printf("error ret %d decoded_size %d\n", ret, m_pkt.size);
             }
             m_av_clock->StateExecute();
           }
-
-          // TODO: 2 channel output for now
-          //int n = (2 * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
-          int n = (m_hints_audio.channels * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
-          if (n > 0)
-          {
-            //int real_size = (decoded_size / m_hints_audio.channels) * 2;
-            //m_audioClock += ((double)real_size * DVD_TIME_BASE) / n;
-            m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
-          }
-
         }
 
         m_av_clock->UpdateAudioClock(m_audioClock);

@@ -80,8 +80,11 @@ public:
   void Process();
 
   bool SetClock(OMXClock *clock);
+  void SetCodingType(CodecID codec);
 
   void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm);
+  void PrintDDP(OMX_AUDIO_PARAM_DDPTYPE *ddparm);
+  void PrintDTS(OMX_AUDIO_PARAM_DTSTYPE *dtsparam);
 
 private:
   IAudioCallback* m_pCallback;
@@ -102,10 +105,16 @@ private:
   bool          m_external_clock;
   bool          m_setStartTime;
   int           m_SampleSize;
+  bool          m_firstFrame;
+  OMX_AUDIO_CODINGTYPE m_eEncoding;
+  OMX_AUDIO_PARAM_PCMMODETYPE m_pcm;
+  WAVEFORMATEXTENSIBLE        m_wave_header;
 
 protected:
   COMXCoreComponent m_omx_render;
+  COMXCoreComponent m_omx_decoder;
   COMXCoreTunel     m_omx_tunnel_clock;
+  COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCore          m_OMX;
 };
 #endif
