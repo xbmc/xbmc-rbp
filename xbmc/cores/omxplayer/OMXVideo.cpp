@@ -225,13 +225,19 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
       m_codingType = OMX_VIDEO_CodingMPEG2;
       m_video_codec_name = "omx-mpeg2";
       break;
-    /*
     case CODEC_ID_VP8:
       // (role name) video_decoder.vp8
       // VP8
+      /*
+      if(hints.width > 720 || hints.height > 576)
+      {
+        return false;
+      }
+      */
       decoder_name = OMX_VP8_DECODER;
       m_codingType = OMX_VIDEO_CodingVP8;
     break;
+    /*
     case CODEC_ID_VC1:
       // (role name) video_decoder.vc1
       // VC-1, WMV9
