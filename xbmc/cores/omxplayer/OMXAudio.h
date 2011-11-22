@@ -39,6 +39,7 @@
 #include "DllAvCodec.h"
 #include "OMXCore.h"
 #include "OMXClock.h"
+#include "OMXStreamInfo.h"
 
 #define AUDIO_BUFFER_SECONDS 3
 
@@ -55,6 +56,8 @@ public:
   virtual float GetCacheTime();
   virtual float GetCacheTotal();
   COMXAudio();
+  virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
+                           COMXStreamInfo &hints, OMXClock *clock, bool bResample, bool bIsMusic, bool bPassthrough);
   virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, bool bPassthrough = false);
   virtual ~COMXAudio();
 
@@ -82,9 +85,11 @@ public:
   bool SetClock(OMXClock *clock);
   void SetCodingType(CodecID codec);
 
+  void PrintChannels(OMX_AUDIO_CHANNELTYPE eChannelMapping[]);
   void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm);
   void PrintDDP(OMX_AUDIO_PARAM_DDPTYPE *ddparm);
   void PrintDTS(OMX_AUDIO_PARAM_DTSTYPE *dtsparam);
+  unsigned int SyncDTS(BYTE* pData, unsigned int iSize);
 
 private:
   IAudioCallback* m_pCallback;
@@ -106,7 +111,12 @@ private:
   bool          m_setStartTime;
   int           m_SampleSize;
   bool          m_firstFrame;
+  bool          m_LostSync;
+  int           m_SampleRate;
+  unsigned int  m_FrameSize;
   OMX_AUDIO_CODINGTYPE m_eEncoding;
+  uint8_t       *m_extradata;
+  int           m_extrasize;
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm;
   WAVEFORMATEXTENSIBLE        m_wave_header;
 
