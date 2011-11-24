@@ -1584,15 +1584,10 @@ void COMXPlayer::Process()
           if(!m_AudioCodecOpen)
             goto do_exit;
 
-          m_AudioRenderOpen = false; //OpenAudioDecoder(m_pAudioStream);
+          m_AudioRenderOpen = false;
 
-          /*
-          if(!m_AudioRenderOpen)
-            goto do_exit;
+          m_Passthrough = IsPassthrough(m_pAudioStream);
 
-          m_av_clock->StateExecute();
-          m_av_clock->Resume();
-          */
         }
       }
 
@@ -1691,7 +1686,6 @@ void COMXPlayer::Process()
   
             if(!m_AudioRenderOpen)
             {
-              m_Passthrough = IsPassthrough(m_pAudioStream);
               m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
               if(!m_AudioRenderOpen)
                 goto do_exit;
@@ -1709,13 +1703,9 @@ void COMXPlayer::Process()
               m_av_clock->StateExecute();
             }
 
-            // TODO: 2 channel output for now
-            //int n = (2 * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
             int n = (m_hints_audio.channels * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
             if (n > 0)
             {
-              //int real_size = (decoded_size / m_hints_audio.channels) * 2;
-              //m_audioClock += ((double)real_size * DVD_TIME_BASE) / n;
               m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
             }
           }
@@ -1724,7 +1714,6 @@ void COMXPlayer::Process()
         {
           if(!m_AudioRenderOpen)
           {
-            m_Passthrough = IsPassthrough(m_pAudioStream);
             m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
             if(!m_AudioRenderOpen)
               goto do_exit;
