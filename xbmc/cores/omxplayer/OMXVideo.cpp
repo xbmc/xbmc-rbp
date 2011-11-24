@@ -644,7 +644,7 @@ bool COMXVideo::Resume()
 ///////////////////////////////////////////////////////////////////////////////////////////
 void COMXVideo::SetVideoRect(const CRect& SrcRect, const CRect& DestRect)
 {
-  if(m_is_open)
+  if(!m_is_open)
     return;
 
   OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
