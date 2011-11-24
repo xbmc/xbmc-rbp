@@ -636,7 +636,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
       CGUIDialogBusy* dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
       dialog->Show();
       while(!m_ready.WaitMSec(1))
-        g_windowManager.Process(false);
+        g_windowManager.ProcessRenderLoop(false);
       dialog->Close();
     }
     // just in case process thread throws.
@@ -1321,7 +1321,7 @@ void COMXPlayer::OnStartup()
 void COMXPlayer::OnExit()
 {
   //CLog::Log(LOGNOTICE, "COMXPlayer::OnExit()");
-  usleep(100000);
+  //usleep(100000);
   
   m_bStop = true;
   // if we didn't stop playing, advance to the next item in xbmc's playlist
@@ -1793,7 +1793,6 @@ do_exit:
   m_StopPlaying = true;
 
   m_ready.Set();
-
 }
 
 #endif
