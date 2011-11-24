@@ -42,6 +42,13 @@
 #include "OMXVideo.h"
 #include "OMXAudio.h"
 
+// TODO: remove after we have it in configure
+#ifndef HAVE_LIBBCM_HOST
+#define HAVE_LIBBCM_HOST
+#endif
+
+#include "linux/DllBCM.h"
+
 #define MAX_CHAPTERS 64
 
 typedef struct Chapter
@@ -218,6 +225,7 @@ private:
   DllAvUtil               m_dllAvUtil;
   DllAvCodec              m_dllAvCodec;
   DllAvFormat             m_dllAvFormat;
+  DllBcmHostDisplay       m_BcmHostDisplay;
 
   CCriticalSection        m_SeekSection;
   int64_t                 m_seek_ms;

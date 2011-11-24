@@ -553,7 +553,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_filename = file.GetPath();
     
-    if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load())
+    if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load() || !m_BcmHostDisplay.Load())
       return false;
 
     unsigned int flags = READ_TRUNCATED | READ_BITRATE | READ_CHUNKED;
@@ -713,6 +713,7 @@ bool COMXPlayer::CloseFile()
   m_dllAvUtil.Unload();
   m_dllAvCodec.Unload();
   m_dllAvFormat.Unload();
+  m_BcmHostDisplay.Unload();
 
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
   g_renderManager.UnInit();
@@ -1357,11 +1358,6 @@ void COMXPlayer::Process()
 
   m_Passthrough = IsPassthrough(m_pAudioStream);
 
-  /*
-  if(!OpenAudioDecoder(m_pAudioStream))
-    goto do_exit;
-  */
-
   if(!m_av_clock->StateExecute())
     goto do_exit;
 
@@ -1372,26 +1368,29 @@ void COMXPlayer::Process()
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
   try
   {
+    m_speed = 1;
+    m_callback.OnPlayBackSpeedChanged(m_speed);
+
     // starttime has units of seconds (SeekTime will start playback)
     if (m_options.starttime > 0)
       SeekTime(m_options.starttime * 1000);
     SetVolume(g_settings.m_nVolumeLevel);
     SetAVDelay(m_audio_offset_ms);
+    SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
     SetSubTitleDelay(m_subtitle_offset_ms);
 
-    // we are done initializing now, set the readyevent which will
     // drop CGUIDialogBusy, and release the hold in OpenFile
     m_ready.Set();
 
     // at this point we should know all info about audio/video stream.
-
+    // we are done initializing now, set the readyevent which will
     if (m_video_count)
     {
       unsigned int flags = 0;
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
       //flags |= RENDER_FLAG_NOOSD;
-      flags |= RENDER_FLAG_NOOSDALPHA;
+      //flags |= RENDER_FLAG_NOOSDALPHA;
       CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
         __FUNCTION__, m_video_width, m_video_height, m_video_fps);
 
@@ -1404,6 +1403,8 @@ void COMXPlayer::Process()
       {
         CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
       }
+
+      m_BcmHostDisplay.vc_tv_hdmi_power_on_best(m_video_width, m_video_height, (int)(m_video_fps+0.5), 0, 1);
     }
 
     if (m_options.identify == false)
@@ -1591,6 +1592,7 @@ void COMXPlayer::Process()
         }
       }
 
+      /*
       bool bVideoBufferFull = false;
       if(m_VideoCodecOpen) {
         if(bBuffering && (m_video_decoder->GetFreeSpace() == 0))
@@ -1618,6 +1620,7 @@ void COMXPlayer::Process()
         m_av_clock->Resume();
         bBuffering = false;
       }
+      */
 
       if( ( m_pVideoStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_VideoCodecOpen )
       {
@@ -1690,7 +1693,9 @@ void COMXPlayer::Process()
               if(!m_AudioRenderOpen)
                 goto do_exit;
               m_av_clock->StateExecute();
-              m_av_clock->Pause();
+              if(m_av_clock->IsPaused())
+                m_av_clock->Resume();
+              //m_av_clock->Pause();
             }
   
             if(m_AudioRenderOpen)
@@ -1717,8 +1722,10 @@ void COMXPlayer::Process()
             m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
             if(!m_AudioRenderOpen)
               goto do_exit;
+            if(m_av_clock->IsPaused())
+              m_av_clock->Resume();
             m_av_clock->StateExecute();
-            m_av_clock->Pause();
+            //m_av_clock->Pause();
           }
 
           if(m_AudioRenderOpen)
