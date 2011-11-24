@@ -551,6 +551,8 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_Passthrough     = false;
 
+    m_dst_rect.SetRect(0, 0, 0, 0);
+
     m_filename = file.GetPath();
     
     if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load() || !m_BcmHostDisplay.Load())
@@ -1117,6 +1119,11 @@ void COMXPlayer::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
     dst_rect.y1 *= yscale;
     dst_rect.y2 *= yscale;
   }
+
+  if(m_VideoCodecOpen)
+  {
+    m_video_decoder->SetVideoRect(SrcRect, m_dst_rect);
+  }
   // here you would set dest rect of video that is running on separate video plane
 }
 
@@ -1404,7 +1411,7 @@ void COMXPlayer::Process()
         CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
       }
 
-      m_BcmHostDisplay.vc_tv_hdmi_power_on_best(m_video_width, m_video_height, (int)(m_video_fps+0.5), 0, 1);
+      //m_BcmHostDisplay.vc_tv_hdmi_power_on_best(m_video_width, m_video_height, (int)(m_video_fps+0.5), 0, 1);
     }
 
     if (m_options.identify == false)

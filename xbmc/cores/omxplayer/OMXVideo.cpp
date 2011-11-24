@@ -422,6 +422,19 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
     }
   }
 
+  /*
+  OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
+  OMX_INIT_STRUCTURE(configDisplay);
+  configDisplay.nPortIndex = m_omx_render.GetInputPort();
+
+  configDisplay.set     = OMX_DISPLAY_SET_LAYER;
+  configDisplay.layer   = 1;
+
+  omx_err = m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
+  if(omx_err != OMX_ErrorNone)
+    return false;
+  */
+
   m_is_open       = true;
   m_drop_state    = false;
   m_setStartTime  = true;
@@ -626,4 +639,31 @@ bool COMXVideo::Resume()
   m_omx_render.SetStateForComponent(OMX_StateExecuting);
 
   return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+void COMXVideo::SetVideoRect(const CRect& SrcRect, const CRect& DestRect)
+{
+  if(m_is_open)
+    return;
+
+  OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
+  OMX_INIT_STRUCTURE(configDisplay);
+  configDisplay.nPortIndex = m_omx_render.GetInputPort();
+
+  configDisplay.set     = OMX_DISPLAY_SET_FULLSCREEN;
+  configDisplay.fullscreen = OMX_FALSE;
+
+  m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
+
+  configDisplay.set     = OMX_DISPLAY_SET_DEST_RECT;
+  configDisplay.dest_rect.x_offset  = DestRect.x1;
+  configDisplay.dest_rect.y_offset  = DestRect.y1;
+  configDisplay.dest_rect.width     = DestRect.Width();
+  configDisplay.dest_rect.height    = DestRect.Height();
+
+  m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
+
+  printf("dest_rect.x_offset %d dest_rect.y_offset %d dest_rect.width %d dest_rect.height %d\n",
+      configDisplay.dest_rect.x_offset, configDisplay.dest_rect.y_offset, configDisplay.dest_rect.width, configDisplay.dest_rect.height);
 }

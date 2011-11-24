@@ -28,6 +28,7 @@
 #include <locale.h>
 #include "guilib/MatrixGLES.h"
 #include "LinuxRendererGLES.h"
+#include "Application.h"
 #include "utils/fastmemcpy.h"
 #include "utils/MathUtils.h"
 #include "utils/GLUtils.h"
@@ -396,6 +397,10 @@ void CLinuxRendererGLES::RenderUpdate(bool clear, DWORD flags, DWORD alpha)
   {
     ManageDisplay();
     ManageTextures();
+    // if running bypass, then player adjusts src/dst rects for video.
+    if (g_application.m_pPlayer)
+      g_application.m_pPlayer->SetVideoRect(m_sourceRect, m_destRect);
+
     g_graphicsContext.BeginPaint();
 
     // RENDER_BYPASS means we are rendering video

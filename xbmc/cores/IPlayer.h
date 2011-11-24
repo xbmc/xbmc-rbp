@@ -98,6 +98,7 @@ public:
   virtual void GetGeneralInfo( CStdString& strVideoInfo) = 0;
   virtual void Update(bool bPauseDrawing = false) = 0;
   virtual void GetVideoRect(CRect& SrcRect, CRect& DestRect) {}
+  virtual void SetVideoRect(const CRect& SrcRect, const CRect& DestRect) {}
   virtual void GetVideoAspectRatio(float& fAR) { fAR = 1.0f; }
   virtual bool CanRecord() { return false;};
   virtual bool IsRecording() { return false;};

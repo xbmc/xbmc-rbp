@@ -38,6 +38,8 @@
 
 #include "OMXClock.h"
 
+#include "guilib/Geometry.h"
+
 #define VIDEO_BUFFERS 40
 
 #define CLASSNAME "COMXVideo"
@@ -62,6 +64,7 @@ public:
   bool Pause();
   bool Resume();
   CStdString GetDecoderName() { return m_video_codec_name; };
+  void SetVideoRect(const CRect& SrcRect, const CRect& DestRect);
 protected:
   // Video format
   bool              m_drop_state;
