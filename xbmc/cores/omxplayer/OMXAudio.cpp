@@ -97,7 +97,6 @@ COMXAudio::COMXAudio() :
   m_firstFrame      (true   ),
   m_LostSync        (true   ),
   m_SampleRate      (0      ),
-  m_FrameSize       (0      ),
   m_eEncoding       (OMX_AUDIO_CodingPCM),
   m_extradata       (NULL   ),
   m_extrasize       (0      )
@@ -222,6 +221,8 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   m_pcm.ePCMMode            = OMX_AUDIO_PCMModeLinear;
   m_pcm.nChannels           = m_Channels;
   m_pcm.nSamplingRate       = uiSamplesPerSec;
+
+  m_SampleRate              = uiSamplesPerSec;
 
   m_wave_header.Samples.wValidBitsPerSample = uiBitsPerSample;
   m_wave_header.Samples.wSamplesPerBlock    = 0;
@@ -642,7 +643,6 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
     int skip = SyncDTS((uint8_t *)data, len);
     if(skip > 0)
       return len;
-    //printf("SyncDTS m_FrameSize %d m_SampleRate %d\n", m_FrameSize, m_SampleRate);
   }
 
   unsigned int length, frames;
@@ -825,9 +825,9 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
           m_ddParam.nPortIndex      = m_omx_render.GetInputPort();
 
           m_ddParam.nChannels       = (m_DataChannels == 6) ? 8 : m_DataChannels;
-          m_ddParam.nBitRate        = 16;
-          m_ddParam.nSampleRate     = 48000;
-          //m_ddParam.eBitStreamId    = OMX_AUDIO_DDPBitStreamIdAC3;
+          m_ddParam.nSampleRate     = m_SampleRate;
+          m_ddParam.eBitStreamId    = OMX_AUDIO_DDPBitStreamIdAC3;
+          m_ddParam.nBitRate        = 0;
 
           for(unsigned int i = 0; i < OMX_AUDIO_MAXCHANNELS; i++)
           {
@@ -844,17 +844,10 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
         }
         else if(m_eEncoding == OMX_AUDIO_CodingDTS)
         {
-          OMX_AUDIO_PARAM_DTSTYPE m_dtsParam;
-          OMX_INIT_STRUCTURE(m_dtsParam);
-
           m_dtsParam.nPortIndex      = m_omx_render.GetInputPort();
 
           m_dtsParam.nChannels       = (m_DataChannels == 6) ? 8 : m_DataChannels;
-          m_dtsParam.nBitRate        = 16;
-          m_dtsParam.nSampleRate     = m_SampleRate;
-          m_dtsParam.nDtsFrameSizeBytes = m_FrameSize;
-          m_dtsParam.nFormat         = 1;
-          m_dtsParam.nDtsType        = 1;
+          m_dtsParam.nBitRate        = 0;
 
           for(unsigned int i = 0; i < OMX_AUDIO_MAXCHANNELS; i++)
           {
@@ -1093,23 +1086,56 @@ void COMXAudio::PrintDTS(OMX_AUDIO_PARAM_DTSTYPE *dtsparam)
   CLog::Log(LOGDEBUG, "dtsparam->nChannels          : %d\n", (int)dtsparam->nChannels);
   CLog::Log(LOGDEBUG, "dtsparam->nBitRate           : %d\n", (int)dtsparam->nBitRate);
   CLog::Log(LOGDEBUG, "dtsparam->nSampleRate        : %d\n", (int)dtsparam->nSampleRate);
+  CLog::Log(LOGDEBUG, "dtsparam->nFormat            : 0x%08x\n", dtsparam->nFormat);
+  CLog::Log(LOGDEBUG, "dtsparam->nDtsType           : %d\n", (int)dtsparam->nDtsType);
+  CLog::Log(LOGDEBUG, "dtsparam->nDtsFrameSizeBytes : %d\n", (int)dtsparam->nDtsFrameSizeBytes);
 
   PrintChannels(dtsparam->eChannelMapping);
 }
 
 unsigned int COMXAudio::SyncDTS(BYTE* pData, unsigned int iSize)
 {
+  OMX_INIT_STRUCTURE(m_dtsParam);
+
   unsigned int skip;
   unsigned int srCode;
+  unsigned int dtsBlocks;
   bool littleEndian;
 
   for(skip = 0; iSize - skip > 8; ++skip, ++pData)
   {
-    /* 16bit le */ if (pData[0] == 0x7F && pData[1] == 0xFE && pData[2] == 0x80 && pData[3] == 0x01                                                 ) littleEndian = true ; else
-    /* 14bit le */ if (pData[0] == 0x1F && pData[1] == 0xFF && pData[2] == 0xE8 && pData[3] == 0x00 && pData[4] == 0x07 && (pData[5] & 0xF0) == 0xF0) littleEndian = true ; else
-    /* 16bit be */ if (pData[1] == 0x7F && pData[0] == 0xFE && pData[3] == 0x80 && pData[2] == 0x01                                                 ) littleEndian = false; else
-    /* 14bit be */ if (pData[1] == 0x1F && pData[0] == 0xFF && pData[3] == 0xE8 && pData[2] == 0x00 && pData[5] == 0x07 && (pData[4] & 0xF0) == 0xF0) littleEndian = false; else
+    if (pData[0] == 0x7F && pData[1] == 0xFE && pData[2] == 0x80 && pData[3] == 0x01) 
+    {
+      /* 16bit le */
+      littleEndian = true; 
+      dtsBlocks    = ((pData[4] >> 2) & 0x7f) + 1;
+      m_dtsParam.nFormat = 0x1 | 0x0;
+    }
+    else if (pData[0] == 0x1F && pData[1] == 0xFF && pData[2] == 0xE8 && pData[3] == 0x00 && pData[4] == 0x07 && (pData[5] & 0xF0) == 0xF0) 
+    {
+      /* 14bit le */
+      littleEndian = true;
+      dtsBlocks    = (((pData[4] & 0x7) << 4) | (pData[7] & 0x3C) >> 2) + 1;
+      m_dtsParam.nFormat = 0x0 | 0x0;
+    }
+    else if (pData[1] == 0x7F && pData[0] == 0xFE && pData[3] == 0x80 && pData[2] == 0x01) 
+    {
+      /* 16bit be */ 
+      m_dtsParam.nFormat = 0x1 | 0x2;
+      dtsBlocks    = ((pData[5] >> 2) & 0x7f) + 1;
+      littleEndian = false;
+    }
+    else if (pData[1] == 0x1F && pData[0] == 0xFF && pData[3] == 0xE8 && pData[2] == 0x00 && pData[5] == 0x07 && (pData[4] & 0xF0) == 0xF0) 
+    {
+      /* 14bit be */
+      littleEndian = false; 
+      dtsBlocks    = (((pData[5] & 0x7) << 4) | (pData[6] & 0x3C) >> 2) + 1;
+      m_dtsParam.nFormat = 0x0 | 0x2;
+    }
+    else
+    {
       continue;
+    }
 
     if (littleEndian)
     {
@@ -1118,7 +1144,7 @@ unsigned int COMXAudio::SyncDTS(BYTE* pData, unsigned int iSize)
         continue;
 
       /* get the frame size */
-      m_FrameSize = ((((pData[5] & 0x3) << 8 | pData[6]) << 4) | ((pData[7] & 0xF0) >> 4)) + 1;
+      m_dtsParam.nDtsFrameSizeBytes = ((((pData[5] & 0x3) << 8 | pData[6]) << 4) | ((pData[7] & 0xF0) >> 4)) + 1;
       srCode = (pData[8] & 0x3C) >> 2;
    }
    else
@@ -1128,16 +1154,37 @@ unsigned int COMXAudio::SyncDTS(BYTE* pData, unsigned int iSize)
         continue;
 
       /* get the frame size */
-      m_FrameSize = ((((pData[4] & 0x3) << 8 | pData[7]) << 4) | ((pData[6] & 0xF0) >> 4)) + 1;
+      m_dtsParam.nDtsFrameSizeBytes = ((((pData[4] & 0x3) << 8 | pData[7]) << 4) | ((pData[6] & 0xF0) >> 4)) + 1;
       srCode = (pData[9] & 0x3C) >> 2;
    }
 
     /* make sure the framesize is sane */
-    if (m_FrameSize < 96 || m_FrameSize > 16384)
+    if (m_dtsParam.nDtsFrameSizeBytes < 96 || m_dtsParam.nDtsFrameSizeBytes > 16384)
       continue;
 
-    m_SampleRate = DTSFSCod[srCode];
+    m_dtsParam.nSampleRate = DTSFSCod[srCode];
+
+    switch(dtsBlocks << 5)
+    {
+      case 512 : 
+        m_dtsParam.nDtsType = 1;
+        break;
+      case 1024: 
+        m_dtsParam.nDtsType = 2;
+        break;
+      case 2048: 
+        m_dtsParam.nDtsType = 3;
+        break;
+      default:
+        m_dtsParam.nDtsType = 0;
+        break;
+    }
+
+    m_dtsParam.nFormat = 1;
+    m_dtsParam.nDtsType = 1;
+
     m_LostSync = false;
+
     return skip;
   }
 

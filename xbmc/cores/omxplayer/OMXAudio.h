@@ -40,6 +40,7 @@
 #include "OMXCore.h"
 #include "OMXClock.h"
 #include "OMXStreamInfo.h"
+#include "BitstreamConverter.h"
 
 #define AUDIO_BUFFER_SECONDS 3
 
@@ -113,11 +114,11 @@ private:
   bool          m_firstFrame;
   bool          m_LostSync;
   int           m_SampleRate;
-  unsigned int  m_FrameSize;
   OMX_AUDIO_CODINGTYPE m_eEncoding;
   uint8_t       *m_extradata;
   int           m_extrasize;
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm;
+  OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;
   WAVEFORMATEXTENSIBLE        m_wave_header;
 
 protected:
