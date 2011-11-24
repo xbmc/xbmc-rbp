@@ -1386,8 +1386,6 @@ void COMXPlayer::Process()
       SeekTime(m_options.starttime * 1000);
     SetVolume(g_settings.m_nVolumeLevel);
     SetAVDelay(m_audio_offset_ms);
-    SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
-    SetSubTitleDelay(m_subtitle_offset_ms);
 
     // drop CGUIDialogBusy, and release the hold in OpenFile
     m_ready.Set();
@@ -1396,6 +1394,10 @@ void COMXPlayer::Process()
     // we are done initializing now, set the readyevent which will
     if (m_video_count)
     {
+      // turn on/off subs
+      SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
+      SetSubTitleDelay(m_subtitle_offset_ms);
+
       unsigned int flags = 0;
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
