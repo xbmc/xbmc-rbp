@@ -38,7 +38,7 @@
 
 #include "OMXClock.h"
 
-#define VIDEO_BUFFERS 20
+#define VIDEO_BUFFERS 40
 
 #define CLASSNAME "COMXVideo"
 
