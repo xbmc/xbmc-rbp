@@ -1124,7 +1124,6 @@ void COMXPlayer::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   {
     m_video_decoder->SetVideoRect(SrcRect, m_dst_rect);
   }
-  // here you would set dest rect of video that is running on separate video plane
 }
 
 void COMXPlayer::GetVideoAspectRatio(float &fAR)
@@ -1398,13 +1397,18 @@ void COMXPlayer::Process()
       SetSubtitleVisible(g_settings.m_currentVideoSettings.m_SubtitleOn);
       SetSubTitleDelay(m_subtitle_offset_ms);
 
+      // setup renderer for bypass. This tell renderer to get out of the way as
+      // hw decoder will be doing the actual video rendering in a video plane
+      // that is under the GUI layer.
+      int width  = GetPictureWidth();
+      int height = GetPictureHeight();
+      double fFrameRate = GetActualFPS();
       unsigned int flags = 0;
+
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
-      //flags |= RENDER_FLAG_NOOSD;
-      //flags |= RENDER_FLAG_NOOSDALPHA;
       CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
-        __FUNCTION__, m_video_width, m_video_height, m_video_fps);
+        __FUNCTION__, width, height, fFrameRate);
 
       if(!g_renderManager.Configure(m_video_width, m_video_height,
         m_video_width, m_video_height, m_video_fps, flags, 0))
@@ -1578,7 +1582,10 @@ void COMXPlayer::Process()
         }
 
         // Audio Stream changed
-        if(m_audio_index != m_audio_index_use)
+        if(m_audio_index != m_audio_index_use ||
+           m_pAudioStream->codec->channels != m_hints_audio.channels ||
+           m_pAudioStream->codec->sample_rate != m_hints_audio.samplerate ||
+           m_pAudioStream->codec->codec_id != m_hints_audio.codec)
         {
           m_av_clock->Pause();
 
