@@ -40,7 +40,7 @@
 
 #include "guilib/Geometry.h"
 
-#define VIDEO_BUFFERS 40
+#define VIDEO_BUFFERS 60
 
 #define CLASSNAME "COMXVideo"
 
