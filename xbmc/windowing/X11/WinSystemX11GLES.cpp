@@ -418,7 +418,6 @@ bool CWinSystemX11GLES::RefreshEGLContext()
 
 bool CWinSystemX11GLES::PresentRenderImpl(const CDirtyRegionList &dirty)
 {
-//  glFinish();	// Needed???
   eglSwapBuffers(m_eglDisplay, m_eglSurface);
 
   return true;
