@@ -42,6 +42,7 @@
 //#define OMX_USEBUFFER
 
 //#define OMX_DEBUG_EVENTS
+//#define OMX_DEBUG_EVENTHANDLER
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 #define CLASSNAME "COMXCoreComponent"
@@ -1174,26 +1175,40 @@ OMX_ERRORTYPE COMXCoreComponent::DecoderEventHandler(
           switch ((int)nData2)
           {
             case OMX_StateInvalid:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG, "%s::%s %s - OMX_StateInvalid\n", CLASSNAME, __func__, comp->GetName().c_str());
+            #endif
             break;
             case OMX_StateLoaded:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG, "%s::%s %s - OMX_StateLoaded\n", CLASSNAME, __func__, comp->GetName().c_str());
+            #endif
             break;
             case OMX_StateIdle:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG, "%s::%s %s - OMX_StateIdle\n", CLASSNAME, __func__, comp->GetName().c_str());
+            #endif
             break;
             case OMX_StateExecuting:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG, "%s::%s %s - OMX_StateExecuting\n", CLASSNAME, __func__, comp->GetName().c_str());
+            #endif
             break;
             case OMX_StatePause:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG, "%s::%s %s - OMX_StatePause\n", CLASSNAME, __func__, comp->GetName().c_str());
+            #endif
             break;
             case OMX_StateWaitForResources:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG, "%s::%s %s - OMX_StateWaitForResources\n", CLASSNAME, __func__, comp->GetName().c_str());
+            #endif
             break;
             default:
+            #if defined(OMX_DEBUG_EVENTHANDLER)
               CLog::Log(LOGDEBUG,
                 "%s::%s %s - Unknown OMX_Statexxxxx, state(%d)\n", CLASSNAME, __func__, comp->GetName().c_str(), (int)nData2);
+            #endif
             break;
           }
         break;
