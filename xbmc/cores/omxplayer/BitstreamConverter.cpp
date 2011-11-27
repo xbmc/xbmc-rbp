@@ -19,7 +19,77 @@
  *
  */
 
+#ifndef UINT16_MAX
+#define UINT16_MAX             (65535U)
+#endif
+
 #include "BitstreamConverter.h"
+
+void CBitstreamConverter::bits_reader_set( bits_reader_t *br, uint8_t *buf, int len )
+{
+  br->buffer = br->start = buf;
+  br->offbits = 0;
+  br->length = len;
+  br->oflow = 0;
+}
+
+uint32_t CBitstreamConverter::read_bits( bits_reader_t *br, int nbits )
+{
+  int i, nbytes;
+  uint32_t ret = 0;
+  uint8_t *buf;
+
+  buf = br->buffer;
+  nbytes = (br->offbits + nbits)/8;
+  if ( ((br->offbits + nbits) %8 ) > 0 )
+    nbytes++;
+  if ( (buf + nbytes) > (br->start + br->length) ) {
+    br->oflow = 1;
+    return 0;
+  }
+  for ( i=0; i<nbytes; i++ )
+    ret += buf[i]<<((nbytes-i-1)*8);
+  i = (4-nbytes)*8+br->offbits;
+  ret = ((ret<<i)>>i)>>((nbytes*8)-nbits-br->offbits);
+
+  br->offbits += nbits;
+  br->buffer += br->offbits / 8;
+  br->offbits %= 8;
+
+  return ret;
+}
+
+void CBitstreamConverter::skip_bits( bits_reader_t *br, int nbits )
+{
+  br->offbits += nbits;
+  br->buffer += br->offbits / 8;
+  br->offbits %= 8;
+  if ( br->buffer > (br->start + br->length) ) {
+    br->oflow = 1;
+  }
+}
+
+uint32_t CBitstreamConverter::get_bits( bits_reader_t *br, int nbits )
+{
+  int i, nbytes;
+  uint32_t ret = 0;
+  uint8_t *buf;
+
+  buf = br->buffer;
+  nbytes = (br->offbits + nbits)/8;
+  if ( ((br->offbits + nbits) %8 ) > 0 )
+    nbytes++;
+  if ( (buf + nbytes) > (br->start + br->length) ) {
+    br->oflow = 1;
+    return 0;
+  }
+  for ( i=0; i<nbytes; i++ )
+    ret += buf[i]<<((nbytes-i-1)*8);
+  i = (4-nbytes)*8+br->offbits;
+  ret = ((ret<<i)>>i)>>((nbytes*8)-nbits-br->offbits);
+
+  return ret;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -247,9 +317,11 @@ const int CBitstreamConverter::avc_parse_nal_units(ByteIOContext *pb, const uint
   size = 0;
   nal_start = avc_find_startcode(p, end);
 
-  while (nal_start < end)
-  {
-    while (!*(nal_start++));
+  for (;;) {
+    while (nal_start < end && !*(nal_start++));
+    if (nal_start == end)
+      break;
+
     nal_end = avc_find_startcode(nal_start, end);
     m_dllAvFormat->put_be32(pb, nal_end - nal_start);
     m_dllAvFormat->put_buffer(pb, nal_start, nal_end - nal_start);
@@ -292,27 +364,27 @@ const int CBitstreamConverter::isom_write_avcc(ByteIOContext *pb, const uint8_t 
       end = buf + len;
 
       /* look for sps and pps */
-      while (buf < end)
+      while (end - buf > 4)
       {
-        unsigned int size;
-        uint8_t nal_type;
-        size = OMX_RB32(buf);
-        nal_type = buf[4] & 0x1f;
+        uint32_t size;
+        uint8_t  nal_type;
+        size = FFMIN(OMX_RB32(buf), end - buf - 4);
+        buf += 4;
+        nal_type = buf[0] & 0x1f;
         if (nal_type == 7) /* SPS */
         {
-          sps = buf + 4;
+          sps = buf;
           sps_size = size;
-
-          //parse_sps(sps+1, sps_size-1);
         }
         else if (nal_type == 8) /* PPS */
         {
-          pps = buf + 4;
+          pps = buf;
           pps_size = size;
         }
-        buf += size + 4;
+        buf += size;
       }
-      assert(sps);
+      if (!sps || !pps || sps_size < 4 || sps_size > UINT16_MAX || pps_size > UINT16_MAX)
+        assert(0);
 
       m_dllAvFormat->put_byte(pb, 1); /* version */
       m_dllAvFormat->put_byte(pb, sps[1]); /* profile */

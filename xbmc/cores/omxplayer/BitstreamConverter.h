@@ -1,4 +1,3 @@
-#pragma once
 /*
  *      Copyright (C) 2010 Team XBMC
  *      http://www.xbmc.org
@@ -20,12 +19,20 @@
  *
  */
 
+#ifndef _BITSTREAMCONVERTER_H_
+#define _BITSTREAMCONVERTER_H_
+
 #include <stdint.h>
 #include "DllAvUtil.h"
 #include "DllAvFormat.h"
 #include "DllAvFilter.h"
 #include "DllAvCodec.h"
 #include "DllAvCore.h"
+
+typedef struct {
+  uint8_t *buffer, *start;
+  int      offbits, length, oflow;
+} bits_reader_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // TODO: refactor this so as not to need these ffmpeg routines.
@@ -104,6 +111,11 @@ public:
   CBitstreamConverter();
   ~CBitstreamConverter();
   // Required overrides
+  static void     bits_reader_set( bits_reader_t *br, uint8_t *buf, int len );
+  static uint32_t read_bits( bits_reader_t *br, int nbits );
+  static void     skip_bits( bits_reader_t *br, int nbits );
+  static uint32_t get_bits( bits_reader_t *br, int nbits );
+
   bool Open(enum CodecID codec, uint8_t *in_extradata, int in_extrasize, bool to_annexb);
   void Close(void);
   bool NeedConvert(void) { return m_convert_bitstream; };
@@ -155,3 +167,4 @@ protected:
   DllAvFormat       *m_dllAvFormat;
 };
 
+#endif
