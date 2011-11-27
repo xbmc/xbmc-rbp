@@ -257,4 +257,7 @@ private:
   AVPacket                m_pkt;
 
   bool                    m_Passthrough;
+  bool                    m_HWDecode;
+  bool                    m_use_hw_audio;
+
 };

@@ -394,19 +394,30 @@ bool COMXPlayer::OpenAudioDecoder(AVStream *stream)
 
   if(m_Passthrough)
   {
+    m_HWDecode = false;
+
     deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
     m_audio_render->SetCodingType(m_hints_audio.codec);
 
-    m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), 2, m_pChannelMap,
-        m_hints_audio.samplerate, m_hints_audio.bitspersample, false, false, m_Passthrough);
+    //m_hints_audio.channels = 2;
+    m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), m_pChannelMap,
+                                                   m_hints_audio, m_av_clock, m_Passthrough, m_HWDecode);
   }
   else
   {
     deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
     m_audio_render->SetCodingType(CODEC_ID_PCM_S16LE);
 
-    m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), m_pAudioCodec->GetChannels(), m_pChannelMap,
-        m_pAudioCodec->GetSampleRate(), m_pAudioCodec->GetBitsPerSample(), false, false, m_Passthrough);
+    if(m_HWDecode)
+    {
+      m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), m_pChannelMap,
+                                                     m_hints_audio, m_av_clock, m_Passthrough, m_HWDecode);
+    }
+    else
+    {
+      m_AudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), m_pAudioCodec->GetChannels(), m_pChannelMap,
+          m_pAudioCodec->GetSampleRate(), m_pAudioCodec->GetBitsPerSample(), false, false, m_Passthrough);
+    }
   }
 
   if(!m_AudioRenderOpen)
@@ -550,6 +561,8 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_pkt_consumed    = true;
 
     m_Passthrough     = false;
+    m_HWDecode        = false;
+    m_use_hw_audio    = g_advancedSettings.m_omHWAudioDecode;
 
     m_dst_rect.SetRect(0, 0, 0, 0);
 
@@ -1356,19 +1369,19 @@ void COMXPlayer::Process()
   m_video_index_use = m_video_index;
   m_audio_index_use = m_audio_index;
 
-  if(!OpenVideoDecoder(m_pVideoStream))
-    goto do_exit;
+  OpenVideoDecoder(m_pVideoStream);
 
   m_dst_rect.SetRect(0, 0, 0, 0);
   m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
-  if(!OpenAudioCodec(m_pAudioStream))
-    goto do_exit;
+  OpenAudioCodec(m_pAudioStream);
 
   m_Passthrough = IsPassthrough(m_pAudioStream);
+  if(!m_Passthrough && m_use_hw_audio)
+    m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
 
-  if(!m_av_clock->StateExecute())
-    goto do_exit;
+  m_av_clock->StateExecute();
+  m_av_clock->Pause();
 
   m_av_clock->UpdateCurrentPTS(m_pFormatContext);
 
@@ -1506,7 +1519,7 @@ void COMXPlayer::Process()
         result = m_dllAvFormat.av_read_frame(m_pFormatContext, &m_pkt);
         if (result < 0)
         {
-          printf("error read packet\n");
+          //printf("error read packet\n");
           goto do_exit;
         }
         else if (m_pkt.size < 0 || m_pkt.stream_index >= MAX_STREAMS)
@@ -1607,39 +1620,41 @@ void COMXPlayer::Process()
           m_AudioRenderOpen = false;
 
           m_Passthrough = IsPassthrough(m_pAudioStream);
+          if(!m_Passthrough && m_use_hw_audio)
+            m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
 
         }
       }
 
-      /*
-      bool bVideoBufferFull = false;
-      if(m_VideoCodecOpen) {
-        if(bBuffering && (m_video_decoder->GetFreeSpace() == 0))
-        {
-          bVideoBufferFull = true;
-        }
-      }
+      bool bResumeClock     = false;
 
-      if(m_AudioRenderOpen)
+      if(m_VideoCodecOpen && m_av_clock->IsPaused()) 
       {
-        if(bBuffering && ((m_audio_render->GetDelay() > AUDIO_BUFFER_SECONDS - 0.25f) || bVideoBufferFull))
+        /* resume when video buffers 75% full */
+        if(bBuffering && (m_video_decoder->GetFreeSpace() < (m_video_decoder->GetSize() * 0.25)))
         {
-          m_av_clock->Resume();
-          bBuffering = false;
+          bResumeClock = true;
+        }
+      }
+
+      if(m_AudioRenderOpen && m_av_clock->IsPaused())
+      {
+        /* resume when video buffers 25% full */
+        if(m_audio_render->GetDelay() > ((double)AUDIO_BUFFER_SECONDS * 0.75f))
+        {
+          bResumeClock = true;
         } 
-        else if(!bBuffering && (m_audio_render->GetDelay() < 0.25)) 
+        else
         {
           m_av_clock->Pause();
-          bBuffering = true;
         }
-
       } 
-      else if(bVideoBufferFull && bBuffering) 
+
+      if(bResumeClock && m_av_clock->IsPaused())
       {
         m_av_clock->Resume();
-        bBuffering = false;
+        bResumeClock = false;
       }
-      */
 
       if( ( m_pVideoStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_VideoCodecOpen )
       {
@@ -1676,7 +1691,7 @@ void COMXPlayer::Process()
         else if ((uint64_t)m_pkt.dts != AV_NOPTS_VALUE)
           m_audioClock = m_pkt.dts;
 
-        if(!m_Passthrough)
+        if(!m_Passthrough  && !m_HWDecode)
         {
           while(data_len > 0)
           {
@@ -1712,9 +1727,7 @@ void COMXPlayer::Process()
               if(!m_AudioRenderOpen)
                 goto do_exit;
               m_av_clock->StateExecute();
-              if(m_av_clock->IsPaused())
-                m_av_clock->Resume();
-              //m_av_clock->Pause();
+              m_av_clock->Pause();
             }
   
             if(m_AudioRenderOpen)
@@ -1741,10 +1754,8 @@ void COMXPlayer::Process()
             m_AudioRenderOpen = OpenAudioDecoder(m_pAudioStream);
             if(!m_AudioRenderOpen)
               goto do_exit;
-            if(m_av_clock->IsPaused())
-              m_av_clock->Resume();
             m_av_clock->StateExecute();
-            //m_av_clock->Pause();
+            m_av_clock->Pause();
           }
 
           if(m_AudioRenderOpen)
@@ -1767,6 +1778,11 @@ void COMXPlayer::Process()
         {
           printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, 80*1024*VIDEO_BUFFERS,
              m_video_decoder->GetFreeSpace(), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
+        }
+        else if(m_AudioRenderOpen)
+        {
+          printf("A : %8.02f %8.02f                             \r",
+              m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
         }
 
         m_av_clock->UpdateAudioClock(m_audioClock);

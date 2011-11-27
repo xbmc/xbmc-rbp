@@ -85,6 +85,8 @@ class CAdvancedSettings
     float m_limiterHold;
     float m_limiterRelease;
 
+    bool  m_omHWAudioDecode;
+
     float m_videoSubsDelayRange;
     float m_videoAudioDelayRange;
     int m_videoSmallStepBackSeconds;

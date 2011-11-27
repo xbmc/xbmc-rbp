@@ -58,7 +58,7 @@ public:
   virtual float GetCacheTotal();
   COMXAudio();
   virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
-                           COMXStreamInfo &hints, OMXClock *clock, bool bResample, bool bIsMusic, bool bPassthrough);
+                           COMXStreamInfo &hints, OMXClock *clock, bool bPassthrough, bool bUseHWDecode);
   virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, bool bPassthrough = false);
   virtual ~COMXAudio();
 
@@ -85,6 +85,8 @@ public:
 
   bool SetClock(OMXClock *clock);
   void SetCodingType(CodecID codec);
+  bool CanHWDecode(CodecID codec);
+  static bool HWDecode(CodecID codec);
 
   void PrintChannels(OMX_AUDIO_CHANNELTYPE eChannelMapping[]);
   void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm);
@@ -100,6 +102,7 @@ private:
   long          m_CurrentVolume;
   long          m_drc;
   bool          m_Passthrough;
+  bool          m_HWDecode;
   unsigned int  m_BytesPerSec;
   unsigned int  m_BufferLen;
   unsigned int  m_ChunkLen;
