@@ -56,10 +56,10 @@ public:
   virtual int vc_dispmanx_display_close( DISPMANX_DISPLAY_HANDLE_T display ) = 0;
   virtual int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T * pinfo ) = 0;
   virtual int vc_tv_hdmi_power_on_best(uint32_t width, uint32_t height, uint32_t frame_rate,
-                                                   int scan_mode, int match_flags) = 0;
+                                       HDMI_INTERLACED_T scan_mode, EDID_MODE_MATCH_FLAG_T match_flags) = 0;
   virtual int vc_tv_hdmi_get_supported_modes(HDMI_RES_GROUP_T group, TV_SUPPORTED_MODE_T *supported_modes,
-                                                    uint32_t max_supported_modes, HDMI_RES_GROUP_T *preferred_group,
-                                                    uint32_t *preferred_mode) = 0;
+                                             uint32_t max_supported_modes, HDMI_RES_GROUP_T *preferred_group,
+                                             uint32_t *preferred_mode) = 0;
   virtual int vc_tv_hdmi_power_on_explicit(HDMI_MODE_T mode, HDMI_RES_GROUP_T group, uint32_t code) = 0;
 };
 
@@ -86,7 +86,7 @@ public:
   virtual int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T *pinfo )
     { return ::vc_dispmanx_display_get_info(display, pinfo); };
   virtual int vc_tv_hdmi_power_on_best(uint32_t width, uint32_t height, uint32_t frame_rate,
-                                                   int scan_mode, int match_flags)
+                                       HDMI_INTERLACED_T scan_mode, EDID_MODE_MATCH_FLAG_T match_flags)
     { return ::vc_tv_hdmi_power_on_best(width, height, frame_rate, scan_mode, match_flags); };
   virtual int vc_tv_hdmi_get_supported_modes(HDMI_RES_GROUP_T group, TV_SUPPORTED_MODE_T *supported_modes,
                                              uint32_t max_supported_modes, HDMI_RES_GROUP_T *preferred_group,
@@ -120,7 +120,8 @@ class DllBcmHostDisplay : public DllDynamic, DllBcmHostDisplayInterface
   DEFINE_METHOD2(int, vc_dispmanx_element_remove, (DISPMANX_UPDATE_HANDLE_T p1, DISPMANX_ELEMENT_HANDLE_T p2))
   DEFINE_METHOD1(int, vc_dispmanx_display_close, (DISPMANX_DISPLAY_HANDLE_T p1))
   DEFINE_METHOD2(int, vc_dispmanx_display_get_info, (DISPMANX_DISPLAY_HANDLE_T p1, DISPMANX_MODEINFO_T *p2))
-  DEFINE_METHOD5(int, vc_tv_hdmi_power_on_best, (uint32_t p1, uint32_t p2, uint32_t p3, int p4, int p5))
+  DEFINE_METHOD5(int, vc_tv_hdmi_power_on_best, (uint32_t p1, uint32_t p2, uint32_t p3,
+                                                 HDMI_INTERLACED_T p4, EDID_MODE_MATCH_FLAG_T p5))
   DEFINE_METHOD5(int, vc_tv_hdmi_get_supported_modes, (HDMI_RES_GROUP_T p1, TV_SUPPORTED_MODE_T *p2,
                                              uint32_t p3, HDMI_RES_GROUP_T *p4, uint32_t *p5))
   DEFINE_METHOD3(int, vc_tv_hdmi_power_on_explicit, (HDMI_MODE_T p1, HDMI_RES_GROUP_T p2, uint32_t p3))
