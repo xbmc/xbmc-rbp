@@ -348,6 +348,17 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
     return false;
   }
 
+  OMX_PARAM_BRCMVIDEODECODEERRORCONCEALMENTTYPE concanParam;
+  OMX_INIT_STRUCTURE(concanParam);
+  concanParam.bStartWithValidFrame = OMX_FALSE;
+
+  omx_err = m_omx_decoder.SetParameter(OMX_IndexParamBrcmVideoDecodeErrorConcealment, &concanParam);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "COMXVideo::Open error OMX_IndexParamBrcmVideoDecodeErrorConcealment omx_err(0x%08x)\n", omx_err);
+    return false;
+  }
+
   // Alloc buffers for the omx input port.
   omx_err = m_omx_decoder.AllocInputBuffers();
   if (omx_err != OMX_ErrorNone)
