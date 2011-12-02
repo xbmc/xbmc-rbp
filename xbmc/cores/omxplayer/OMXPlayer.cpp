@@ -45,6 +45,8 @@
 #include "filesystem/File.h"
 #include "utils/BitstreamStats.h"
 
+#include "utils/LangCodeExpander.h"
+
 #include <sstream>
 #include <iomanip>
 
@@ -852,6 +854,7 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
     seek_ms = m_duration_ms;
 
   SeekTime(seek_ms);
+  m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
 }
 
 bool COMXPlayer::SeekScene(bool bPlus)
@@ -1034,7 +1037,7 @@ void COMXPlayer::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
   char language[4];
   memset(language, 0, sizeof(language));
 
-  strLanguage = "";
+  strLanguage.Format("Undefined");
   
   if((unsigned int)iStream > m_audio_streams.size())
     return;
@@ -1050,7 +1053,11 @@ void COMXPlayer::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
 #else
   strcpy(language, stream->language );
 #endif
-  strLanguage = language;
+
+  if(language[0] != 0)
+  {
+    g_LangCodeExpander.Lookup( strLanguage, language );
+  }
 }
 
 int COMXPlayer::GetSubtitleCount()
@@ -1213,7 +1220,6 @@ void COMXPlayer::SeekTime(__int64 seek_ms)
     //printf("m_seek_ms %lld seek_ms %lld\n", m_seek_ms, seek_ms);
     m_seek_req = true;
   }
-  m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
 }
 
 __int64 COMXPlayer::GetTime()
