@@ -853,8 +853,10 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
   if (seek_ms > m_duration_ms)
     seek_ms = m_duration_ms;
 
+  g_infoManager.SetDisplayAfterSeek(100000);
   SeekTime(seek_ms);
   m_callback.OnPlayBackSeek((int)seek_ms, (int)(seek_ms - m_elapsed_ms));
+  g_infoManager.SetDisplayAfterSeek();
 }
 
 bool COMXPlayer::SeekScene(bool bPlus)
@@ -1190,8 +1192,10 @@ int COMXPlayer::SeekChapter(int chapter_index)
       return 0;
 
     // Seek to the chapter.
+    g_infoManager.SetDisplayAfterSeek(100000);
     SeekTime(m_chapters[chapter_index - 1].seekto_ms);
     m_callback.OnPlayBackSeekChapter(chapter_index);
+    g_infoManager.SetDisplayAfterSeek();
   }
   else
   {
