@@ -42,6 +42,8 @@
 #include "OMXVideo.h"
 #include "OMXAudio.h"
 
+#include "utils/BitstreamStats.h"
+
 // TODO: remove after we have it in configure
 #ifndef HAVE_LIBBCM_HOST
 #define HAVE_LIBBCM_HOST
@@ -260,4 +262,5 @@ private:
   bool                    m_HWDecode;
   bool                    m_use_hw_audio;
 
+  BitstreamStats          m_videoStats;
 };

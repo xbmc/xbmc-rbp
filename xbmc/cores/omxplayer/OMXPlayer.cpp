@@ -46,6 +46,7 @@
 #include "utils/BitstreamStats.h"
 
 #include "utils/LangCodeExpander.h"
+#include "utils/StreamDetails.h"
 
 #include <sstream>
 #include <iomanip>
@@ -625,7 +626,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     // if format can be nonblocking, let's use that
     m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
 
-    m_dllAvFormat.dump_format(m_pFormatContext, 0, m_filename.c_str(), 0);
+    //m_dllAvFormat.dump_format(m_pFormatContext, 0, m_filename.c_str(), 0);
 
     if(!GetStreams())
     {
@@ -646,6 +647,8 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_ready.Reset();
 
+    g_renderManager.PreInit();
+
     Create();
 
     if (!m_ready.WaitMSec(100))
@@ -657,7 +660,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
       dialog->Close();
     }
     // just in case process thread throws.
-    m_ready.Set();
+    //m_ready.Set();
 
     // Playback might have been stopped due to some error
     if (m_bStop || m_StopPlaying)
@@ -954,7 +957,7 @@ void COMXPlayer::GetVideoInfo(CStdString &strVideoInfo)
 {
   std::ostringstream s;
     s << "fr:"     << fixed << setprecision(3) << m_video_fps;
-    s << ", Mb/s:" << fixed << setprecision(2) << (double)m_hints_video.bitrate / (1024.0*1024.0);
+    s << ", Mb/s:" << fixed << setprecision(2) << (double)GetVideoBitrate() / (1024.0*1024.0);
 
   strVideoInfo.Format("Video stream (%s) [%s]", m_video_codec_name.c_str(), s.str());
 }
@@ -1242,7 +1245,7 @@ int COMXPlayer::GetAudioBitrate()
 }
 int COMXPlayer::GetVideoBitrate()
 {
-  return m_hints_video.bitrate;
+  return (int)m_videoStats.GetBitrate();
 }
 
 int COMXPlayer::GetSourceBitrate()
@@ -1288,18 +1291,62 @@ CStdString COMXPlayer::GetVideoCodecName()
 
 int COMXPlayer::GetPictureWidth()
 {
-  return m_hints_video.width;//m_video_width;
+  return m_hints_video.width;
 }
 
 int COMXPlayer::GetPictureHeight()
 {
-  return m_hints_video.height;//m_video_height;
+  return m_hints_video.height;
 }
 
 bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
 {
-  CLog::Log(LOGDEBUG, "COMXPlayer::GetStreamDetails");
-  return false;
+  unsigned int i;
+  bool retVal = false;
+  details.Reset();
+  
+  for(i = 0; i < m_video_streams.size(); i++)
+  {
+    CStreamDetailVideo *p = new CStreamDetailVideo();
+    AVStream *pStream = m_video_streams[i];
+
+    p->m_iWidth   = pStream->codec->width;
+    p->m_iHeight  = pStream->codec->height;
+    if(pStream->codec->sample_aspect_ratio.num == 0)
+      p->m_fAspect = (float)p->m_iWidth / p->m_iHeight;
+    else
+      p->m_fAspect = av_q2d(pStream->codec->sample_aspect_ratio) * pStream->codec->width / pStream->codec->height;
+    p->m_iDuration = m_duration_ms;
+
+    // finally, calculate seconds
+    if (p->m_iDuration > 0)
+      p->m_iDuration = p->m_iDuration / 1000;
+
+    details.AddStream(p);
+    retVal = true;
+  }
+
+  for(i = 0; i < m_audio_streams.size(); i++)
+  {
+    CStreamDetailAudio *p = new CStreamDetailAudio();
+    AVStream *pStream = m_audio_streams[i];
+    CStdString strLanguage;
+    CStdString strCodec;
+
+    p->m_iChannels  = pStream->codec->channels;
+    GetAudioStreamLanguage(i, strLanguage);
+    p->m_strLanguage = strLanguage;
+
+    GetStreamCodecName(pStream, strCodec);
+    p->m_strCodec = strCodec;
+
+    details.AddStream(p);
+    retVal = true;
+  }
+
+  // TODO: here we would have subtitles
+
+  return retVal;
 }
 
 void COMXPlayer::ToFFRW(int iSpeed)
@@ -1345,14 +1392,10 @@ int COMXPlayer::GetCacheLevel() const
 
 void COMXPlayer::OnStartup()
 {
-  g_renderManager.PreInit();
 }
 
 void COMXPlayer::OnExit()
 {
-  //CLog::Log(LOGNOTICE, "COMXPlayer::OnExit()");
-  //usleep(100000);
-  
   m_bStop = true;
   // if we didn't stop playing, advance to the next item in xbmc's playlist
   if(m_options.identify == false)
@@ -1362,6 +1405,8 @@ void COMXPlayer::OnExit()
     else
       m_callback.OnPlayBackEnded();
   }
+
+  m_ready.Set();
 }
 
 void COMXPlayer::Process()
@@ -1409,9 +1454,6 @@ void COMXPlayer::Process()
     SetVolume(g_settings.m_nVolumeLevel);
     SetAVDelay(m_audio_offset_ms);
 
-    // drop CGUIDialogBusy, and release the hold in OpenFile
-    m_ready.Set();
-
     // at this point we should know all info about audio/video stream.
     // we are done initializing now, set the readyevent which will
     if (m_video_count)
@@ -1450,6 +1492,11 @@ void COMXPlayer::Process()
       m_callback.OnPlayBackStarted();
 
     bool bBuffering = false;
+
+    // drop CGUIDialogBusy, and release the hold in OpenFile
+    m_ready.Set();
+
+    m_videoStats.Start();
 
     while (!m_bStop && !m_StopPlaying)
     {
@@ -1689,6 +1736,8 @@ void COMXPlayer::Process()
              m_video_decoder->GetFreeSpace(), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
         }
 
+        m_videoStats.AddSampleBytes(m_pkt.size);
+
         m_pkt_consumed = true;
       }
       else if( ( m_pAudioStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_AudioCodecOpen )
@@ -1831,9 +1880,7 @@ do_exit:
     m_pkt_consumed = true;
   }
 
-  m_StopPlaying = true;
-
-  m_ready.Set();
+  m_bStop = m_StopPlaying = true;
 }
 
 #endif
