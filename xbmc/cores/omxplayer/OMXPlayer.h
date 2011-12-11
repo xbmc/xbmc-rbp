@@ -228,6 +228,7 @@ private:
   DllAvCodec              m_dllAvCodec;
   DllAvFormat             m_dllAvFormat;
   DllBcmHostDisplay       m_BcmHostDisplay;
+  DllBcmHost              m_BcmHost;
 
   CCriticalSection        m_SeekSection;
   int64_t                 m_seek_ms;

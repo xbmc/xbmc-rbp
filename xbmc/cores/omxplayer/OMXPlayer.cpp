@@ -571,7 +571,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_filename = file.GetPath();
     
-    if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load() || !m_BcmHostDisplay.Load())
+    if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load() || !m_BcmHostDisplay.Load() || !m_BcmHost.Load())
       return false;
 
     unsigned int flags = READ_TRUNCATED | READ_BITRATE | READ_CHUNKED;
@@ -753,6 +753,7 @@ bool COMXPlayer::CloseFile()
   m_dllAvCodec.Unload();
   m_dllAvFormat.Unload();
   m_BcmHostDisplay.Unload();
+  m_BcmHost.Unload();
 
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
   g_renderManager.UnInit();
@@ -1486,6 +1487,25 @@ void COMXPlayer::Process()
       double fFrameRate = GetActualFPS();
       unsigned int flags = 0;
 
+      int vc_width, vc_height;
+
+      if(width <= 720)
+      {
+        vc_width = 720; vc_height = 576;
+      }
+      else if(width <= 1280)
+      {
+        vc_width = 1280; vc_height = 720;
+      }
+      else
+      {
+        vc_width = 1920; vc_height = 1080;
+      }
+
+      HDMI_INTERLACED_T interlaced = HDMI_NONINTERLACED;
+      EDID_MODE_MATCH_FLAG_T edid = HDMI_MODE_MATCH_FRAMERATE;
+      m_BcmHost.vc_tv_hdmi_power_on_best(vc_width, vc_height, (int)(fFrameRate+0.5), interlaced, edid);
+
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
       CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
@@ -1500,8 +1520,6 @@ void COMXPlayer::Process()
       {
         CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
       }
-
-      //m_BcmHostDisplay.vc_tv_hdmi_power_on_best(m_video_width, m_video_height, (int)(m_video_fps+0.5), 0, 1);
     }
 
     if (m_options.identify == false)
