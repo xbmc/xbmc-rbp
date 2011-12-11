@@ -615,6 +615,12 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
       m_dllAvFormat.av_probe_input_buffer(m_ioContext, &iformat, m_filename.c_str(), NULL, 0, 0);
 
+      if(!iformat)
+      {
+        CloseFile();
+        return false;
+      }
+
       result = m_dllAvFormat.av_open_input_stream(&m_pFormatContext, m_ioContext, m_filename.c_str(), iformat, NULL);
       if(result < 0)
       {
@@ -1487,6 +1493,7 @@ void COMXPlayer::Process()
       double fFrameRate = GetActualFPS();
       unsigned int flags = 0;
 
+      /*
       int vc_width, vc_height;
 
       if(width <= 720)
@@ -1505,6 +1512,7 @@ void COMXPlayer::Process()
       HDMI_INTERLACED_T interlaced = HDMI_NONINTERLACED;
       EDID_MODE_MATCH_FLAG_T edid = HDMI_MODE_MATCH_FRAMERATE;
       m_BcmHost.vc_tv_hdmi_power_on_best(vc_width, vc_height, (int)(fFrameRate+0.5), interlaced, edid);
+      */
 
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
