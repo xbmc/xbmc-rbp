@@ -1618,14 +1618,6 @@ void COMXPlayer::Process()
           m_pkt.pts = AV_NOPTS_VALUE;
         }
 
-        m_pkt.dts = OMXClock::ConvertTimestamp(m_pkt.dts, m_pFormatContext->start_time, &pStream->time_base);
-        m_pkt.pts = OMXClock::ConvertTimestamp(m_pkt.pts, m_pFormatContext->start_time, &pStream->time_base);
-        m_pkt.duration = DVD_SEC_TO_TIME((double)m_pkt.duration * pStream->time_base.num / pStream->time_base.den);
-
-        // used to guess streamlength
-        if ((uint64_t)m_pkt.dts != AV_NOPTS_VALUE && (m_pkt.dts > m_av_clock->GetCurrentPts() || m_av_clock->GetCurrentPts() == AV_NOPTS_VALUE))
-          m_av_clock->SetCurrentPts(m_pkt.dts);
-
         // check if stream has passed full duration, needed for live streams
         if(m_pkt.dts != (int64_t)AV_NOPTS_VALUE)
         {
@@ -1643,6 +1635,14 @@ void COMXPlayer::Process()
               m_pFormatContext->duration = duration;
           }
         }
+
+        m_pkt.dts = OMXClock::ConvertTimestamp(m_pkt.dts, m_pFormatContext->start_time, &pStream->time_base);
+        m_pkt.pts = OMXClock::ConvertTimestamp(m_pkt.pts, m_pFormatContext->start_time, &pStream->time_base);
+        m_pkt.duration = DVD_SEC_TO_TIME((double)m_pkt.duration * pStream->time_base.num / pStream->time_base.den);
+
+        // used to guess streamlength
+        if ((uint64_t)m_pkt.dts != AV_NOPTS_VALUE && (m_pkt.dts > m_av_clock->GetCurrentPts() || m_av_clock->GetCurrentPts() == AV_NOPTS_VALUE))
+          m_av_clock->SetCurrentPts(m_pkt.dts);
 
         // check if stream seem to have grown since start
         if(m_pFormatContext->file_size > 0 && m_pFormatContext->pb)
