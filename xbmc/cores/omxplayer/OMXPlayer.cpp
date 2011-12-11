@@ -578,33 +578,49 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     if( CFileItem(m_filename, false).IsInternetStream() )
       flags |= READ_CACHED;
 
-    m_pFile = new CFile();
-    if (!m_pFile->Open(m_filename, flags))
-    {
-      CloseFile();
-      return false;
-    }
-
     m_dllAvFormat.av_register_all();
 
     m_dllAvFormat.url_set_interrupt_cb(interrupt_cb);
 
-    buffer = (unsigned char*)m_dllAvUtil.av_malloc(FFMPEG_FILE_BUFFER_SIZE);
-    m_ioContext = m_dllAvFormat.av_alloc_put_byte(buffer, FFMPEG_FILE_BUFFER_SIZE, 0, m_pFile, dvd_file_read, NULL, dvd_file_seek);
-    m_ioContext->max_packet_size = m_pFile->GetChunkSize();
-    if(m_ioContext->max_packet_size)
-      m_ioContext->max_packet_size *= FFMPEG_FILE_BUFFER_SIZE / m_ioContext->max_packet_size;
+    if(m_filename.substr(0, 8) == "shout://" )
+      m_filename.replace(0, 8, "http://");
 
-    if(m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL) == 0)
-      m_ioContext->is_streamed = 1;
-
-    m_dllAvFormat.av_probe_input_buffer(m_ioContext, &iformat, m_filename.c_str(), NULL, 0, 0);
-
-    result = m_dllAvFormat.av_open_input_stream(&m_pFormatContext, m_ioContext, m_filename.c_str(), iformat, NULL);
-    if(result < 0)
+    if(m_filename.substr(0,6) == "mms://" || m_filename.substr(0,7) == "http://" || m_filename.substr(0,7) == "rtmp://")
     {
-      CloseFile();
-      return false;
+      result = m_dllAvFormat.av_open_input_file(&m_pFormatContext, m_filename.c_str(), iformat, FFMPEG_FILE_BUFFER_SIZE, NULL);
+      if(result < 0)
+      {
+        CloseFile();
+        return false;
+      }
+    }
+    else
+    {
+      m_pFile = new CFile();
+
+      if (!m_pFile->Open(m_filename, flags))
+      {
+        CloseFile();
+        return false;
+      }
+
+      buffer = (unsigned char*)m_dllAvUtil.av_malloc(FFMPEG_FILE_BUFFER_SIZE);
+      m_ioContext = m_dllAvFormat.av_alloc_put_byte(buffer, FFMPEG_FILE_BUFFER_SIZE, 0, m_pFile, dvd_file_read, NULL, dvd_file_seek);
+      m_ioContext->max_packet_size = m_pFile->GetChunkSize();
+      if(m_ioContext->max_packet_size)
+        m_ioContext->max_packet_size *= FFMPEG_FILE_BUFFER_SIZE / m_ioContext->max_packet_size;
+
+      if(m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL) == 0)
+        m_ioContext->is_streamed = 1;
+
+      m_dllAvFormat.av_probe_input_buffer(m_ioContext, &iformat, m_filename.c_str(), NULL, 0, 0);
+
+      result = m_dllAvFormat.av_open_input_stream(&m_pFormatContext, m_ioContext, m_filename.c_str(), iformat, NULL);
+      if(result < 0)
+      {
+        CloseFile();
+        return false;
+      }
     }
 
     printf("file : %s reult %d format %s\n", m_filename.c_str(), result, m_pFormatContext->iformat->name);
@@ -634,15 +650,18 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
       return false;
     }
 
-    int64_t len = m_pFile->GetLength();
-    int64_t tim = (int)(m_pFormatContext->duration / (AV_TIME_BASE / 1000));
-
-    if(len > 0 && tim > 0)
+    if(m_pFile)
     {
-      unsigned rate = len * 1000 / tim;
-      unsigned maxrate = rate + 1024 * 1024 / 8;
-      if(m_pFile->IoControl(IOCTRL_CACHE_SETRATE, &maxrate) >= 0)
-        CLog::Log(LOGDEBUG, "COMXPlayer::OpenFile - set cache throttle rate to %u bytes per second", maxrate);
+      int64_t len = m_pFile->GetLength();
+      int64_t tim = (int)(m_pFormatContext->duration / (AV_TIME_BASE / 1000));
+
+      if(len > 0 && tim > 0)
+      {
+        unsigned rate = len * 1000 / tim;
+        unsigned maxrate = rate + 1024 * 1024 / 8;
+        if(m_pFile->IoControl(IOCTRL_CACHE_SETRATE, &maxrate) >= 0)
+          CLog::Log(LOGDEBUG, "COMXPlayer::OpenFile - set cache throttle rate to %u bytes per second", maxrate);
+      }
     }
 
     m_ready.Reset();
@@ -1417,9 +1436,6 @@ void COMXPlayer::Process()
   int                 result            = -1;
   int                 m_video_index_use = -1;
   int                 m_audio_index_use = -1;
-
-  if(!m_pFile)
-    goto do_exit;
 
   m_video_index_use = m_video_index;
   m_audio_index_use = m_audio_index;
