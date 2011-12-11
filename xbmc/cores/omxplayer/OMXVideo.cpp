@@ -124,38 +124,6 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
   {
     case CODEC_ID_H264:
     {
-      if(m_extrasize < 8)
-      {
-        CLog::Log(LOGERROR, "COMXVideo::Open h264 extradata < 8\n");
-        if(m_extradata)
-          free(m_extradata);
-        m_extradata = NULL;
-        m_extrasize = 0;
-        if(m_converter)
-          delete m_converter;
-        m_converter = NULL;
-        return false;
-      }
-
-      bool    interlaced = true;
-      int32_t m_max_ref_frames;
-      uint8_t *spc = m_extradata + 6;
-      uint32_t sps_size = OMX_RB16(spc);
-      if (sps_size)
-        m_converter->parseh264_sps(spc+3, sps_size-1, &interlaced, &m_max_ref_frames);
-      if (interlaced)
-      {
-        CLog::Log(LOGINFO, "COMXVideo::Open h264 interlaced not supported\n");
-        if(m_extradata)
-          free(m_extradata);
-        m_extradata = NULL;
-        m_extrasize = 0;
-        if(m_converter)
-          delete m_converter;
-        m_converter = NULL;
-        return false;
-      }
- 
       switch(hints.profile)
       {
         case FF_PROFILE_H264_BASELINE:
@@ -185,7 +153,9 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
           m_video_codec_name = "omx-h264";
           break;
         default:
-          return false;
+          decoder_name = OMX_H264HIGH_DECODER;
+          m_codingType = OMX_VIDEO_CodingAVC;
+          m_video_codec_name = "omx-h264";
           break;
       }
     }
