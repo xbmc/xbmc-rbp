@@ -84,7 +84,7 @@ public:
     { return ::vc_dispmanx_display_get_info(display, pinfo); };
   virtual int vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
                                                   uint8_t red, uint8_t green, uint8_t blue )
-    { return ::vc_dispmanx_display_set_background(update, display, red, green, blue);
+    { return ::vc_dispmanx_display_set_background(update, display, red, green, blue); };
   virtual bool ResolveExports() 
     { return true; }
   virtual bool Load() 
