@@ -206,6 +206,7 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
       */
       decoder_name = OMX_VP8_DECODER;
       m_codingType = OMX_VIDEO_CodingVP8;
+      m_video_codec_name = "omx-vp8";
     break;
     /*
     case CODEC_ID_VC1:
@@ -213,12 +214,14 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
       // VC-1, WMV9
       decoder_name = OMX_VC1_DECODER;
       m_codingType = OMX_VIDEO_CodingWMV;
+      m_video_codec_name = "omx-vc1";
       break;
     case CODEC_ID_WMV3:
       // (role name) video_decoder.wmv3
       //WMV3
       decoder_name = OMX_WMV3_DECODER;
       m_codingType = OMX_VIDEO_CodingWMV;
+      m_video_codec_name = "omx-wmv3";
       break;
     */
     default:
