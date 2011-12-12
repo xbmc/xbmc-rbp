@@ -1023,8 +1023,14 @@ bool COMXAudio::CanHWDecode(CodecID codec)
   { 
     /*
     case CODEC_ID_VORBIS:
-      printf("OMX_AUDIO_CodingVORBIS\n");
+      CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingVORBIS\n");
       m_eEncoding = OMX_AUDIO_CodingVORBIS;
+      m_HWDecode = true;
+      break;
+    case CODEC_ID_AAC:
+      CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingAAC\n");
+      m_eEncoding = OMX_AUDIO_CodingAAC;
+      m_HWDecode = true;
       break;
     */
     case CODEC_ID_MP2:
@@ -1062,6 +1068,11 @@ bool COMXAudio::HWDecode(CodecID codec)
   { 
     /*
     case CODEC_ID_VORBIS:
+      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_VORBIS\n");
+      ret = true;
+      break;
+    case CODEC_ID_AAC:
+      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_AAC\n");
       ret = true;
       break;
     */
