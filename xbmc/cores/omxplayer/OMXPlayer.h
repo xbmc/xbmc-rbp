@@ -264,4 +264,5 @@ private:
   bool                    m_use_hw_audio;
 
   BitstreamStats          m_videoStats;
+  TV_GET_STATE_RESP_T     m_tv_state;
 };

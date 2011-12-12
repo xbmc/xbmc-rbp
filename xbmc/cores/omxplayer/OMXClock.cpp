@@ -45,6 +45,8 @@ bool OMXClock::Reset()
 {
   m_video_clock = 0;
   m_audio_clock = 0;
+  m_has_video   = false;
+  m_has_video   = false;
   m_pause       = false;
   m_iCurrentPts = AV_NOPTS_VALUE;
 
@@ -76,7 +78,10 @@ bool OMXClock::Reset()
     clock.nStartTime = 0;
 #endif
     clock.eState    = OMX_TIME_ClockStateWaitingForStartTime;
-    clock.nWaitMask = OMX_CLOCKPORT0 /*| OMX_CLOCKPORT1*/;
+    if(m_has_audio)
+      clock.nWaitMask |= OMX_CLOCKPORT0;
+    if(m_has_video)
+      clock.nWaitMask |= OMX_CLOCKPORT1;
 #ifdef OMX_SKIP64BIT
     clock.nOffset.nLowPart   = 0;
     clock.nOffset.nHighPart  = 0;
@@ -94,10 +99,13 @@ bool OMXClock::Reset()
   return true;
 }
 
-bool OMXClock::Initialize()
+bool OMXClock::Initialize(bool has_video, bool has_audio)
 {
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   CStdString componentName = "";
+
+  m_has_video = has_video;
+  m_has_audio = has_audio;
 
   componentName = "OMX.broadcom.clock";
   if(!m_omx_clock.Initialize((const CStdString)componentName, OMX_IndexParamOtherInit))
@@ -120,11 +128,12 @@ bool OMXClock::Initialize()
   clock.nStartTime = 0;
 #endif
   clock.eState = OMX_TIME_ClockStateWaitingForStartTime;
-  clock.nWaitMask = 1;
-  /*
-  clock.eState = OMX_TIME_ClockStateRunning;
+
   clock.nWaitMask = 0;
-  */
+  if(m_has_audio)
+    clock.nWaitMask |= OMX_CLOCKPORT0;
+  if(m_has_video)
+    clock.nWaitMask |= OMX_CLOCKPORT1;
 
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
   if(omx_err != OMX_ErrorNone)
@@ -136,7 +145,11 @@ bool OMXClock::Initialize()
   OMX_TIME_CONFIG_ACTIVEREFCLOCKTYPE refClock;
   OMX_INIT_STRUCTURE(refClock);
 
-  refClock.eClock = OMX_TIME_RefClockAudio;
+  if(m_has_audio)
+    refClock.eClock = OMX_TIME_RefClockAudio;
+  else
+    refClock.eClock = OMX_TIME_RefClockVideo;
+
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeActiveRefClock, &refClock);
   if(omx_err != OMX_ErrorNone)
   {
@@ -333,12 +346,12 @@ bool OMXClock::WaitStart(uint64_t pts)
 #endif
 
   clock.eState = OMX_TIME_ClockStateWaitingForStartTime;
-  clock.nWaitMask = 1;
 
-  /*
-  clock.eState = OMX_TIME_ClockStateRunning;
   clock.nWaitMask = 0;
-  */
+  if(m_has_audio)
+    clock.nWaitMask |= OMX_CLOCKPORT0;
+  if(m_has_video)
+    clock.nWaitMask |= OMX_CLOCKPORT1;
 
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
   if(omx_err != OMX_ErrorNone)

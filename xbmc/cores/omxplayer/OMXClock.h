@@ -55,6 +55,8 @@ protected:
   double m_audio_clock;
   bool   m_pause;
   double m_iCurrentPts;
+  bool   m_has_video;
+  bool   m_has_audio;
 private:
   COMXCoreComponent m_omx_clock;
   DllAvFormat       m_dllAvFormat;
@@ -62,7 +64,7 @@ public:
   OMXClock();
   ~OMXClock();
   bool Reset();
-  bool Initialize();
+  bool Initialize(bool has_video, bool has_audio);
   void Deinitialize();
   bool IsPaused() { return m_pause; };
   bool Pause();

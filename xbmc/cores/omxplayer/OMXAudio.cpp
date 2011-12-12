@@ -334,7 +334,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
 
     m_av_clock = new OMXClock();
     
-    if(!m_av_clock->Initialize())
+    if(!m_av_clock->Initialize(false, true))
     {
       delete m_av_clock;
       m_av_clock = NULL;
