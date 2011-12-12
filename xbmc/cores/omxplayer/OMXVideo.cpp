@@ -195,6 +195,13 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock)
       m_codingType = OMX_VIDEO_CodingMPEG2;
       m_video_codec_name = "omx-mpeg2";
       break;
+    case CODEC_ID_H263:
+      // (role name) video_decoder.mpeg4
+      // MPEG-4, DivX 4/5 and Xvid compatible
+      decoder_name = OMX_MPEG4_DECODER;
+      m_codingType = OMX_VIDEO_CodingMPEG4;
+      m_video_codec_name = "omx-h263";
+      break;
     case CODEC_ID_VP8:
       // (role name) video_decoder.vp8
       // VP8
