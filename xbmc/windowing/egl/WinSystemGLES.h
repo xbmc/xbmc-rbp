@@ -80,6 +80,9 @@ protected:
   int                   m_fb_height;
   int                   m_fb_bpp;
   DllBcmHostDisplay     m_DllBcmHostDisplay;
+  DISPMANX_ELEMENT_HANDLE_T m_dispman_element;
+  DISPMANX_DISPLAY_HANDLE_T m_dispman_display;
+  DISPMANX_UPDATE_HANDLE_T  m_dispman_update;
 };
 
 XBMC_GLOBAL_REF(CWinSystemGLES,g_Windowing);

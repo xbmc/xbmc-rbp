@@ -55,6 +55,9 @@ public:
   virtual int vc_dispmanx_element_remove( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_ELEMENT_HANDLE_T element ) = 0;
   virtual int vc_dispmanx_display_close( DISPMANX_DISPLAY_HANDLE_T display ) = 0;
   virtual int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T * pinfo ) = 0;
+  virtual int vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
+                                                  uint8_t red, uint8_t green, uint8_t blue ) = 0;
+  
 };
 
 #if (defined USE_EXTERNAL_LIBBCM_HOST)
@@ -79,6 +82,9 @@ public:
     { return ::vc_dispmanx_display_close(display); };
   virtual int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T *pinfo )
     { return ::vc_dispmanx_display_get_info(display, pinfo); };
+  virtual int vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
+                                                  uint8_t red, uint8_t green, uint8_t blue )
+    { return ::vc_dispmanx_display_set_background(update, display, red, green, blue);
   virtual bool ResolveExports() 
     { return true; }
   virtual bool Load() 
@@ -105,6 +111,8 @@ class DllBcmHostDisplay : public DllDynamic, DllBcmHostDisplayInterface
   DEFINE_METHOD2(int, vc_dispmanx_element_remove, (DISPMANX_UPDATE_HANDLE_T p1, DISPMANX_ELEMENT_HANDLE_T p2))
   DEFINE_METHOD1(int, vc_dispmanx_display_close, (DISPMANX_DISPLAY_HANDLE_T p1))
   DEFINE_METHOD2(int, vc_dispmanx_display_get_info, (DISPMANX_DISPLAY_HANDLE_T p1, DISPMANX_MODEINFO_T *p2))
+  DEFINE_METHOD5(int, vc_dispmanx_display_set_background, ( DISPMANX_UPDATE_HANDLE_T p1, DISPMANX_DISPLAY_HANDLE_T p2,
+                                                            uint8_t p3, uint8_t p4, uint8_t p5 ))
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD(vc_dispmanx_display_open)
     RESOLVE_METHOD(vc_dispmanx_update_start)
@@ -113,6 +121,7 @@ class DllBcmHostDisplay : public DllDynamic, DllBcmHostDisplayInterface
     RESOLVE_METHOD(vc_dispmanx_element_remove)
     RESOLVE_METHOD(vc_dispmanx_display_close)
     RESOLVE_METHOD(vc_dispmanx_display_get_info)
+    RESOLVE_METHOD(vc_dispmanx_display_set_background)
   END_METHOD_RESOLVE()
 
 public:
@@ -137,6 +146,7 @@ public:
                                              uint32_t max_supported_modes, HDMI_RES_GROUP_T *preferred_group,
                                              uint32_t *preferred_mode) = 0;
   virtual int vc_tv_hdmi_power_on_explicit(HDMI_MODE_T mode, HDMI_RES_GROUP_T group, uint32_t code) = 0;
+  virtual int vc_tv_get_state(TV_GET_STATE_RESP_T *tvstate) = 0;
 };
 
 #if (defined USE_EXTERNAL_LIBBCM_HOST)
@@ -158,6 +168,8 @@ public:
     { return ::vc_tv_hdmi_get_supported_modes(group, supported_modes, max_supported_modes, preferred_group, preferred_mode); };
   virtual int vc_tv_hdmi_power_on_explicit(HDMI_MODE_T mode, HDMI_RES_GROUP_T group, uint32_t code)
     { return ::vc_tv_hdmi_power_on_explicit(mode, group, code); };
+  virtual int vc_tv_get_state(TV_GET_STATE_RESP_T *tvstate)
+    { return ::vc_tv_get_state(tvstate); };
   virtual bool ResolveExports() 
     { return true; }
   virtual bool Load() 
@@ -180,6 +192,7 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
   DEFINE_METHOD5(int,     vc_tv_hdmi_get_supported_modes, (HDMI_RES_GROUP_T p1, TV_SUPPORTED_MODE_T *p2,
                                                            uint32_t p3, HDMI_RES_GROUP_T *p4, uint32_t *p5))
   DEFINE_METHOD3(int,     vc_tv_hdmi_power_on_explicit, (HDMI_MODE_T p1, HDMI_RES_GROUP_T p2, uint32_t p3))
+  DEFINE_METHOD1(int,     vc_tv_get_state, (TV_GET_STATE_RESP_T *p1))
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD(bcm_host_init)
     RESOLVE_METHOD(bcm_host_deinit)
@@ -187,6 +200,7 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
     RESOLVE_METHOD(vc_tv_hdmi_power_on_best)
     RESOLVE_METHOD(vc_tv_hdmi_get_supported_modes)
     RESOLVE_METHOD(vc_tv_hdmi_power_on_explicit)
+    RESOLVE_METHOD(vc_tv_get_state)
   END_METHOD_RESOLVE()
 
 public:
