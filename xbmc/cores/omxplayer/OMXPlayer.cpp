@@ -1460,7 +1460,8 @@ void COMXPlayer::Process()
   OpenVideoDecoder(m_pVideoStream);
 
   m_dst_rect.SetRect(0, 0, 0, 0);
-  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
+  if(m_VideoCodecOpen)
+    m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
   OpenAudioCodec(m_pAudioStream);
 
