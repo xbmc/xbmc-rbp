@@ -46,7 +46,7 @@ bool OMXClock::Reset()
   m_video_clock = 0;
   m_audio_clock = 0;
   m_has_video   = false;
-  m_has_video   = false;
+  m_has_audio   = false;
   m_pause       = false;
   m_iCurrentPts = AV_NOPTS_VALUE;
 
