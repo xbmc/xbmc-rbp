@@ -49,12 +49,50 @@ void CGLTexture::CreateTextureObject()
 
 void CGLTexture::DestroyTextureObject()
 {
+#ifdef HAVE_LIBBCM_HOST
+  if (m_accelerated)
+  {
+    if (m_egl_image)
+    {
+      EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
+      eglDestroyImageKHR(egl_display, m_egl_image);
+      m_egl_image = 0;
+    }
+  }
+#endif
   if (m_texture)
     glDeleteTextures(1, (GLuint*) &m_texture);
 }
 
 void CGLTexture::LoadToGPU()
 {
+#ifdef HAVE_LIBBCM_HOST
+  if (m_accelerated)
+  {
+    if (m_loadedToGPU)
+    {
+      // nothing to load - probably same image (no change)
+      return;
+    }
+    assert(m_texture);
+    assert(m_egl_image);
+
+    // Bind the texture object
+    glBindTexture(GL_TEXTURE_2D, m_texture);
+
+    // Set the texture's stretching properties
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    { GLenum err = glGetError(); CLog::Log(LOGERROR, "GL ERROR: %i", (int)err);}
+
+    VerifyGLState();
+    m_loadedToGPU = true;
+    return;
+  }
+#endif
   if (!m_pixels)
   {
     // nothing to load - probably same image (no change)

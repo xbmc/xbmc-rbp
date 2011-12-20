@@ -8,6 +8,7 @@ SRCS=	\
 	OMXAudioCodecOMX.cpp \
 	OMXAudio.cpp \
 	OMXVideo.cpp \
+	OMXTexture.cpp \
 	BitstreamConverter.cpp
 
 LIB=	OMXPlayer.a

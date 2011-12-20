@@ -33,16 +33,26 @@
 #include "osx/DarwinUtils.h"
 #endif
 
+#ifdef HAVE_LIBBCM_HOST
+#include "ApplicationMessenger.h"
+#include "Application.h"
+#include "xbmc/cores/omxplayer/OMXTexture.h"
+#endif
+
 /************************************************************************/
 /*                                                                      */
 /************************************************************************/
 CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format)
  : m_hasAlpha( true )
 {
-#ifndef HAS_DX 
-  m_texture = 0; 
+#ifndef HAS_DX
+  m_texture = 0;
 #endif
   m_pixels = NULL;
+#ifdef HAVE_LIBBCM_HOST
+  m_egl_image = 0;
+  m_accelerated = false;
+#endif
   m_loadedToGPU = false;
   Allocate(width, height, format);
 }
@@ -62,6 +72,9 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   m_textureWidth = m_imageWidth;
   m_textureHeight = m_imageHeight;
 
+#ifdef HAVE_LIBBCM_HOST
+  if (m_accelerated) { assert(m_pixels == 0); return; }
+#endif
   if (m_format & XB_FMT_DXT_MASK)
     while (GetPitch() < g_Windowing.GetMinDXTPitch())
       m_textureWidth += GetBlockSize();
@@ -83,12 +96,23 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   CLAMP(m_textureHeight, g_Windowing.GetMaxTextureSize());
   CLAMP(m_imageWidth, m_textureWidth);
   CLAMP(m_imageHeight, m_textureHeight);
-  delete[] m_pixels;
-  m_pixels = new unsigned char[GetPitch() * GetRows()];
+  if (m_pixels)
+    delete[] m_pixels;
+  m_pixels = NULL;
+  if (GetPitch() * GetRows() > 0)
+    m_pixels = new unsigned char[GetPitch() * GetRows()];
 }
 
 void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU)
 {
+#ifdef HAVE_LIBBCM_HOST
+  if (m_accelerated)
+  {
+    if (loadToGPU)
+      LoadToGPU();
+     return;
+  }
+#endif
   if (pixels == NULL)
     return;
 
@@ -128,6 +152,9 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
 
 void CBaseTexture::ClampToEdge()
 {
+#ifdef HAVE_LIBBCM_HOST
+  assert(!m_accelerated);
+#endif
   unsigned int imagePitch = GetPitch(m_imageWidth);
   unsigned int imageRows = GetRows(m_imageHeight);
   unsigned int texturePitch = GetPitch(m_textureWidth);
@@ -156,9 +183,100 @@ void CBaseTexture::ClampToEdge()
   }
 }
 
+#ifdef HAVE_LIBBCM_HOST
+void CBaseTexture::CallbackAllocOMXEGLTextures(void *userdata)
+{
+  CBaseTexture *omx = static_cast<CBaseTexture*>(userdata);
+  omx->AllocOMXOutputEGLTextures();
+}
+
+void CBaseTexture::AllocOMXOutputEGLTextures(void)
+{
+  EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
+  EGLContext egl_context = g_Windowing.GetEGLContext();
+
+  glGenTextures(1, &m_texture);
+  assert(m_texture);
+  glBindTexture(GL_TEXTURE_2D, m_texture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_textureWidth, m_textureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 0);
+  m_egl_image = eglCreateImageKHR(egl_display, egl_context, EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)m_texture, NULL);
+  sem_post(&m_egl_alloc_sync);
+}
+#endif
+
 bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxWidth, unsigned int maxHeight,
                                 bool autoRotate, unsigned int *originalWidth, unsigned int *originalHeight)
 {
+#ifdef HAVE_LIBBCM_HOST
+  if (URIUtils::GetExtension(texturePath).Equals(".jpg") || URIUtils::GetExtension(texturePath).Equals(".tbn") /*|| URIUtils::GetExtension(texturePath).Equals(".png")*/)
+  {
+    bool success = false;
+    COMXTexture *m_omxTexture = new COMXTexture();
+    EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
+
+    if(!m_omxTexture->ReadFile(texturePath) || m_omxTexture->IsProgressive())
+    {
+      CLog::Log(LOGERROR, "Texture manager (OMX) unable to load file: %s (%dx%d) progressive=%d", texturePath.c_str(), (int)m_omxTexture->GetWidth(), (int)m_omxTexture->GetHeight(), m_omxTexture->IsProgressive());
+      goto fallback;
+    }
+
+    m_textureWidth  = m_omxTexture->GetWidth();
+    m_textureHeight = m_omxTexture->GetHeight();
+
+    if (originalWidth)
+      *originalWidth  = m_omxTexture->GetOriginalWidth();
+    if (originalHeight)
+      *originalHeight = m_omxTexture->GetOriginalHeight();
+
+    assert(!m_egl_image);
+    // we can only call gl functions from the application thread
+    if ( g_application.IsCurrentThread() )
+    {
+      AllocOMXOutputEGLTextures();
+    }
+    else
+    {
+      // we are not in application thread, so send a message asking it to call our function
+      ThreadMessageCallback callbackData;
+      callbackData.callback = &CallbackAllocOMXEGLTextures;
+      callbackData.userptr = (void *)this;
+
+      ThreadMessage tMsg;
+      tMsg.dwMessage = TMSG_CALLBACK;
+      tMsg.lpVoid = (void*)&callbackData;
+
+      sem_init (&m_egl_alloc_sync, 0, 0);
+      g_application.getApplicationMessenger().SendMessage(tMsg, true);
+      // wait for function to have finshed (in Application thread)
+      sem_wait(&m_egl_alloc_sync);
+    }
+    assert(m_egl_image);
+    if(!m_omxTexture->Open() || !m_omxTexture->Decode(m_egl_image, egl_display, m_textureWidth, m_textureHeight))
+    {
+      CLog::Log(LOGERROR, "Texture manager (OMX) unable to decode file: %s", texturePath.c_str());
+      goto fallback;
+    }
+
+    m_hasAlpha=false;
+    m_accelerated=true;
+
+    Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
+    success = true;
+fallback:
+    if (!success && m_egl_image)
+    {
+      eglDestroyImageKHR(egl_display, m_egl_image);
+      m_egl_image = 0;
+    }
+    if (m_omxTexture)
+    {
+      m_omxTexture->Close();
+      delete m_omxTexture;
+    }
+    if (success)
+       return success;
+  }
+#endif
   if (URIUtils::GetExtension(texturePath).Equals(".dds"))
   { // special case for DDS images
     CDDSImage image;
@@ -307,6 +425,9 @@ unsigned int CBaseTexture::PadPow2(unsigned int x)
 
 bool CBaseTexture::SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, unsigned int elements, unsigned int offset)
 {
+#ifdef HAVE_LIBBCM_HOST
+  assert(!m_accelerated);
+#endif
   if (!pixels) return false;
   unsigned char *dst = pixels;
   for (unsigned int y = 0; y < height; y++)
