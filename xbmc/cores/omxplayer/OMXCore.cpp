@@ -899,9 +899,8 @@ bool COMXCoreComponent::GotError(OMX_ERRORTYPE errorType)
 }
 */
 
-OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType)
+OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType, long timeout)
 {
-  long timeout = 300; // milliseconds
 #ifdef OMX_DEBUG_EVENTS
   CLog::Log(LOGDEBUG, "COMXCoreComponent::WaitForEvent %s wait event 0x%08x\n",
       m_componentName.c_str(), (int)eventType);
@@ -959,9 +958,8 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType)
   return OMX_ErrorNone;
 }
 
-OMX_ERRORTYPE COMXCoreComponent::WaitForCommand(OMX_U32 command, OMX_U32 nData2)
+OMX_ERRORTYPE COMXCoreComponent::WaitForCommand(OMX_U32 command, OMX_U32 nData2, long timeout)
 {
-  long timeout = 2000; // milliseconds
 #ifdef OMX_DEBUG_EVENTS
   CLog::Log(LOGDEBUG, "COMXCoreComponent::WaitForCommand %s wait event.eEvent 0x%08x event.command 0x%08x event.nData2 0x%08x\n", 
       m_componentName.c_str(), (int)OMX_EventCmdComplete, (int)command, (int)nData2);

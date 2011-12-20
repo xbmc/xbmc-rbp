@@ -605,7 +605,7 @@ int COMXTexture::Decode(void *egl_image, void *egl_display, unsigned width, unsi
     goto do_exit;
   }
 
-  omx_err = m_omx_resize.WaitForEvent(OMX_EventBufferFlag);
+  omx_err = m_omx_resize.WaitForEvent(OMX_EventBufferFlag, 1000);
   if(omx_err != OMX_ErrorNone) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_resize.WaitForEvent\n", CLASSNAME, __func__);
     goto do_exit;
