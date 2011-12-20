@@ -47,6 +47,7 @@ bool OMXClock::Reset()
   m_audio_clock = 0;
   m_has_video   = false;
   m_has_audio   = false;
+  m_play_speed  = 1;
   m_pause       = false;
   m_iCurrentPts = AV_NOPTS_VALUE;
 
@@ -372,6 +373,8 @@ bool OMXClock::Speed(int speed)
   OMX_INIT_STRUCTURE(scaleType);
 
   scaleType.xScale = (speed << 16);
+
+  m_play_speed = speed;
 
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeScale, &scaleType);
   if(omx_err != OMX_ErrorNone)

@@ -57,6 +57,7 @@ protected:
   double m_iCurrentPts;
   bool   m_has_video;
   bool   m_has_audio;
+  int    m_play_speed;
 private:
   COMXCoreComponent m_omx_clock;
   DllAvFormat       m_dllAvFormat;
@@ -71,6 +72,7 @@ public:
   bool Resume();
   bool WaitStart(uint64_t pts);
   bool Speed(int speed);
+  int  PlaySpeed() { return m_play_speed; };
   COMXCoreComponent *GetOMXClock();
   bool StateExecute();
   static void Sleep(unsigned int dwMilliSeconds);

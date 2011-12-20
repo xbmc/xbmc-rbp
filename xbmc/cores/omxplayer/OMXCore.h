@@ -84,7 +84,7 @@ public:
 
   void Initialize(COMXCoreComponent *src_component, unsigned int src_port, COMXCoreComponent *dst_component, unsigned int dst_port);
   OMX_ERRORTYPE Flush();
-  OMX_ERRORTYPE Deestablish();
+  OMX_ERRORTYPE Deestablish(bool noWait = false);
   OMX_ERRORTYPE Establish(bool portSettingsChanged);
 private:
   bool              m_portSettingsChanged;
@@ -110,6 +110,7 @@ public:
   OMX_ERRORTYPE DisableAllPorts();
   void          Remove(OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2);
   OMX_ERRORTYPE AddEvent(OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2);
+  //bool          GotError(OMX_ERRORTYPE errorType);
   OMX_ERRORTYPE WaitForEvent(OMX_EVENTTYPE event);
   OMX_ERRORTYPE WaitForCommand(OMX_U32 command, OMX_U32 nData2);
   OMX_ERRORTYPE SetStateForComponent(OMX_STATETYPE state);
@@ -119,6 +120,8 @@ public:
   OMX_ERRORTYPE SetConfig(OMX_INDEXTYPE configIndex, OMX_PTR configStruct);
   OMX_ERRORTYPE GetConfig(OMX_INDEXTYPE configIndex, OMX_PTR configStruct);
   OMX_ERRORTYPE SendCommand(OMX_COMMANDTYPE cmd, OMX_U32 cmdParam, OMX_PTR cmdParamData);
+  OMX_ERRORTYPE UseEGLImage(OMX_BUFFERHEADERTYPE** ppBufferHdr, OMX_U32 nPortIndex, OMX_PTR pAppPrivate, void* eglImage);
+
   bool          Initialize( const CStdString &component_name, OMX_INDEXTYPE index);
   bool          Deinitialize();
 
@@ -140,6 +143,7 @@ public:
 
   OMX_ERRORTYPE EmptyThisBuffer(OMX_BUFFERHEADERTYPE *omx_buffer);
   OMX_ERRORTYPE FillThisBuffer(OMX_BUFFERHEADERTYPE *omx_buffer);
+  OMX_ERRORTYPE FreeOutputBuffer(OMX_BUFFERHEADERTYPE *omx_buffer);
 
   unsigned int GetInputBufferSize();
   unsigned int GetOutputBufferSize();
@@ -169,9 +173,6 @@ private:
 
   OMX_CALLBACKTYPE  m_callbacks;
 
-  OMX_BUFFERHEADERTYPE *m_omx_input_buffer;
-  OMX_BUFFERHEADERTYPE *m_omx_output_buffer;
-
   // OMXCore input buffers (demuxer packets)
   pthread_mutex_t   m_omx_input_mutex;
   std::queue<OMX_BUFFERHEADERTYPE*> m_omx_input_avaliable;
@@ -191,8 +192,9 @@ private:
   bool          m_exit;
   DllOMX        *m_DllOMX;
   bool          m_DllOMXOpen;
-  sem_t         m_input_buffer_count_sem;
-  //sem_t         m_output_buffer_count_sem;
+  pthread_cond_t    m_input_buffer_cond;
+  pthread_cond_t    m_output_buffer_cond;
+  pthread_cond_t    m_omx_event_cond;
 };
 
 class COMXCore

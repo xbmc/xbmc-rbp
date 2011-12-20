@@ -65,4 +65,7 @@ void COMXStreamInfo::Clear()
   bitspersample = 0;
 
   identifier = 0;
+
+  framesize  = 0;
+  syncword   = 0;
 }

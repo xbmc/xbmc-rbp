@@ -48,30 +48,31 @@ using namespace std;
 static enum PCMChannels OMXChannelMap[8] =
 {
   PCM_FRONT_LEFT  , PCM_FRONT_RIGHT  ,
-  PCM_BACK_LEFT   , PCM_BACK_RIGHT   ,
   PCM_FRONT_CENTER, PCM_LOW_FREQUENCY,
+  PCM_BACK_LEFT   , PCM_BACK_RIGHT   ,
   PCM_SIDE_LEFT   , PCM_SIDE_RIGHT
 };
 
 static enum OMX_AUDIO_CHANNELTYPE OMXChannels[8] =
 {
-  OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF ,
-  OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR ,
+  OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF,
   OMX_AUDIO_ChannelCF, OMX_AUDIO_ChannelLFE,
+  OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR ,
   OMX_AUDIO_ChannelLS, OMX_AUDIO_ChannelRS
 };
 
 static unsigned int WAVEChannels[8] =
 {
   SPEAKER_FRONT_LEFT,       SPEAKER_FRONT_RIGHT,
-  SPEAKER_BACK_LEFT,        SPEAKER_BACK_RIGHT,
   SPEAKER_TOP_FRONT_CENTER, SPEAKER_LOW_FREQUENCY,
+  SPEAKER_BACK_LEFT,        SPEAKER_BACK_RIGHT,
   SPEAKER_SIDE_LEFT,        SPEAKER_SIDE_RIGHT
 };
 
-static const uint16_t DTSFSCod   [] = {0, 8000, 16000, 32000, 0, 0, 11025, 22050, 44100, 0, 0, 12000, 24000, 48000, 0, 0};
+static const uint16_t AC3Bitrates[] = {32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512, 576, 640};
+static const uint16_t AC3FSCod   [] = {48000, 44100, 32000, 0};
 
-//OMX_API OMX_ERRORTYPE OMX_APIENTRY vc_OMX_Init(void);
+static const uint16_t DTSFSCod   [] = {0, 8000, 16000, 32000, 0, 0, 11025, 22050, 44100, 0, 0, 12000, 24000, 48000, 0, 0};
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -143,6 +144,9 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   } else {
     deviceuse = "local";
   }
+
+  if(!m_dllAvUtil.Load())
+    return false;
 
   m_Passthrough = bPassthrough;
   m_drc         = 0;
@@ -345,7 +349,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
 
   m_omx_clock = m_av_clock->GetOMXClock();
 
-  m_omx_tunnel_clock.Initialize(m_omx_clock, m_omx_clock->GetInputPort(), &m_omx_render, m_omx_render.GetOutputPort());
+  m_omx_tunnel_clock.Initialize(m_omx_clock, m_omx_clock->GetInputPort(), &m_omx_render, m_omx_render.GetInputPort()+1);
 
   omx_err = m_omx_tunnel_clock.Establish(false);
   if(omx_err != OMX_ErrorNone)
@@ -525,6 +529,8 @@ bool COMXAudio::Deinitialize()
   m_extradata = NULL;
   m_extrasize = 0;
 
+  m_dllAvUtil.Unload();
+
   return true;
 }
 
@@ -535,7 +541,6 @@ void COMXAudio::Flush()
 
   m_omx_render.FlushInput();
   m_omx_decoder.FlushInput();
-
   m_omx_tunnel_clock.Flush();
   m_omx_tunnel_decoder.Flush();
 
@@ -644,6 +649,13 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
   if(m_eEncoding == OMX_AUDIO_CodingDTS && m_LostSync && m_Passthrough)
   {
     int skip = SyncDTS((uint8_t *)data, len);
+    if(skip > 0)
+      return len;
+  }
+
+  if(m_eEncoding == OMX_AUDIO_CodingDDP && m_LostSync && m_Passthrough)
+  {
+    int skip = SyncAC3((uint8_t *)data, len);
     if(skip > 0)
       return len;
   }
@@ -773,7 +785,7 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
     if(m_firstFrame)
     {
       m_firstFrame = false;
-      //m_omx_render.WaitForEvent(OMX_EventPortSettingsChanged);
+      m_omx_render.WaitForEvent(OMX_EventPortSettingsChanged);
 
       m_omx_render.SendCommand(OMX_CommandPortDisable, m_omx_render.GetInputPort(), NULL);
       m_omx_decoder.SendCommand(OMX_CommandPortDisable, m_omx_decoder.GetOutputPort(), NULL);
@@ -1181,6 +1193,7 @@ void COMXAudio::PrintDTS(OMX_AUDIO_PARAM_DTSTYPE *dtsparam)
   PrintChannels(dtsparam->eChannelMapping);
 }
 
+/* ========================== SYNC FUNCTIONS ========================== */
 unsigned int COMXAudio::SyncDTS(BYTE* pData, unsigned int iSize)
 {
   OMX_INIT_STRUCTURE(m_dtsParam);
@@ -1276,6 +1289,65 @@ unsigned int COMXAudio::SyncDTS(BYTE* pData, unsigned int iSize)
     return skip;
   }
 
+  m_LostSync = true;
+  return iSize;
+}
+
+unsigned int COMXAudio::SyncAC3(BYTE* pData, unsigned int iSize)
+{
+  unsigned int skip = 0;
+  unsigned int fSize = 0;
+
+  for(skip = 0; iSize - skip > 6; ++skip, ++pData)
+  {
+    /* search for an ac3 sync word */
+    if(pData[0] != 0x0b || pData[1] != 0x77)
+      continue;
+
+    uint8_t fscod      = pData[4] >> 6;
+    uint8_t frmsizecod = pData[4] & 0x3F;
+    uint8_t bsid       = pData[5] >> 3;
+
+    /* sanity checks on the header */
+    if (
+        fscod      ==   3 ||
+        frmsizecod >   37 ||
+        bsid       > 0x11
+    ) continue;
+
+    /* get the details we need to check crc1 and framesize */
+    uint16_t     bitrate   = AC3Bitrates[frmsizecod >> 1];
+    unsigned int framesize = 0;
+    switch(fscod)
+    {
+      case 0: framesize = bitrate * 2; break;
+      case 1: framesize = (320 * bitrate / 147 + (frmsizecod & 1 ? 1 : 0)); break;
+      case 2: framesize = bitrate * 4; break;
+    }
+
+    fSize = framesize * 2;
+    m_SampleRate = AC3FSCod[fscod];
+
+    /* dont do extensive testing if we have not lost sync */
+    if (!m_LostSync && skip == 0)
+      return 0;
+
+    unsigned int crc_size;
+    /* if we have enough data, validate the entire packet, else try to validate crc2 (5/8 of the packet) */
+    if (framesize <= iSize - skip)
+         crc_size = framesize - 1;
+    else crc_size = (framesize >> 1) + (framesize >> 3) - 1;
+
+    if (crc_size <= iSize - skip)
+      if(m_dllAvUtil.av_crc(m_dllAvUtil.av_crc_get_table(AV_CRC_16_ANSI), 0, &pData[2], crc_size * 2))
+        continue;
+
+    /* if we get here, we can sync */
+    m_LostSync = false;
+    return skip;
+  }
+
+  /* if we get here, the entire packet is invalid and we have lost sync */
   m_LostSync = true;
   return iSize;
 }

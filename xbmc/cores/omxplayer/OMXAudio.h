@@ -37,6 +37,7 @@
 #include "cores/IAudioCallback.h"
 #include "linux/PlatformDefs.h"
 #include "DllAvCodec.h"
+#include "DllAvUtil.h"
 #include "OMXCore.h"
 #include "OMXClock.h"
 #include "OMXStreamInfo.h"
@@ -93,6 +94,7 @@ public:
   void PrintDDP(OMX_AUDIO_PARAM_DDPTYPE *ddparm);
   void PrintDTS(OMX_AUDIO_PARAM_DTSTYPE *dtsparam);
   unsigned int SyncDTS(BYTE* pData, unsigned int iSize);
+  unsigned int SyncAC3(BYTE* pData, unsigned int iSize);
 
 private:
   IAudioCallback* m_pCallback;
@@ -130,6 +132,7 @@ protected:
   COMXCoreTunel     m_omx_tunnel_clock;
   COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCore          m_OMX;
+  DllAvUtil         m_dllAvUtil;
 };
 #endif
 

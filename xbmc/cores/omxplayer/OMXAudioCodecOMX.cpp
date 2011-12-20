@@ -105,6 +105,10 @@ bool COMXAudioCodecOMX::Open(COMXStreamInfo &hints)
       CLog::Log(LOGDEBUG, "COMXAudioCodecOMX::Open OMX Codec OMX_AUDIO_CodingDDP\n");
       m_eEncoding = OMX_AUDIO_CodingDDP;
       break;
+    case CODEC_ID_VORBIS:
+      CLog::Log(LOGDEBUG, "COMXAudioCodecOMX::Open OMX Codec OMX_AUDIO_CodingVORBIS\n");
+      m_eEncoding = OMX_AUDIO_CodingVORBIS;
+      break;
     */
     default:
       m_eEncoding = OMX_AUDIO_CodingUnused;

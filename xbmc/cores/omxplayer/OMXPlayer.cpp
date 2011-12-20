@@ -756,11 +756,9 @@ bool COMXPlayer::CloseFile()
     delete m_pFile;
     m_pFile = NULL;
   }
-
-  /*
-  m_BcmHost.vc_tv_hdmi_power_on_best(m_tv_state.width, m_tv_state.height, m_tv_state.frame_rate,
-                                     HDMI_NONINTERLACED, HDMI_MODE_MATCH_FRAMERATE);
-  */
+  
+  //m_BcmHost.vc_tv_hdmi_power_on_best(m_tv_state.width, m_tv_state.height, m_tv_state.frame_rate,
+  //                                   HDMI_NONINTERLACED, HDMI_MODE_MATCH_FRAMERATE);
   m_dllAvUtil.Unload();
   m_dllAvCodec.Unload();
   m_dllAvFormat.Unload();
@@ -1180,7 +1178,7 @@ void COMXPlayer::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
 
   if(m_VideoCodecOpen)
   {
-    m_video_decoder->SetVideoRect(SrcRect, m_dst_rect);
+    //xxx m_video_decoder->SetVideoRect(SrcRect, m_dst_rect);
   }
 }
 
@@ -1443,6 +1441,34 @@ void COMXPlayer::OnExit()
   m_ready.Set();
 }
 
+void COMXPlayer::TvServiceCallback(uint32_t reason, uint32_t param1, uint32_t param2)
+{
+  printf("tvservice_callback(%d,%d,%d)\n", reason, param1, param2);
+  switch(reason)
+  {
+  case VC_HDMI_UNPLUGGED:
+    break;
+  case VC_HDMI_STANDBY:
+    break;
+  case VC_SDTV_NTSC:
+  case VC_SDTV_PAL:
+  case VC_HDMI_HDMI:
+  case VC_HDMI_DVI:    
+    //Signal we are ready now
+    sem_post(&m_tv_synced);
+    break;     
+  default: 
+     break;
+  }
+}
+
+void COMXPlayer::CallbackTvServiceCallback(void *userdata, uint32_t reason, uint32_t param1, uint32_t param2)
+{
+   COMXPlayer *omx = static_cast<COMXPlayer*>(userdata);
+   omx->TvServiceCallback(reason, param1, param2);
+}
+
+
 void COMXPlayer::Process()
 {
   if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
@@ -1460,8 +1486,8 @@ void COMXPlayer::Process()
   OpenVideoDecoder(m_pVideoStream);
 
   m_dst_rect.SetRect(0, 0, 0, 0);
-  if(m_VideoCodecOpen)
-    m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
+  //if(m_VideoCodecOpen)
+  //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
   OpenAudioCodec(m_pAudioStream);
 
@@ -1520,25 +1546,19 @@ void COMXPlayer::Process()
         CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
       }
 
-      /*
-      int vc_width, vc_height;
-      if(width <= 720)
-      {
-        vc_width = 720; vc_height = 576;
-      }
-      else if(width <= 1280)
-      {
-        vc_width = 1280; vc_height = 720;
-      }
-      else
-      {
-        vc_width = 1920; vc_height = 1080;
-      }
-
       HDMI_INTERLACED_T interlaced = HDMI_NONINTERLACED;
       EDID_MODE_MATCH_FLAG_T edid = HDMI_MODE_MATCH_FRAMERATE;
-      m_BcmHost.vc_tv_hdmi_power_on_best(vc_width, vc_height, (int)(fFrameRate+0.5), interlaced, edid);
-      */
+      g_Windowing.Hide();
+      OMXSleep(1000);
+      printf("m_BcmHost.vc_tv_hdmi_power_on_best(%dx%d@%d) %d,%d\n", width, height, (int)(fFrameRate+0.5), interlaced, edid);
+      sem_init (&m_tv_synced, 0, 0);
+      m_BcmHost.vc_tv_register_callback(CallbackTvServiceCallback, this);
+      m_BcmHost.vc_tv_hdmi_power_on_best(width, height, (int)(fFrameRate+0.5), interlaced, edid);
+      // wait for TV sync complete
+      // This can take a second or two, so we should really move this later, and start buffering now.
+      sem_wait(&m_tv_synced);
+      m_BcmHost.vc_tv_unregister_callback(CallbackTvServiceCallback);
+      g_Windowing.Show(true);
     }
 
     if (m_options.identify == false)
@@ -1638,9 +1658,7 @@ void COMXPlayer::Process()
           goto do_exit;
         }
 
-        m_pkt_consumed = false;
-
-        if(m_pkt.dts == 0)
+        m_pkt_consumed = false;        if(m_pkt.dts == 0)
           m_pkt.dts = AV_NOPTS_VALUE;
         if(m_pkt.pts == 0)
           m_pkt.pts = AV_NOPTS_VALUE;

@@ -74,4 +74,7 @@ public:
   unsigned int extrasize; // size of extra data
   unsigned int codec_tag; // extra identifier hints for decoding
 
+  /* ac3/dts indof */
+  unsigned int framesize;
+  uint32_t     syncword;
 };

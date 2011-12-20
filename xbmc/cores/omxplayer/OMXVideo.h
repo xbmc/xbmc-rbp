@@ -40,6 +40,7 @@
 
 #include "guilib/Geometry.h"
 
+
 #define VIDEO_BUFFERS 60
 
 #define CLASSNAME "COMXVideo"
@@ -58,8 +59,8 @@ public:
   unsigned int GetFreeSpace();
   unsigned int GetSize();
   int  Decode(uint8_t *pData, int iSize, int64_t dts, int64_t pts);
+  //int  DecodeText(uint8_t *pData, int iSize, int64_t dts, int64_t pts);
   void Reset(void);
-  //bool GetPicture(DVDVideoPicture *pDvdVideoPicture);
   void SetDropState(bool bDrop);
   bool Pause();
   bool Resume();
@@ -73,12 +74,14 @@ protected:
 
   OMX_VIDEO_CODINGTYPE m_codingType;
 
+  //COMXCoreComponent m_omx_text;
   COMXCoreComponent m_omx_decoder;
   COMXCoreComponent m_omx_render;
   COMXCoreComponent m_omx_sched;
   COMXCoreComponent *m_omx_clock;
   OMXClock           *m_av_clock;
 
+  //COMXCoreTunel     m_omx_tunnel_text;
   COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCoreTunel     m_omx_tunnel_clock;
   COMXCoreTunel     m_omx_tunnel_sched;
