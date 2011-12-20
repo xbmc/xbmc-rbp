@@ -47,7 +47,6 @@ CWinSystemGLES::CWinSystemGLES() : CWinSystemBase()
 
   m_dispman_element = DISPMANX_NO_HANDLE;
   m_dispman_display = DISPMANX_NO_HANDLE;
-  m_dispman_update  = DISPMANX_NO_HANDLE;
 }
 
 CWinSystemGLES::~CWinSystemGLES()
@@ -64,59 +63,7 @@ bool CWinSystemGLES::InitWindowSystem()
   m_display = EGL_DEFAULT_DISPLAY;
   m_window  = (EGL_DISPMANX_WINDOW_T*)calloc(1, sizeof(EGL_DISPMANX_WINDOW_T));
 
-  m_dispman_display = m_DllBcmHostDisplay.vc_dispmanx_display_open(0);
-  m_dispman_update  = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
-     
-  DISPMANX_MODEINFO_T mode_info;
-  memset(&mode_info, 0x0, sizeof(DISPMANX_MODEINFO_T));
-  m_DllBcmHostDisplay.vc_dispmanx_display_get_info(m_dispman_display, &mode_info);
-
-  m_fb_width  = mode_info.width;
-  m_fb_height = mode_info.height;
-  m_fb_bpp    = 8;
-
-  VC_RECT_T dst_rect;
-  VC_RECT_T src_rect;
-  dst_rect.x = 0;
-  dst_rect.y = 0;
-  dst_rect.width = m_fb_width;
-  dst_rect.height = m_fb_height;
-
-  src_rect.x = 0;
-  src_rect.y = 0;
-  src_rect.width = m_fb_width << 16;
-  src_rect.height = m_fb_height << 16;        
-
-  VC_DISPMANX_ALPHA_T alpha;
-  memset(&alpha, 0x0, sizeof(VC_DISPMANX_ALPHA_T));
-  alpha.flags = DISPMANX_FLAGS_ALPHA_FROM_SOURCE;
-
-  DISPMANX_CLAMP_T clamp;
-  memset(&clamp, 0x0, sizeof(DISPMANX_CLAMP_T));
-  clamp.mode = DISPMANX_FLAGS_CLAMP_REPLACE;
-  clamp.key_mask = DISPMANX_FLAGS_KEYMASK_OVERRIDE;
-
-  DISPMANX_TRANSFORM_T transform = DISPMANX_ROTATE_180;
-
-  m_dispman_element = m_DllBcmHostDisplay.vc_dispmanx_element_add(m_dispman_update,
-    m_dispman_display,
-    1,                              // layer
-    &dst_rect,
-    (DISPMANX_RESOURCE_HANDLE_T)0,  // src
-    &src_rect,
-    DISPMANX_PROTECTION_NONE,
-    //(VC_DISPMANX_ALPHA_T*)0,        // alpha
-    &alpha,
-    //(DISPMANX_CLAMP_T*)0,           // clamp
-    &clamp,
-    //(DISPMANX_TRANSFORM_T)0);       // transform
-    transform);       // transform
-
-  m_window->element = m_dispman_element;
-  m_window->width   = m_fb_width;
-  m_window->height  = m_fb_height;
-  m_DllBcmHostDisplay.vc_dispmanx_display_set_background(m_dispman_update, m_dispman_display, 0x00, 0x00, 0x00);
-  m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(m_dispman_update);
+  Show(true);
 
   if (!CWinSystemBase::InitWindowSystem())
     return false;
@@ -134,23 +81,12 @@ bool CWinSystemGLES::DestroyWindowSystem()
 
   if(m_dispman_element != DISPMANX_NO_HANDLE)
   {
-    m_dispman_update = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
-
-    m_DllBcmHostDisplay.vc_dispmanx_element_remove(m_dispman_update, m_dispman_element);
-    m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(m_dispman_update);
+     Hide();
   }
 
-  if (m_dispman_display != DISPMANX_NO_HANDLE)
-  {
-    m_DllBcmHostDisplay.vc_dispmanx_display_close(m_dispman_display);
-  }
- 
   if(m_DllBcmHostDisplay.IsLoaded())
     m_DllBcmHostDisplay.Unload();
 
-  m_dispman_element = DISPMANX_NO_HANDLE;
-  m_dispman_display = DISPMANX_NO_HANDLE;
-  m_dispman_update  = DISPMANX_NO_HANDLE;
 
   return true;
 }
@@ -258,11 +194,81 @@ bool CWinSystemGLES::Restore()
 
 bool CWinSystemGLES::Hide()
 {
+  DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
+
+  m_DllBcmHostDisplay.vc_dispmanx_element_remove(dispman_update, m_dispman_element);
+  m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(dispman_update);
+  m_dispman_element = DISPMANX_NO_HANDLE;
+
+  if (m_dispman_display != DISPMANX_NO_HANDLE)
+  {
+    m_DllBcmHostDisplay.vc_dispmanx_display_close(m_dispman_display);
+    m_dispman_display = DISPMANX_NO_HANDLE;
+  }
+
   return true;
 }
 
 bool CWinSystemGLES::Show(bool raise)
 {
+  DISPMANX_MODEINFO_T mode_info;
+  memset(&mode_info, 0x0, sizeof(DISPMANX_MODEINFO_T));
+  m_dispman_display = m_DllBcmHostDisplay.vc_dispmanx_display_open(0);
+  m_DllBcmHostDisplay.vc_dispmanx_display_get_info(m_dispman_display, &mode_info);
+
+  if (!m_fb_width)
+    m_fb_width  = mode_info.width;
+  if (!m_fb_height)
+    m_fb_height = mode_info.height;
+  m_fb_bpp    = 8;
+
+  VC_RECT_T dst_rect;
+  VC_RECT_T src_rect;
+  dst_rect.x = 0;
+  dst_rect.y = 0;
+  dst_rect.width = mode_info.width;
+  dst_rect.height = mode_info.height;
+
+  src_rect.x = 0;
+  src_rect.y = 0;
+  src_rect.width = m_fb_width << 16;
+  src_rect.height = m_fb_height << 16;
+
+  VC_DISPMANX_ALPHA_T alpha;
+  memset(&alpha, 0x0, sizeof(VC_DISPMANX_ALPHA_T));
+  alpha.flags = DISPMANX_FLAGS_ALPHA_FROM_SOURCE;
+
+  DISPMANX_CLAMP_T clamp;
+  memset(&clamp, 0x0, sizeof(DISPMANX_CLAMP_T));
+  clamp.mode = DISPMANX_FLAGS_CLAMP_REPLACE;
+  clamp.key_mask = DISPMANX_FLAGS_KEYMASK_OVERRIDE;
+
+  DISPMANX_TRANSFORM_T transform = DISPMANX_ROTATE_180;
+  DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
+
+  m_dispman_element = m_DllBcmHostDisplay.vc_dispmanx_element_add(dispman_update,
+    m_dispman_display,
+    1,                              // layer
+    &dst_rect,
+    (DISPMANX_RESOURCE_HANDLE_T)0,  // src
+    &src_rect,
+    DISPMANX_PROTECTION_NONE,
+    //(VC_DISPMANX_ALPHA_T*)0,        // alpha
+    &alpha,
+    //(DISPMANX_CLAMP_T*)0,           // clamp
+    &clamp,
+    //(DISPMANX_TRANSFORM_T)0);       // transform
+    transform);       // transform
+
+  assert(m_dispman_element != DISPMANX_NO_HANDLE);
+  assert(m_dispman_element != (unsigned)DISPMANX_INVALID);
+  m_window->element = m_dispman_element;
+
+  m_window->width   = m_fb_width;
+  m_window->height  = m_fb_height;
+  m_DllBcmHostDisplay.vc_dispmanx_display_set_background(dispman_update, m_dispman_display, 0x00, 0x00, 0x00);
+  m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(dispman_update);
+
   return true;
 }
 
