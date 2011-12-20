@@ -147,6 +147,8 @@ public:
                                              uint32_t *preferred_mode) = 0;
   virtual int vc_tv_hdmi_power_on_explicit(HDMI_MODE_T mode, HDMI_RES_GROUP_T group, uint32_t code) = 0;
   virtual int vc_tv_get_state(TV_GET_STATE_RESP_T *tvstate) = 0;
+  virtual void vc_tv_register_callback(TVSERVICE_CALLBACK_T callback, void *callback_data) = 0;
+  virtual void vc_tv_unregister_callback(TVSERVICE_CALLBACK_T callback) = 0;
 };
 
 #if (defined USE_EXTERNAL_LIBBCM_HOST)
@@ -170,6 +172,10 @@ public:
     { return ::vc_tv_hdmi_power_on_explicit(mode, group, code); };
   virtual int vc_tv_get_state(TV_GET_STATE_RESP_T *tvstate)
     { return ::vc_tv_get_state(tvstate); };
+  virtual void vc_tv_register_callback(TVSERVICE_CALLBACK_T callback, void *callback_data)
+    { ::vc_tv_unregister_callback(callback, callback_data); };
+  virtual void vc_tv_unregister_callback(TVSERVICE_CALLBACK_T callback)
+    { ::vc_tv_unregister_callback(callback); };
   virtual bool ResolveExports() 
     { return true; }
   virtual bool Load() 
@@ -193,6 +199,10 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
                                                            uint32_t p3, HDMI_RES_GROUP_T *p4, uint32_t *p5))
   DEFINE_METHOD3(int,     vc_tv_hdmi_power_on_explicit, (HDMI_MODE_T p1, HDMI_RES_GROUP_T p2, uint32_t p3))
   DEFINE_METHOD1(int,     vc_tv_get_state, (TV_GET_STATE_RESP_T *p1))
+
+  DEFINE_METHOD2(void,    vc_tv_register_callback, (TVSERVICE_CALLBACK_T p1, void *p2))
+  DEFINE_METHOD1(void,    vc_tv_unregister_callback, (TVSERVICE_CALLBACK_T p1))
+
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD(bcm_host_init)
     RESOLVE_METHOD(bcm_host_deinit)
@@ -201,6 +211,8 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
     RESOLVE_METHOD(vc_tv_hdmi_get_supported_modes)
     RESOLVE_METHOD(vc_tv_hdmi_power_on_explicit)
     RESOLVE_METHOD(vc_tv_get_state)
+    RESOLVE_METHOD(vc_tv_register_callback)
+    RESOLVE_METHOD(vc_tv_unregister_callback)
   END_METHOD_RESOLVE()
 
 public:
