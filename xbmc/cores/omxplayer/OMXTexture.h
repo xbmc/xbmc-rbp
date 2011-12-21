@@ -35,7 +35,11 @@
 #endif
 
 #include "OMXClock.h"
+#ifdef STANDALONE
+#include "File.h"
+#else
 #include "xbmc/filesystem/File.h"
+#endif
 
 //#define CLASSNAME "COMXTexture"
 //typedef void *EGLImageKHR;
