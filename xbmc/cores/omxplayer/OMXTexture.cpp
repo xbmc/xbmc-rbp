@@ -377,7 +377,10 @@ bool COMXTexture::ReadFile(const std::string &inputFile)
   // surely not going to happen?
   if (m_width > 2048 || m_height > 2048)
     m_width = 256, m_height = 256;
-   
+  
+  m_width  = (m_width + 15)  & ~15;
+  m_height = (m_height + 15) & ~15;
+
   return true;
 }
 
