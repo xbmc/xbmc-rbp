@@ -1549,8 +1549,6 @@ void COMXPlayer::Process()
       HDMI_INTERLACED_T interlaced = HDMI_NONINTERLACED;
       EDID_MODE_MATCH_FLAG_T edid = HDMI_MODE_MATCH_FRAMERATE;
       g_Windowing.Hide();
-      OMXSleep(1000);
-      printf("m_BcmHost.vc_tv_hdmi_power_on_best(%dx%d@%d) %d,%d\n", width, height, (int)(fFrameRate+0.5), interlaced, edid);
       sem_init (&m_tv_synced, 0, 0);
       m_BcmHost.vc_tv_register_callback(CallbackTvServiceCallback, this);
       m_BcmHost.vc_tv_hdmi_power_on_best(width, height, (int)(fFrameRate+0.5), interlaced, edid);
