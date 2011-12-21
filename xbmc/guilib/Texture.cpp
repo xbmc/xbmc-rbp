@@ -261,6 +261,7 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     m_accelerated=true;
 
     Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
+    m_orientation = 3;
     success = true;
 fallback:
     if (!success && m_egl_image)
