@@ -43,6 +43,8 @@
 
 #define CONTENTURI_MAXLEN 256
 
+#define EXIF_TAG_ORIENTATION    0x0112
+
 typedef struct {
    OMX_PARAM_CONTENTURITYPE uri;
    OMX_U8 uri_data[CONTENTURI_MAXLEN];
@@ -56,6 +58,7 @@ COMXTexture::COMXTexture()
   m_image_buffer  = NULL;
   memset(&m_omx_image, 0x0, sizeof(OMX_IMAGE_PORTDEFINITIONTYPE));
   m_progressive   = false;
+  m_orientation   = 0;
   m_width         = 0;
   m_height        = 0;
 }
@@ -135,6 +138,7 @@ void COMXTexture::Close()
 
   m_is_open       = false;
   m_progressive   = false;
+  m_orientation   = 0;
 
   m_pFile.Close();
 }
@@ -200,8 +204,8 @@ OMX_IMAGE_CODINGTYPE COMXTexture::GetCodingType()
   memset(&m_omx_image, 0x0, sizeof(OMX_IMAGE_PORTDEFINITIONTYPE));
   m_width         = 0;
   m_height        = 0;
-
-  m_progressive = false;
+  m_progressive   = false;
+  m_orientation   = 0;
 
   m_omx_image.eCompressionFormat = OMX_IMAGE_CodingMax;
 
@@ -304,8 +308,141 @@ OMX_IMAGE_CODINGTYPE COMXTexture::GetCodingType()
       m_omx_image.nFrameWidth = CBitstreamConverter::read_bits(&br, 16);
 
       CBitstreamConverter::skip_bits(&br, 8 * (block_size - 9));
-      printf("jpeg %ld %ld\n", m_omx_image.nFrameWidth, m_omx_image.nFrameHeight);
-      break;
+      //printf("jpeg %ld %ld\n", m_omx_image.nFrameWidth, m_omx_image.nFrameHeight);
+      //break;
+    }
+    else if(marker == M_APP1)
+    {
+      int readBits = 2;
+      bool bMotorolla = false;
+      bool bError = false;
+      bool bOrientation = false;
+
+      // Exif header
+      if(CBitstreamConverter::read_bits(&br, 32) == 0x45786966)
+      {
+        printf("Exif header\n");
+        CBitstreamConverter::skip_bits(&br, 8 * 2);
+        readBits += 2;
+        
+        char o1 = CBitstreamConverter::read_bits(&br, 8);
+        char o2 = CBitstreamConverter::read_bits(&br, 8);
+        readBits += 2;
+
+        /* Discover byte order */
+        if(o1 == 'M' && o2 == 'M')
+          bMotorolla = true;
+        else if(o1 == 'I' && o2 == 'I')
+          bMotorolla = false;
+        else
+          bError = true;
+        
+        CBitstreamConverter::skip_bits(&br, 8 * 2);
+        readBits += 2;
+
+        if(!bError)
+        {
+          unsigned int offset, a, b, numberOfTags, tagNumber;
+
+          // Get first IFD offset (offset to IFD0)
+          if(bMotorolla)
+          {
+            CBitstreamConverter::skip_bits(&br, 8 * 2);
+            readBits += 2;
+
+            a = CBitstreamConverter::read_bits(&br, 8);
+            b = CBitstreamConverter::read_bits(&br, 8);
+            readBits += 2;
+            offset = (a << 8) + b;
+          }
+          else
+          {
+            a = CBitstreamConverter::read_bits(&br, 8);
+            b = CBitstreamConverter::read_bits(&br, 8);
+            readBits += 2;
+            offset = (b << 8) + a;
+
+            CBitstreamConverter::skip_bits(&br, 8 * 2);
+            readBits += 2;
+          }
+
+          offset -= 8;
+          if(offset > 0)
+          {
+            CBitstreamConverter::skip_bits(&br, 8 * offset);
+            readBits += offset;
+          } 
+
+          // Get the number of directory entries contained in this IFD
+          if(bMotorolla)
+          {
+            a = CBitstreamConverter::read_bits(&br, 8);
+            b = CBitstreamConverter::read_bits(&br, 8);
+            numberOfTags = (a << 8) + b;
+          }
+          else
+          {
+            a = CBitstreamConverter::read_bits(&br, 8);
+            b = CBitstreamConverter::read_bits(&br, 8);
+            numberOfTags = (b << 8) + a;
+          }
+          readBits += 2;
+
+          while(numberOfTags && !br.oflow)
+          {
+            // Get Tag number
+            if(bMotorolla)
+            {
+              a = CBitstreamConverter::read_bits(&br, 8);
+              b = CBitstreamConverter::read_bits(&br, 8);
+              tagNumber = (a << 8) + b;
+              readBits += 2;
+            }
+            else
+            {
+              a = CBitstreamConverter::read_bits(&br, 8);
+              b = CBitstreamConverter::read_bits(&br, 8);
+              tagNumber = (b << 8) + a;
+              readBits += 2;
+            }
+
+            //found orientation tag
+            if(tagNumber == EXIF_TAG_ORIENTATION)
+            {
+              bOrientation = true;
+              if(bMotorolla)
+              {
+                CBitstreamConverter::skip_bits(&br, 8 * 7);
+                readBits += 7;
+                m_orientation = CBitstreamConverter::read_bits(&br, 8);
+                readBits += 1;
+                CBitstreamConverter::skip_bits(&br, 8 * 2);
+                readBits += 2;
+              }
+              else
+              {
+                CBitstreamConverter::skip_bits(&br, 8 * 6);
+                readBits += 6;
+                m_orientation = CBitstreamConverter::read_bits(&br, 8);
+                readBits += 1;
+                CBitstreamConverter::skip_bits(&br, 8 * 3);
+                readBits += 3;
+              }
+              //printf("offset %d numberOfTags %d tagNumber 0x%04X orientation %d\n", 
+              //  offset, numberOfTags, tagNumber, m_orientation);
+              break;
+            }
+            else
+            {
+              CBitstreamConverter::skip_bits(&br, 8 * 10);
+              readBits += 10;
+            }
+            numberOfTags--;
+          }
+        }
+      }
+      readBits += 4;
+      CBitstreamConverter::skip_bits(&br, 8 * (block_size - readBits));
     }
     else
     {
@@ -330,7 +467,7 @@ OMX_IMAGE_CODINGTYPE COMXTexture::GetCodingType()
     {
       m_omx_image.nFrameWidth = CBitstreamConverter::read_bits(&br, 32);
       m_omx_image.nFrameHeight = CBitstreamConverter::read_bits(&br, 32);
-      printf("png %ld %ld\n", m_omx_image.nFrameWidth, m_omx_image.nFrameHeight);
+      //printf("png %ld %ld\n", m_omx_image.nFrameWidth, m_omx_image.nFrameHeight);
     }
   }
 

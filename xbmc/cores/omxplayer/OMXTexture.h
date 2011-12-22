@@ -61,6 +61,7 @@ public:
   bool ReadFile(const std::string &inputFile);
   OMX_IMAGE_CODINGTYPE GetCodingType();
   bool IsProgressive() { return m_progressive; };
+  int  GetOrientation() { return m_orientation; };
   int  Decode(void *egl_image, void *egl_display, unsigned width, unsigned height);
   OMX_U32 GetOriginalWidth()  { return m_omx_image.nFrameWidth; };
   OMX_U32 GetOriginalHeight() { return m_omx_image.nFrameHeight; };
@@ -86,6 +87,7 @@ protected:
   unsigned int      m_width;
   unsigned int      m_height;
   bool              m_progressive;
+  int               m_orientation;
   COMXCore          m_OMX;
   XFILE::CFile      m_pFile;
 };
