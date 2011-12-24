@@ -45,6 +45,16 @@ CGLTexture::~CGLTexture()
 void CGLTexture::CreateTextureObject()
 {
   glGenTextures(1, (GLuint*) &m_texture);
+
+  if (m_accelerated && !m_egl_image && m_texture)
+  {
+    EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
+    EGLContext egl_context = g_Windowing.GetEGLContext();
+
+    glBindTexture(GL_TEXTURE_2D, m_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_textureWidth, m_textureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 0);
+    m_egl_image = eglCreateImageKHR(egl_display, egl_context, EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)m_texture, NULL);
+  }
 }
 
 void CGLTexture::DestroyTextureObject()
@@ -59,6 +69,12 @@ void CGLTexture::DestroyTextureObject()
       m_egl_image = 0;
     }
   }
+  if(m_omx_texture)
+    delete m_omx_texture;
+  m_omx_texture = NULL;
+  if(m_omx_image)
+    delete m_omx_image;
+  m_omx_image = NULL;
 #endif
   if (m_texture)
     glDeleteTextures(1, (GLuint*) &m_texture);
@@ -67,15 +83,39 @@ void CGLTexture::DestroyTextureObject()
 void CGLTexture::LoadToGPU()
 {
 #ifdef HAVE_LIBBCM_HOST
-  if (m_accelerated)
+  if (m_accelerated && m_omx_image)
   {
     if (m_loadedToGPU)
     {
       // nothing to load - probably same image (no change)
       return;
     }
-    assert(m_texture);
-    assert(m_egl_image);
+    if(m_egl_image == 0 && m_texture == 0)
+    {
+      CreateTextureObject();
+      
+      if(m_egl_image && m_texture)
+      {
+        m_omx_texture = new COMXTexture();
+
+        EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
+        if(!m_omx_texture->Open() || !m_omx_texture->Decode(m_omx_image, m_egl_image, egl_display, m_textureWidth, m_textureHeight))
+        {
+          CLog::Log(LOGERROR, "GL: OMX Error decode Image into Texture");
+        }
+
+        delete m_omx_texture;
+        m_omx_texture = NULL;
+        delete m_omx_image;
+        m_omx_image = NULL;
+      }
+    }
+
+    if(m_egl_image == 0 || m_texture == 0)
+    {
+      CLog::Log(LOGERROR, "GL: OMX Image Error");
+      return;
+    }
 
     // Bind the texture object
     glBindTexture(GL_TEXTURE_2D, m_texture);

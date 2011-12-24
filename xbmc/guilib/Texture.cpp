@@ -52,6 +52,8 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
 #ifdef HAVE_LIBBCM_HOST
   m_egl_image = 0;
   m_accelerated = false;
+  m_omx_image = NULL;
+  m_omx_texture = NULL;
 #endif
   m_loadedToGPU = false;
   Allocate(width, height, format);
@@ -60,6 +62,14 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
 CBaseTexture::~CBaseTexture()
 {
   delete[] m_pixels;
+#ifdef HAVE_LIBBCM_HOST
+  if(m_omx_image)
+    delete m_omx_image;
+  m_omx_image = NULL;
+  if(m_omx_texture)
+    delete m_omx_texture;
+  m_omx_texture = NULL;
+#endif
 }
 
 void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format)
@@ -183,99 +193,47 @@ void CBaseTexture::ClampToEdge()
   }
 }
 
-#ifdef HAVE_LIBBCM_HOST
-void CBaseTexture::CallbackAllocOMXEGLTextures(void *userdata)
-{
-  CBaseTexture *omx = static_cast<CBaseTexture*>(userdata);
-  omx->AllocOMXOutputEGLTextures();
-}
-
-void CBaseTexture::AllocOMXOutputEGLTextures(void)
-{
-  EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
-  EGLContext egl_context = g_Windowing.GetEGLContext();
-
-  glGenTextures(1, &m_texture);
-  assert(m_texture);
-  glBindTexture(GL_TEXTURE_2D, m_texture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_textureWidth, m_textureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 0);
-  m_egl_image = eglCreateImageKHR(egl_display, egl_context, EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)m_texture, NULL);
-  sem_post(&m_egl_alloc_sync);
-}
-#endif
-
 bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxWidth, unsigned int maxHeight,
                                 bool autoRotate, unsigned int *originalWidth, unsigned int *originalHeight)
 {
 #ifdef HAVE_LIBBCM_HOST
-  if (URIUtils::GetExtension(texturePath).Equals(".jpg") || URIUtils::GetExtension(texturePath).Equals(".tbn") /*|| URIUtils::GetExtension(texturePath).Equals(".png")*/)
+  if (URIUtils::GetExtension(texturePath).Equals(".jpg") || 
+      URIUtils::GetExtension(texturePath).Equals(".tbn") 
+      /*|| URIUtils::GetExtension(texturePath).Equals(".png")*/)
   {
-    bool success = false;
-    COMXTexture *m_omxTexture = new COMXTexture();
-    EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
+    m_omx_image = new COMXImage();
 
-    if(!m_omxTexture->ReadFile(texturePath) || m_omxTexture->IsProgressive())
+    if(!m_omx_image || !m_omx_image->ReadFile(texturePath) || m_omx_image->IsProgressive() || 
+        (m_omx_image->GetCompressionFormat() == OMX_IMAGE_CodingMax))
     {
-      CLog::Log(LOGERROR, "Texture manager (OMX) unable to load file: %s (%dx%d) progressive=%d", texturePath.c_str(), (int)m_omxTexture->GetWidth(), (int)m_omxTexture->GetHeight(), m_omxTexture->IsProgressive());
-      goto fallback;
-    }
-
-    m_textureWidth  = m_omxTexture->GetWidth();
-    m_textureHeight = m_omxTexture->GetHeight();
-
-    if (originalWidth)
-      *originalWidth  = m_omxTexture->GetOriginalWidth();
-    if (originalHeight)
-      *originalHeight = m_omxTexture->GetOriginalHeight();
-
-    assert(!m_egl_image);
-    // we can only call gl functions from the application thread
-    if ( g_application.IsCurrentThread() )
-    {
-      AllocOMXOutputEGLTextures();
+      /* progressive mages can't be hw decoded */
+      CLog::Log(LOGERROR, "Texture manager (OMX) unable to hw decode file : %s (%dx%d) progressive=%d", 
+          texturePath.c_str(), (int)m_omx_image->GetWidth(), (int)m_omx_image->GetHeight(), 
+          m_omx_image->IsProgressive());
+      delete m_omx_image;
+      m_omx_image   = NULL;
+      m_accelerated = false;
     }
     else
     {
-      // we are not in application thread, so send a message asking it to call our function
-      ThreadMessageCallback callbackData;
-      callbackData.callback = &CallbackAllocOMXEGLTextures;
-      callbackData.userptr = (void *)this;
+      m_textureWidth  = m_omx_image->GetWidth();
+      m_textureHeight = m_omx_image->GetHeight();
 
-      ThreadMessage tMsg;
-      tMsg.dwMessage = TMSG_CALLBACK;
-      tMsg.lpVoid = (void*)&callbackData;
+      if (originalWidth)
+        *originalWidth  = m_omx_image->GetOriginalWidth();
+      if (originalHeight)
+        *originalHeight = m_omx_image->GetOriginalHeight();
 
-      sem_init (&m_egl_alloc_sync, 0, 0);
-      g_application.getApplicationMessenger().SendMessage(tMsg, true);
-      // wait for function to have finshed (in Application thread)
-      sem_wait(&m_egl_alloc_sync);
-    }
-    assert(m_egl_image);
-    if(!m_omxTexture->Open() || !m_omxTexture->Decode(m_egl_image, egl_display, m_textureWidth, m_textureHeight))
-    {
-      CLog::Log(LOGERROR, "Texture manager (OMX) unable to decode file: %s", texturePath.c_str());
-      goto fallback;
-    }
+      m_hasAlpha    = false;
+      m_accelerated = true;
 
-    m_hasAlpha=false;
-    m_accelerated=true;
+      Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
 
-    Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
-    m_orientation = 3;
-    success = true;
-fallback:
-    if (!success && m_egl_image)
-    {
-      eglDestroyImageKHR(egl_display, m_egl_image);
-      m_egl_image = 0;
+      if(autoRotate)
+        m_orientation = m_omx_image->GetOrientation();
+
+      return true;
     }
-    if (m_omxTexture)
-    {
-      m_omxTexture->Close();
-      delete m_omxTexture;
-    }
-    if (success)
-       return success;
   }
 #endif
   if (URIUtils::GetExtension(texturePath).Equals(".dds"))

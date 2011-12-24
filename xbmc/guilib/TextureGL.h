@@ -29,6 +29,15 @@
 
 #include "Texture.h"
 
+// TODO: remove after we have it in configure
+#ifndef HAVE_LIBBCM_HOST
+#define HAVE_LIBBCM_HOST
+#endif
+
+#ifdef HAVE_LIBBCM_HOST
+#include "xbmc/cores/omxplayer/OMXTexture.h"
+#endif
+
 #pragma once
 
 #if defined(HAS_GL) || defined(HAS_GLES)

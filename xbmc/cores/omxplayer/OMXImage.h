@@ -35,43 +35,47 @@
 #endif
 
 #include "OMXClock.h"
-#include "OMXImage.h"
 #ifdef STANDALONE
 #include "File.h"
 #else
 #include "xbmc/filesystem/File.h"
 #endif
 
+//#define CLASSNAME "COMXImage"
+//typedef void *EGLImageKHR;
+
 using namespace XFILE;
 using namespace std;
 
-class DllAvUtil;
-class DllAvFormat;
-class COMXTexture
+class COMXImage
 {
 public:
-  COMXTexture();
-  virtual ~COMXTexture();
+  COMXImage();
+  virtual ~COMXImage();
 
   // Required overrides
-  bool Open(void);
   void Close(void);
-  int  Decode(COMXImage *omx_image, void *egl_image, void *egl_display, unsigned width, unsigned height);
-  void Reset(void);
+  bool ReadFile(const std::string &inputFile);
+  bool IsProgressive() { return m_progressive; };
+  int  GetOrientation() { return m_orientation; };
+  OMX_U32 GetOriginalWidth()  { return m_omx_image.nFrameWidth; };
+  OMX_U32 GetOriginalHeight() { return m_omx_image.nFrameHeight; };
+  OMX_U32 GetWidth()  { return m_width; };
+  OMX_U32 GetHeight() { return m_height; };
+  OMX_IMAGE_CODINGTYPE GetCodingType();
+  const uint8_t *GetImageBuffer() { return (const uint8_t *)m_image_buffer; };
+  unsigned long GetImageSize() { return m_image_size; };
+  OMX_IMAGE_CODINGTYPE GetCompressionFormat() { return m_omx_image.eCompressionFormat; };
 protected:
-  bool SetImageAutodetect(void);
-
-  // Components
-  COMXCoreComponent m_omx_image_decode;
-  COMXCoreComponent m_omx_resize;
-  COMXCoreComponent m_omx_egl_render;
-
-  COMXCoreTunel     m_omx_tunnel_decode;
-  COMXCoreTunel     m_omx_tunnel_egl;
-
-  OMX_BUFFERHEADERTYPE *m_egl_buffer;
+  uint8_t           *m_image_buffer;
   bool              m_is_open;
-  COMXCore          m_OMX;
+  unsigned long     m_image_size;
+  unsigned int      m_width;
+  unsigned int      m_height;
+  bool              m_progressive;
+  int               m_orientation;
+  XFILE::CFile      m_pFile;
+  OMX_IMAGE_PORTDEFINITIONTYPE m_omx_image;
 };
 
 #endif

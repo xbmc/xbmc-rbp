@@ -49,7 +49,8 @@ struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include "xbmc/filesystem/File.h"
-#include <semaphore.h>
+#include "xbmc/cores/omxplayer/OMXImage.h"
+#include "xbmc/cores/omxplayer/OMXTexture.h"
 #else
 #endif
 
@@ -106,7 +107,7 @@ public:
   static unsigned int PadPow2(unsigned int x);
   bool SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, unsigned int elements = 4, unsigned int offset=0);
 #ifdef HAVE_LIBBCM_HOST
-  bool accelerated() {return m_accelerated;}
+  bool IsAccelerated() { return m_accelerated; }
 #endif
 
 protected:
@@ -114,12 +115,6 @@ protected:
   unsigned int GetPitch(unsigned int width) const;
   unsigned int GetRows(unsigned int height) const;
   unsigned int GetBlockSize() const;
-#ifdef HAVE_LIBBCM_HOST
-  static void CallbackAllocOMXEGLTextures(void*);
-  void AllocOMXOutputEGLTextures(void);
-  static void CallbackFreeOMXEGLTextures(void*);
-  void FreeOMXOutputEGLTextures(void);
-#endif
   unsigned int m_imageWidth;
   unsigned int m_imageHeight;
   unsigned int m_textureWidth;
@@ -133,7 +128,8 @@ protected:
 #ifdef HAVE_LIBBCM_HOST
   EGLImageKHR  m_egl_image;
   bool         m_accelerated;
-  sem_t        m_egl_alloc_sync;
+  COMXImage    *m_omx_image;
+  COMXTexture  *m_omx_texture;
 #endif
   bool m_loadedToGPU;
   unsigned int m_format;

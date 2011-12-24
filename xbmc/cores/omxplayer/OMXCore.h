@@ -60,17 +60,7 @@ typedef struct omx_event {
   OMX_U32 nData2;
 } omx_event;
 
-typedef struct omx_codec_capability {
-    // level is OMX_VIDEO_AVCPROFILETYPE, OMX_VIDEO_H263PROFILETYPE, 
-    // or OMX_VIDEO_MPEG4PROFILETYPE depending on context.
-    OMX_U32 level;
-    // level is OMX_VIDEO_AVCLEVELTYPE, OMX_VIDEO_H263LEVELTYPE, 
-    // or OMX_VIDEO_MPEG4PROFILETYPE depending on context.
-    OMX_U32 profile;
-} omx_codec_capability;
-
 class DllLibOMXCore;
-
 class COMXCore;
 class COMXCoreComponent;
 class COMXCoreTunel;
