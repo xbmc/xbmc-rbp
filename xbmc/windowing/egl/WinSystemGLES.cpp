@@ -240,8 +240,6 @@ bool CWinSystemGLES::Show(bool raise)
 
   DISPMANX_CLAMP_T clamp;
   memset(&clamp, 0x0, sizeof(DISPMANX_CLAMP_T));
-  clamp.mode = DISPMANX_FLAGS_CLAMP_REPLACE;
-  clamp.key_mask = DISPMANX_FLAGS_KEYMASK_OVERRIDE;
 
   DISPMANX_TRANSFORM_T transform = DISPMANX_NO_ROTATE;
   DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
