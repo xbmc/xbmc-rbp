@@ -633,8 +633,15 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     printf("file : %s reult %d format %s\n", m_filename.c_str(), result, m_pFormatContext->iformat->name);
 
+    m_bMatroska = strncmp(m_pFormatContext->iformat->name, "matroska", 8) == 0; // for "matroska.webm"
+    m_bAVI = strcmp(m_pFormatContext->iformat->name, "avi") == 0;
+
+    // if format can be nonblocking, let's use that
     m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
-    m_pFormatContext->max_analyze_duration = 0;
+    if(m_bMatroska || m_bAVI)
+      m_pFormatContext->max_analyze_duration = 0;
+    else
+      m_pFormatContext->max_analyze_duration = 5000000;
 
     result = m_dllAvFormat.av_find_stream_info(m_pFormatContext);
     if(result < 0)
@@ -643,14 +650,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
       CloseFile();
       return false;
     }
-
-    m_bMatroska = strncmp(m_pFormatContext->iformat->name, "matroska", 8) == 0; // for "matroska.webm"
-    m_bAVI = strcmp(m_pFormatContext->iformat->name, "avi") == 0;
-
-    // if format can be nonblocking, let's use that
-    m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
-
-    //m_dllAvFormat.dump_format(m_pFormatContext, 0, m_filename.c_str(), 0);
 
     if(!GetStreams())
     {
@@ -1483,7 +1482,8 @@ void COMXPlayer::Process()
 
   m_av_clock->Initialize(m_video_count, m_audio_count);
 
-  OpenVideoDecoder(m_pVideoStream);
+  if(m_pVideoStream && !OpenVideoDecoder(m_pVideoStream))
+    goto do_exit;
 
   m_dst_rect.SetRect(0, 0, 0, 0);
   //if(m_VideoCodecOpen)
