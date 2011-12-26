@@ -243,7 +243,7 @@ bool COMXPlayer::OpenVideoDecoder(AVStream *stream)
   m_frametime = (double)DVD_TIME_BASE / m_video_fps;
 
   m_video_decoder = new COMXVideo();
-  m_VideoCodecOpen = m_video_decoder->Open(m_hints_video, m_av_clock);
+  m_VideoCodecOpen = m_video_decoder->Open(m_hints_video, m_av_clock, true);
 
   if(!m_VideoCodecOpen)
   {
@@ -635,6 +635,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_bMatroska = strncmp(m_pFormatContext->iformat->name, "matroska", 8) == 0; // for "matroska.webm"
     m_bAVI = strcmp(m_pFormatContext->iformat->name, "avi") == 0;
+    m_bMpeg = strcmp(m_pFormatContext->iformat->name, "mpeg") == 0;
 
     // if format can be nonblocking, let's use that
     m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
@@ -821,7 +822,7 @@ void COMXPlayer::ToggleFrameDrop()
 
 bool COMXPlayer::CanSeek()
 {
-  return GetTotalTime() > 0;
+  return m_bMpeg ? 0 : GetTotalTime() > 0;
 }
 
 void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
@@ -1791,7 +1792,15 @@ void COMXPlayer::Process()
         else if ((uint64_t)m_pkt.pts != AV_NOPTS_VALUE)
           m_videoClock = m_pkt.pts;
 
-        m_video_decoder->Decode(m_pkt.data, m_pkt.size, m_videoClock + (m_audio_offset_ms * 1000), m_videoClock + (m_audio_offset_ms * 1000));
+        if(m_bMpeg)
+        {
+          m_video_decoder->Decode(m_pkt.data, m_pkt.size, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
+        }
+        else
+        {
+          m_video_decoder->Decode(m_pkt.data, m_pkt.size, m_videoClock + (m_audio_offset_ms * 1000), 
+                                  m_videoClock + (m_audio_offset_ms * 1000));
+        }
         m_av_clock->UpdateVideoClock(m_videoClock);
 
         m_last_pts = m_videoClock;
@@ -1868,7 +1877,14 @@ void COMXPlayer::Process()
   
             if(m_AudioRenderOpen)
             {
-              ret = m_audio_render->AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
+              if(m_bMpeg)
+              {
+                ret = m_audio_render->AddPackets(decoded, decoded_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
+              }
+              else
+              {
+                ret = m_audio_render->AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
+              }
               if(ret != decoded_size)
               {
                 printf("error ret %d decoded_size %d\n", ret, decoded_size);
@@ -1897,7 +1913,14 @@ void COMXPlayer::Process()
           if(m_AudioRenderOpen)
           {
             int ret = 0;
-            ret = m_audio_render->AddPackets(m_pkt.data, m_pkt.size, m_audioClock, m_audioClock);
+            if(m_bMpeg)
+            {
+              ret = m_audio_render->AddPackets(m_pkt.data, m_pkt.size, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
+            }
+            else
+            {
+              ret = m_audio_render->AddPackets(m_pkt.data, m_pkt.size, m_audioClock, m_audioClock);
+            }
             if(ret != m_pkt.size)
             {
               printf("error ret %d decoded_size %d\n", ret, m_pkt.size);

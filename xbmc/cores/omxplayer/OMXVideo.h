@@ -54,7 +54,7 @@ public:
   virtual ~COMXVideo();
 
   // Required overrides
-  bool Open(COMXStreamInfo &hints, OMXClock *clock);
+  bool Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace = false);
   void Close(void);
   unsigned int GetFreeSpace();
   unsigned int GetSize();
@@ -69,8 +69,8 @@ public:
 protected:
   // Video format
   bool              m_drop_state;
-  int               m_decoded_width;
-  int               m_decoded_height;
+  unsigned int      m_decoded_width;
+  unsigned int      m_decoded_height;
 
   OMX_VIDEO_CODINGTYPE m_codingType;
 
@@ -78,6 +78,7 @@ protected:
   COMXCoreComponent m_omx_decoder;
   COMXCoreComponent m_omx_render;
   COMXCoreComponent m_omx_sched;
+  COMXCoreComponent m_omx_image_fx;
   COMXCoreComponent *m_omx_clock;
   OMXClock           *m_av_clock;
 
@@ -85,6 +86,7 @@ protected:
   COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCoreTunel     m_omx_tunnel_clock;
   COMXCoreTunel     m_omx_tunnel_sched;
+  COMXCoreTunel     m_omx_tunnel_image_fx;
   bool              m_is_open;
 
   bool              m_Pause;
@@ -96,6 +98,9 @@ protected:
   CBitstreamConverter   *m_converter;
   bool              m_video_convert;
   CStdString        m_video_codec_name;
+
+  bool              m_deinterlace;
+  bool              m_first_frame;
 };
 
 #endif

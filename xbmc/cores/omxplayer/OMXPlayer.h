@@ -255,6 +255,7 @@ private:
 
   bool                    m_bMatroska;
   bool                    m_bAVI;
+  bool                    m_bMpeg;
   double                  m_last_pts;
   double                  m_videoClock;
   double                  m_audioClock;
