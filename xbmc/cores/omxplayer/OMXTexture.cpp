@@ -64,11 +64,6 @@ COMXTexture::~COMXTexture()
   m_OMX.Deinitialize();
 }
 
-bool COMXTexture::SetImageAutodetect(void)
-{
-  return true;
-}
-
 bool COMXTexture::Open(void)
 {
   CStdString componentName = "";

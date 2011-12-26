@@ -218,13 +218,13 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     {
       m_textureWidth  = m_omx_image->GetWidth();
       m_textureHeight = m_omx_image->GetHeight();
+      m_hasAlpha      = m_omx_image->IsAlpha();
 
       if (originalWidth)
         *originalWidth  = m_omx_image->GetOriginalWidth();
       if (originalHeight)
         *originalHeight = m_omx_image->GetOriginalHeight();
 
-      m_hasAlpha    = false;
       m_accelerated = true;
 
       Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);

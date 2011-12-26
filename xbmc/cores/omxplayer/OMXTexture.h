@@ -59,7 +59,6 @@ public:
   int  Decode(COMXImage *omx_image, void *egl_image, void *egl_display, unsigned width, unsigned height);
   void Reset(void);
 protected:
-  bool SetImageAutodetect(void);
 
   // Components
   COMXCoreComponent m_omx_image_decode;

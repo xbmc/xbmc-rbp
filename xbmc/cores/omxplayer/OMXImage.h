@@ -57,6 +57,7 @@ public:
   void Close(void);
   bool ReadFile(const std::string &inputFile);
   bool IsProgressive() { return m_progressive; };
+  bool IsAlpha() { return m_alpha; };
   int  GetOrientation() { return m_orientation; };
   OMX_U32 GetOriginalWidth()  { return m_omx_image.nFrameWidth; };
   OMX_U32 GetOriginalHeight() { return m_omx_image.nFrameHeight; };
@@ -73,6 +74,7 @@ protected:
   unsigned int      m_width;
   unsigned int      m_height;
   bool              m_progressive;
+  bool              m_alpha;
   int               m_orientation;
   XFILE::CFile      m_pFile;
   OMX_IMAGE_PORTDEFINITIONTYPE m_omx_image;

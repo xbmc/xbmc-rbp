@@ -51,6 +51,7 @@ COMXImage::COMXImage()
   m_image_size    = 0;
   m_image_buffer  = NULL;
   m_progressive   = false;
+  m_alpha         = false;
   m_orientation   = 0;
   m_width         = 0;
   m_height        = 0;
@@ -401,6 +402,9 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
     {
       m_omx_image.nFrameWidth = CBitstreamConverter::read_bits(&br, 32);
       m_omx_image.nFrameHeight = CBitstreamConverter::read_bits(&br, 32);
+      (void)CBitstreamConverter::read_bits(&br, 8); // bit depth
+      unsigned int coding_type = CBitstreamConverter::read_bits(&br, 8);
+      m_alpha = coding_type==4 || coding_type==6;
     }
   }
 
