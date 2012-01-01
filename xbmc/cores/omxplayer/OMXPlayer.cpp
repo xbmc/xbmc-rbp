@@ -561,6 +561,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_audioClock      = 0;
     m_frametime       = 0;
     m_pkt_consumed    = true;
+    m_buffer_seek     = true;
 
     m_Passthrough     = false;
     m_HWDecode        = false;
@@ -901,6 +902,11 @@ bool COMXPlayer::SeekScene(bool bPlus)
 
 void COMXPlayer::SeekPercentage(float fPercent)
 {
+  if (!m_duration_ms)
+    return;
+
+  SeekTime((int64_t)(m_duration_ms * fPercent / 100));
+  /*
   // update m_elapsed_ms and m_duration_ms.
   GetTime();
   GetTotalTime();
@@ -910,6 +916,7 @@ void COMXPlayer::SeekPercentage(float fPercent)
   // convert to milliseconds
   int64_t seek_ms = m_duration_ms * fPercent;
   SeekTime(seek_ms);
+  */
 }
 
 float COMXPlayer::GetPercentage()
@@ -1497,9 +1504,6 @@ void COMXPlayer::Process()
     m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
 
   m_av_clock->StateExecute();
-  if(m_audio_count > 0)
-    m_av_clock->Pause();
-
   m_av_clock->UpdateCurrentPTS(m_pFormatContext);
 
   m_duration_ms = (int)(m_pFormatContext->duration / (AV_TIME_BASE /  1000));
@@ -1563,8 +1567,6 @@ void COMXPlayer::Process()
     if (m_options.identify == false)
       m_callback.OnPlayBackStarted();
 
-    bool bBuffering = false;
-
     // drop CGUIDialogBusy, and release the hold in OpenFile
     m_ready.Set();
 
@@ -1584,7 +1586,7 @@ void COMXPlayer::Process()
         OMXSleep(2);
         continue;
       }
-      else if (!bBuffering)
+      else if(!m_buffer_seek && !m_paused)
       {
         if(m_av_clock->IsPaused())
           m_av_clock->Resume();
@@ -1629,9 +1631,11 @@ void COMXPlayer::Process()
           {
             m_audio_render->Flush();
           }
-          m_av_clock->WaitStart(pos * 1000); 
+          m_av_clock->Reset();
           m_av_clock->UpdateCurrentPTS(m_pFormatContext);
         }
+
+        m_buffer_seek = true;
 
         CSingleLock lock(m_SeekSection);
         m_SeekSection.lock();
@@ -1752,35 +1756,46 @@ void COMXPlayer::Process()
 
         }
       }
-
-      bool bResumeClock     = false;
-
-      if(m_VideoCodecOpen && m_av_clock->IsPaused()) 
+      
+      /* when the audio buffer runns under 0.1 seconds we buffer up */
+      if(m_AudioRenderOpen && m_audio_render->GetDelay() < 0.1f)
       {
-        /* resume when video buffers 75% full */
-        if(bBuffering && (m_video_decoder->GetFreeSpace() < (m_video_decoder->GetSize() * 0.25)))
-        {
-          bResumeClock = true;
-        }
+        m_buffer_seek = true;
+        //printf("\nenter buffering %f\n\n", m_audio_render->GetDelay());
       }
 
-      if(m_AudioRenderOpen && m_av_clock->IsPaused())
+      /* buffering once after seek */
+      if(m_buffer_seek)
       {
-        /* resume when video buffers 25% full */
-        if(m_audio_render->GetDelay() > ((double)AUDIO_BUFFER_SECONDS * 0.75f))
-        {
-          bResumeClock = true;
-        } 
-        else
-        {
-          m_av_clock->Pause();
-        }
-      } 
+        bool bAudioBufferReady = false;
 
-      if(bResumeClock && m_av_clock->IsPaused())
-      {
-        m_av_clock->Resume();
-        bResumeClock = false;
+        if(m_AudioRenderOpen && m_VideoCodecOpen)
+        {
+          if(m_audio_render->GetDelay() > (AUDIO_BUFFER_SECONDS - 0.25f))
+          {
+            bAudioBufferReady = true;
+          }
+          else
+          {
+            if(!m_av_clock->IsPaused())
+              m_av_clock->Pause();
+          }
+          if(bAudioBufferReady)
+          {
+            if(m_av_clock->IsPaused())
+              m_av_clock->Resume();
+            m_buffer_seek = false;
+          }
+        }
+        if(m_VideoCodecOpen)
+        {
+          if(m_video_decoder->GetFreeSpace() < ((80*1024*VIDEO_BUFFERS) * 0.25))
+          {
+            if(m_av_clock->IsPaused())
+              m_av_clock->Resume();
+            m_buffer_seek = false;
+          }
+        }
       }
 
       if( ( m_pVideoStream == m_pFormatContext->streams[m_pkt.stream_index] ) && m_VideoCodecOpen )
@@ -1872,7 +1887,8 @@ void COMXPlayer::Process()
               if(!m_AudioRenderOpen)
                 goto do_exit;
               m_av_clock->StateExecute();
-              m_av_clock->Pause();
+              if(m_av_clock->IsPaused())
+                m_av_clock->Resume();
             }
   
             if(m_AudioRenderOpen)
@@ -1889,7 +1905,6 @@ void COMXPlayer::Process()
               {
                 printf("error ret %d decoded_size %d\n", ret, decoded_size);
               }
-              m_av_clock->StateExecute();
             }
 
             int n = (m_hints_audio.channels * m_hints_audio.bitspersample * m_hints_audio.samplerate)>>3;
@@ -1907,7 +1922,8 @@ void COMXPlayer::Process()
             if(!m_AudioRenderOpen)
               goto do_exit;
             m_av_clock->StateExecute();
-            m_av_clock->Pause();
+            if(m_av_clock->IsPaused())
+              m_av_clock->Resume();
           }
 
           if(m_AudioRenderOpen)
@@ -1925,7 +1941,6 @@ void COMXPlayer::Process()
             {
               printf("error ret %d decoded_size %d\n", ret, m_pkt.size);
             }
-            m_av_clock->StateExecute();
           }
         }
 
@@ -1943,8 +1958,6 @@ void COMXPlayer::Process()
           printf("A : %8.02f %8.02f                             \r",
               m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
         }
-
-        m_av_clock->UpdateAudioClock(m_audioClock);
 
         m_pkt_consumed = true;
       }

@@ -270,4 +270,5 @@ private:
   BitstreamStats          m_videoStats;
   TV_GET_STATE_RESP_T     m_tv_state;
   sem_t                   m_tv_synced;
+  bool                    m_buffer_seek;
 };

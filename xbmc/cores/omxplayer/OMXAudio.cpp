@@ -539,8 +539,8 @@ void COMXAudio::Flush()
   if(!m_Initialized)
     return;
 
-  m_omx_render.FlushInput();
   m_omx_decoder.FlushInput();
+  m_omx_render.FlushInput();
   m_omx_tunnel_clock.Flush();
   m_omx_tunnel_decoder.Flush();
 
