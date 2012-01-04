@@ -186,8 +186,6 @@ private:
   virtual void CloseAudioDecoder();
 
   virtual void GetStreamCodecName(AVStream *stream, CStdString &strStreamName);
-  void TvServiceCallback(uint32_t reason, uint32_t param1, uint32_t param2);
-  static void CallbackTvServiceCallback(void *userdata, uint32_t reason, uint32_t param1, uint32_t param2);
 
   int                     m_speed;
   bool                    m_paused;
@@ -269,6 +267,6 @@ private:
 
   BitstreamStats          m_videoStats;
   TV_GET_STATE_RESP_T     m_tv_state;
-  sem_t                   m_tv_synced;
   bool                    m_buffer_seek;
+  bool                    m_mode3d_sbs;
 };

@@ -198,6 +198,7 @@ bool CWinBindingEGL::CreateWindow(EGLNativeDisplayType nativeDisplay, EGLNativeW
 bool CWinBindingEGL::DestroyWindow()
 {
   EGLBoolean eglStatus;
+
   if (m_context != EGL_NO_CONTEXT)
   {
     eglStatus = eglDestroyContext(m_display, m_context);

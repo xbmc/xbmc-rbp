@@ -29,6 +29,7 @@
 #include "windowing/WinSystem.h"
 
 #include <EGL/eglplatform.h>
+#include <semaphore.h>
 
 // TODO: remove after we have it in configure
 #ifndef HAVE_LIBBCM_HOST
@@ -64,6 +65,8 @@ public:
   virtual bool  Restore() ;
   virtual bool  Hide();
   virtual bool  Show(bool raise = true);
+  virtual bool  InformVideoInfo(int width, int height, int frame_rate, bool mode3d_sbs = false);
+  virtual RESOLUTION GetResolution();
 
   EGLNativeWindowType   GetEGLGetNativeWindow() const;
   EGLNativeDisplayType  GetEGLNativeDispla() const;
@@ -73,6 +76,7 @@ public:
 protected:
   virtual bool  PresentRenderImpl(const CDirtyRegionList &dirty);
   virtual void  SetVSyncImpl(bool enable);
+  void AddResolution(const RESOLUTION_INFO &res);
   void                  *m_display;
   EGL_DISPMANX_WINDOW_T *m_window;
   CWinBindingEGL        *m_eglBinding;
@@ -80,8 +84,20 @@ protected:
   int                   m_fb_height;
   int                   m_fb_bpp;
   DllBcmHostDisplay     m_DllBcmHostDisplay;
+  DllBcmHost            m_DllBcmHost;
   DISPMANX_ELEMENT_HANDLE_T m_dispman_element;
+  DISPMANX_ELEMENT_HANDLE_T m_dispman_element2;
   DISPMANX_DISPLAY_HANDLE_T m_dispman_display;
+  sem_t                 m_tv_synced;
+  int                   m_videoWidth;
+  int                   m_videoHeight;
+  int                   m_videoFrameRate;
+  bool                  m_videoMode3dSbs;
+  bool                  m_found_preferred;
+  void GetSupportedModes(HDMI_RES_GROUP_T group);
+  void MapGpuToXbmcMode(TV_SUPPORTED_MODE_T *supported_modes, int num_modes, HDMI_RES_GROUP_T group, RESOLUTION xbmc_res, int want_mode);
+  void TvServiceCallback(uint32_t reason, uint32_t param1, uint32_t param2);
+  static void CallbackTvServiceCallback(void *userdata, uint32_t reason, uint32_t param1, uint32_t param2);
 };
 
 XBMC_GLOBAL_REF(CWinSystemGLES,g_Windowing);

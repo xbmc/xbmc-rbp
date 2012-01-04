@@ -70,6 +70,7 @@ COMXPlayer::COMXPlayer(IPlayerCallback &callback)
   m_speed = 1;
   m_paused = false;
   m_StopPlaying = false;
+  m_mode3d_sbs = false;
 
   m_OMX.Initialize();
 
@@ -585,6 +586,10 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_dllAvFormat.url_set_interrupt_cb(interrupt_cb);
 
+    if(m_filename.find("3DSBS") != string::npos) {
+      CLog::Log(LOGNOTICE, "COMXPlayer: Opening: 3DSBS movie found");
+      m_mode3d_sbs = true;
+    }
     if(m_filename.substr(0, 8) == "shout://" )
       m_filename.replace(0, 8, "http://");
 
@@ -757,9 +762,9 @@ bool COMXPlayer::CloseFile()
     delete m_pFile;
     m_pFile = NULL;
   }
-  
-  //m_BcmHost.vc_tv_hdmi_power_on_best(m_tv_state.width, m_tv_state.height, m_tv_state.frame_rate,
-  //                                   HDMI_NONINTERLACED, HDMI_MODE_MATCH_FRAMERATE);
+
+  g_Windowing.InformVideoInfo(m_tv_state.width, m_tv_state.height, m_tv_state.frame_rate);
+
   m_dllAvUtil.Unload();
   m_dllAvCodec.Unload();
   m_dllAvFormat.Unload();
@@ -1448,34 +1453,6 @@ void COMXPlayer::OnExit()
   m_ready.Set();
 }
 
-void COMXPlayer::TvServiceCallback(uint32_t reason, uint32_t param1, uint32_t param2)
-{
-  printf("tvservice_callback(%d,%d,%d)\n", reason, param1, param2);
-  switch(reason)
-  {
-  case VC_HDMI_UNPLUGGED:
-    break;
-  case VC_HDMI_STANDBY:
-    break;
-  case VC_SDTV_NTSC:
-  case VC_SDTV_PAL:
-  case VC_HDMI_HDMI:
-  case VC_HDMI_DVI:    
-    //Signal we are ready now
-    sem_post(&m_tv_synced);
-    break;     
-  default: 
-     break;
-  }
-}
-
-void COMXPlayer::CallbackTvServiceCallback(void *userdata, uint32_t reason, uint32_t param1, uint32_t param2)
-{
-   COMXPlayer *omx = static_cast<COMXPlayer*>(userdata);
-   omx->TvServiceCallback(reason, param1, param2);
-}
-
-
 void COMXPlayer::Process()
 {
   if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
@@ -1550,18 +1527,7 @@ void COMXPlayer::Process()
       {
         CLog::Log(LOGERROR, "%s - renderer not started", __FUNCTION__);
       }
-
-      HDMI_INTERLACED_T interlaced = HDMI_NONINTERLACED;
-      EDID_MODE_MATCH_FLAG_T edid = HDMI_MODE_MATCH_FRAMERATE;
-      g_Windowing.Hide();
-      sem_init (&m_tv_synced, 0, 0);
-      m_BcmHost.vc_tv_register_callback(CallbackTvServiceCallback, this);
-      m_BcmHost.vc_tv_hdmi_power_on_best(width, height, (int)(fFrameRate+0.5), interlaced, edid);
-      // wait for TV sync complete
-      // This can take a second or two, so we should really move this later, and start buffering now.
-      sem_wait(&m_tv_synced);
-      m_BcmHost.vc_tv_unregister_callback(CallbackTvServiceCallback);
-      g_Windowing.Show(true);
+      g_Windowing.InformVideoInfo(width, height, (int)(fFrameRate+0.5), m_mode3d_sbs);
     }
 
     if (m_options.identify == false)

@@ -57,7 +57,6 @@ public:
   virtual int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T * pinfo ) = 0;
   virtual int vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
                                                   uint8_t red, uint8_t green, uint8_t blue ) = 0;
-  
 };
 
 #if (defined USE_EXTERNAL_LIBBCM_HOST)
@@ -142,6 +141,9 @@ public:
   virtual int32_t graphics_get_display_size( const uint16_t display_number, uint32_t *width, uint32_t *height) = 0;
   virtual int vc_tv_hdmi_power_on_best(uint32_t width, uint32_t height, uint32_t frame_rate,
                                        HDMI_INTERLACED_T scan_mode, EDID_MODE_MATCH_FLAG_T match_flags) = 0;
+  virtual int vc_tv_hdmi_power_on_best_3d(uint32_t width, uint32_t height, uint32_t frame_rate,
+                                       HDMI_INTERLACED_T scan_mode, EDID_MODE_MATCH_FLAG_T match_flags) = 0;
+
   virtual int vc_tv_hdmi_get_supported_modes(HDMI_RES_GROUP_T group, TV_SUPPORTED_MODE_T *supported_modes,
                                              uint32_t max_supported_modes, HDMI_RES_GROUP_T *preferred_group,
                                              uint32_t *preferred_mode) = 0;
@@ -149,6 +151,8 @@ public:
   virtual int vc_tv_get_state(TV_GET_STATE_RESP_T *tvstate) = 0;
   virtual void vc_tv_register_callback(TVSERVICE_CALLBACK_T callback, void *callback_data) = 0;
   virtual void vc_tv_unregister_callback(TVSERVICE_CALLBACK_T callback) = 0;
+  virtual void vc_cec_register_callback(CECSERVICE_CALLBACK_T callback, void *callback_data) = 0;
+  //virtual void vc_cec_unregister_callback(CECSERVICE_CALLBACK_T callback) = 0;
 };
 
 #if (defined USE_EXTERNAL_LIBBCM_HOST)
@@ -164,6 +168,9 @@ public:
   virtual int vc_tv_hdmi_power_on_best(uint32_t width, uint32_t height, uint32_t frame_rate,
                                        HDMI_INTERLACED_T scan_mode, EDID_MODE_MATCH_FLAG_T match_flags)
     { return ::vc_tv_hdmi_power_on_best(width, height, frame_rate, scan_mode, match_flags); };
+  virtual int vc_tv_hdmi_power_on_best_3d(uint32_t width, uint32_t height, uint32_t frame_rate,
+                                       HDMI_INTERLACED_T scan_mode, EDID_MODE_MATCH_FLAG_T match_flags)
+    { return ::vc_tv_hdmi_power_on_best_3d(width, height, frame_rate, scan_mode, match_flags); };
   virtual int vc_tv_hdmi_get_supported_modes(HDMI_RES_GROUP_T group, TV_SUPPORTED_MODE_T *supported_modes,
                                              uint32_t max_supported_modes, HDMI_RES_GROUP_T *preferred_group,
                                              uint32_t *preferred_mode)
@@ -173,9 +180,13 @@ public:
   virtual int vc_tv_get_state(TV_GET_STATE_RESP_T *tvstate)
     { return ::vc_tv_get_state(tvstate); };
   virtual void vc_tv_register_callback(TVSERVICE_CALLBACK_T callback, void *callback_data)
-    { ::vc_tv_unregister_callback(callback, callback_data); };
+    { ::vc_tv_register_callback(callback, callback_data); };
   virtual void vc_tv_unregister_callback(TVSERVICE_CALLBACK_T callback)
     { ::vc_tv_unregister_callback(callback); };
+  virtual void vc_cec_register_callback(CECSERVICE_CALLBACK_T callback, void *callback_data)
+    { ::vc_cec_register_callback(callback, callback_data); };
+  //virtual void vc_cec_unregister_callback(CECSERVICE_CALLBACK_T callback)
+  //  { ::vc_cec_unregister_callback(callback); };
   virtual bool ResolveExports() 
     { return true; }
   virtual bool Load() 
@@ -195,6 +206,8 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
   DEFINE_METHOD3(int32_t, graphics_get_display_size, (const uint16_t p1, uint32_t *p2, uint32_t *p3))
   DEFINE_METHOD5(int,     vc_tv_hdmi_power_on_best, (uint32_t p1, uint32_t p2, uint32_t p3,
                                                      HDMI_INTERLACED_T p4, EDID_MODE_MATCH_FLAG_T p5))
+  DEFINE_METHOD5(int,     vc_tv_hdmi_power_on_best_3d, (uint32_t p1, uint32_t p2, uint32_t p3,
+                                                     HDMI_INTERLACED_T p4, EDID_MODE_MATCH_FLAG_T p5))
   DEFINE_METHOD5(int,     vc_tv_hdmi_get_supported_modes, (HDMI_RES_GROUP_T p1, TV_SUPPORTED_MODE_T *p2,
                                                            uint32_t p3, HDMI_RES_GROUP_T *p4, uint32_t *p5))
   DEFINE_METHOD3(int,     vc_tv_hdmi_power_on_explicit, (HDMI_MODE_T p1, HDMI_RES_GROUP_T p2, uint32_t p3))
@@ -203,16 +216,22 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
   DEFINE_METHOD2(void,    vc_tv_register_callback, (TVSERVICE_CALLBACK_T p1, void *p2))
   DEFINE_METHOD1(void,    vc_tv_unregister_callback, (TVSERVICE_CALLBACK_T p1))
 
+  DEFINE_METHOD2(void,    vc_cec_register_callback, (CECSERVICE_CALLBACK_T p1, void *p2))
+  //DEFINE_METHOD1(void,    vc_cec_unregister_callback, (CECSERVICE_CALLBACK_T p1))
+
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD(bcm_host_init)
     RESOLVE_METHOD(bcm_host_deinit)
     RESOLVE_METHOD(graphics_get_display_size)
     RESOLVE_METHOD(vc_tv_hdmi_power_on_best)
+    RESOLVE_METHOD(vc_tv_hdmi_power_on_best_3d)
     RESOLVE_METHOD(vc_tv_hdmi_get_supported_modes)
     RESOLVE_METHOD(vc_tv_hdmi_power_on_explicit)
     RESOLVE_METHOD(vc_tv_get_state)
     RESOLVE_METHOD(vc_tv_register_callback)
     RESOLVE_METHOD(vc_tv_unregister_callback)
+    RESOLVE_METHOD(vc_cec_register_callback)
+    //RESOLVE_METHOD(vc_cec_unregister_callback)
   END_METHOD_RESOLVE()
 
 public:
