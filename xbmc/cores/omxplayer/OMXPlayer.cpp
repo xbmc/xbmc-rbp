@@ -587,7 +587,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_dllAvFormat.url_set_interrupt_cb(interrupt_cb);
 
     if(m_filename.find("3DSBS") != string::npos) {
-      CLog::Log(LOGNOTICE, "COMXPlayer: Opening: 3DSBS movie found");
+      CLog::Log(LOGNOTICE, "3DSBS movie found");
       m_mode3d_sbs = true;
     }
     if(m_filename.substr(0, 8) == "shout://" )
@@ -1791,13 +1791,13 @@ void COMXPlayer::Process()
 
         if(m_AudioRenderOpen && m_VideoCodecOpen)
         {
-          printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, 80*1024*VIDEO_BUFFERS,
-             m_video_decoder->GetFreeSpace(), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
+          printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, VIDEO_BUFFERS,
+             m_video_decoder->GetFreeSpace()/(80*1024), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
         }
         else if(m_VideoCodecOpen)
         {
-          printf("V : %8.02f %8d %8d                                               \r", m_videoClock / DVD_TIME_BASE, 80*1024*VIDEO_BUFFERS,
-             m_video_decoder->GetFreeSpace());
+          printf("V : %8.02f %8d %8d                                               \r", m_videoClock / DVD_TIME_BASE, VIDEO_BUFFERS,
+             m_video_decoder->GetFreeSpace()/(80*1024));
         }
 
         m_videoStats.AddSampleBytes(m_pkt.size);
@@ -1916,8 +1916,8 @@ void COMXPlayer::Process()
 
         if(m_AudioRenderOpen && m_VideoCodecOpen)
         {
-          printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, 80*1024*VIDEO_BUFFERS,
-             m_video_decoder->GetFreeSpace(), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
+          printf("V : %8.02f %8d %8d A : %8.02f %8.02f                             \r", m_videoClock / DVD_TIME_BASE, VIDEO_BUFFERS,
+             m_video_decoder->GetFreeSpace()/(80*1024), m_audioClock / DVD_TIME_BASE, m_audio_render->GetDelay());
         }
         else if(m_AudioRenderOpen)
         {
@@ -1960,6 +1960,24 @@ do_exit:
   }
 
   m_bStop = m_StopPlaying = true;
+}
+
+void COMXPlayer::RegisterAudioCallback(IAudioCallback* pCallback)
+{
+  if (m_audio_render)
+    m_audio_render->RegisterAudioCallback(pCallback);
+}
+
+void COMXPlayer::UnRegisterAudioCallback()
+{
+  if (m_audio_render)
+    m_audio_render->UnRegisterAudioCallback();
+}
+
+void COMXPlayer::DoAudioWork()
+{
+  if (m_audio_render)
+    m_audio_render->DoAudioWork();
 }
 
 #endif

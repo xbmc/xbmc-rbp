@@ -476,9 +476,9 @@ void COMXCoreComponent::FlushOutput()
   }
 }
 
-OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetInputBuffer()
+// timeout in milliseconds
+OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetInputBuffer(long timeout)
 {
-  long timeout = 2000; // milliseconds
   OMX_BUFFERHEADERTYPE *omx_input_buffer = NULL;
 
   if(!m_handle)
@@ -507,9 +507,9 @@ OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetInputBuffer()
   return omx_input_buffer;
 }
 
-OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetOutputBuffer()
+// timeout in milliseconds
+OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetOutputBuffer(long timeout)
 {
-  long timeout = 2000; // milliseconds
   OMX_BUFFERHEADERTYPE *omx_output_buffer = NULL;
 
   if(!m_handle)
@@ -899,6 +899,7 @@ bool COMXCoreComponent::GotError(OMX_ERRORTYPE errorType)
 }
 */
 
+// timeout in milliseconds
 OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType, long timeout)
 {
 #ifdef OMX_DEBUG_EVENTS
@@ -958,6 +959,7 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType, long time
   return OMX_ErrorNone;
 }
 
+// timeout in milliseconds
 OMX_ERRORTYPE COMXCoreComponent::WaitForCommand(OMX_U32 command, OMX_U32 nData2, long timeout)
 {
 #ifdef OMX_DEBUG_EVENTS

@@ -331,7 +331,6 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
   /* omx decoding */
   if(m_eEncoding != OMX_AUDIO_CodingUnused)
   {
-    unsigned int nSleepTime = 0;
     OMX_ERRORTYPE omx_err;
 
     unsigned int demuxer_bytes = (unsigned int)iSize;
@@ -339,20 +338,13 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
 
     while(demuxer_bytes)
     {
-
-      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetInputBuffer();
-
+      // 200 ms timeout
+      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetInputBuffer(200);
       if(omx_buffer == NULL)
       {
-        OMXSleep(2);
-        nSleepTime += 2;
-        if(nSleepTime >= 200)
-        {
-          CLog::Log(LOGERROR, "COMXAudioCodecOMX::Decode error\n");
-          printf("COMXAudioCodecOMX::Decode error\n");
-          return demuxer_bytes;
-        }
-        continue;
+        CLog::Log(LOGERROR, "COMXAudioCodecOMX::Decode error\n");
+        printf("COMXAudioCodecOMX::Decode error\n");
+        return demuxer_bytes;
       }
 
       omx_buffer->nOffset = 0;
@@ -497,11 +489,9 @@ int COMXAudioCodecOMX::GetData(BYTE** dst)
 {
   if(m_eEncoding != OMX_AUDIO_CodingUnused)
   {
-    //unsigned int nSleepTime = 0;
     OMX_ERRORTYPE omx_err;
 
     OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetOutputBuffer();
-
     if(omx_buffer == NULL)
       return 0;
 

@@ -43,10 +43,7 @@
 #include "OMXStreamInfo.h"
 #include "BitstreamConverter.h"
 
-#define AUDIO_BUFFER_SECONDS 3
-
-extern void RegisterAudioCallback(IAudioCallback* pCallback);
-extern void UnRegisterAudioCallback();
+#define AUDIO_BUFFER_SECONDS 6
 
 class COMXAudio : public IAudioRenderer
 {
@@ -80,6 +77,7 @@ public:
   virtual void SwitchChannels(int iAudioStream, bool bAudioOnAllSpeakers);
 
   virtual void Flush();
+  virtual void DoAudioWork();
   static void EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool passthrough);
 
   void Process();
@@ -133,6 +131,11 @@ protected:
   COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCore          m_OMX;
   DllAvUtil         m_dllAvUtil;
+
+  // stuff for visualisation
+  unsigned int     m_visBufferLength;
+  #define VIS_PACKET_SIZE 3840
+  short            m_visBuffer[VIS_PACKET_SIZE+2];
 };
 #endif
 

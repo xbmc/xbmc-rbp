@@ -704,25 +704,17 @@ int COMXVideo::DecodeText(uint8_t *pData, int iSize, int64_t dts, int64_t pts)
     unsigned int demuxer_bytes = (unsigned int)iSize;
     uint8_t *demuxer_content = pData;
 
-    unsigned int nSleepTime = 0;
-
     while(demuxer_bytes)
     {
-      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetInputBuffer();
+      // 500 ms timeout
+      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetInputBuffer(500);
 
       if(omx_buffer == NULL)
       {
-        OMXSleep(2);
-        nSleepTime += 2;
-        if(nSleepTime >= 500)
-        {
-          CLog::Log(LOGERROR, "OMXVideo::DecodeText timeout\n");
-          printf("COMXVideo::DecodeText timeout\n");
-          return false;
-        }
-        continue;
+        CLog::Log(LOGERROR, "OMXVideo::DecodeText timeout\n");
+        printf("COMXVideo::DecodeText timeout\n");
+        return false;
       }
-      nSleepTime = 0;
 
       /*
       CLog::Log(DEBUG, "COMXVideo::Video VDec : pts %lld omx_buffer 0x%08x buffer 0x%08x number %d\n", 
@@ -806,25 +798,16 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, int64_t dts, int64_t pts)
       }
     }
 
-    unsigned int nSleepTime = 0;
-
     while(demuxer_bytes)
     {
-      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetInputBuffer();
-
+      // 500ms timeout
+      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetInputBuffer(500);
       if(omx_buffer == NULL)
       {
-        OMXSleep(2);
-        nSleepTime += 2;
-        if(nSleepTime >= 500)
-        {
-          CLog::Log(LOGERROR, "OMXVideo::Decode timeout\n");
-          printf("COMXVideo::Decode timeout\n");
-          return false;
-        }
-        continue;
+        CLog::Log(LOGERROR, "OMXVideo::Decode timeout\n");
+        printf("COMXVideo::Decode timeout\n");
+        return false;
       }
-      nSleepTime = 0;
 
       /*
       CLog::Log(DEBUG, "COMXVideo::Video VDec : pts %lld omx_buffer 0x%08x buffer 0x%08x number %d\n", 

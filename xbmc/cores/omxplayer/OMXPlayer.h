@@ -69,8 +69,8 @@ public:
   virtual ~COMXPlayer();
   
   virtual bool  Initialize(TiXmlElement* pConfig);
-  virtual void  RegisterAudioCallback(IAudioCallback* pCallback) {}
-  virtual void  UnRegisterAudioCallback()                        {}
+  virtual void  RegisterAudioCallback(IAudioCallback* pCallback);
+  virtual void  UnRegisterAudioCallback();
   virtual bool  OpenFile(const CFileItem &file, const CPlayerOptions &options);
   virtual bool  QueueNextFile(const CFileItem &file)             {return false;}
   virtual void  OnNothingToQueueNotify()                         {}
@@ -150,7 +150,7 @@ public:
   virtual bool  IsInMenu() const                                  {return false;};
   virtual bool  HasMenu()                                         {return false;};
 
-  virtual void  DoAudioWork()                                     {};
+  virtual void  DoAudioWork();
   virtual bool  OnAction(const CAction &action)                   {return false;};
 
   virtual bool  GetCurrentSubtitle(CStdString& strSubtitle);

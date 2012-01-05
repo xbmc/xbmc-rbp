@@ -350,7 +350,8 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
   }
 
   OMX_BUFFERHEADERTYPE* m_output_buffer;
-  m_output_buffer=m_omx_egl_render.GetOutputBuffer();
+  // 2000ms - this has to wait for jpeg decode, so could take a while
+  m_output_buffer=m_omx_egl_render.GetOutputBuffer(2000);
   if (!m_output_buffer) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_egl_render.GetOutputBuffer\n", CLASSNAME, __func__);
     goto do_exit;

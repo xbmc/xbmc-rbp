@@ -101,7 +101,9 @@ COMXAudio::COMXAudio() :
   m_SampleRate      (0      ),
   m_eEncoding       (OMX_AUDIO_CodingPCM),
   m_extradata       (NULL   ),
-  m_extrasize       (0      )
+  m_extrasize       (0      ),
+  m_visBufferLength (0      ),
+  m_pCallback       (NULL   )
 {
 }
 
@@ -646,6 +648,13 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
     return len;
   }
 
+  if (!m_Passthrough && m_pCallback)
+  {
+    unsigned int mylen = std::min(len, sizeof m_visBuffer);
+    memcpy(m_visBuffer, data, mylen);
+    m_visBufferLength = mylen;
+  }
+
   if(m_eEncoding == OMX_AUDIO_CodingDTS && m_LostSync && m_Passthrough)
   {
     int skip = SyncDTS((uint8_t *)data, len);
@@ -691,31 +700,19 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
 
   OMX_ERRORTYPE omx_err;
 
-  unsigned int nSleepTime = 0;
-
   OMX_BUFFERHEADERTYPE *omx_buffer = NULL;
 
   while(demuxer_bytes)
   {
-    omx_buffer = m_omx_decoder.GetInputBuffer();
+    // 200ms timeout
+    omx_buffer = m_omx_decoder.GetInputBuffer(200);
 
     if(omx_buffer == NULL)
     {
-      assert(0);
-      /*
-      OMXSleep(1);
-      nSleepTime += 1;
-      if(nSleepTime >= 200)
-      {
-        CLog::Log(LOGERROR, "COMXAudio::Decode timeout\n");
-        printf("COMXAudio::Decode timeout\n");
-        return len;
-      }
-      continue;
-      */
+      CLog::Log(LOGERROR, "COMXAudio::Decode timeout\n");
+      printf("COMXAudio::Decode timeout\n");
+      return len;
     }
-
-    nSleepTime = 0;
 
     omx_buffer->nOffset = 0;
     omx_buffer->nFlags  = 0;
@@ -942,11 +939,22 @@ int COMXAudio::SetPlaySpeed(int iSpeed)
 void COMXAudio::RegisterAudioCallback(IAudioCallback *pCallback)
 {
   m_pCallback = pCallback;
+  if (m_pCallback && !m_Passthrough && !m_HWDecode)
+    m_pCallback->OnInitialize(m_Channels, m_SampleRate, m_BitsPerSample);
 }
 
 void COMXAudio::UnRegisterAudioCallback()
 {
   m_pCallback = NULL;
+}
+
+void COMXAudio::DoAudioWork()
+{
+  if (m_pCallback && m_visBufferLength)
+  {
+    m_pCallback->OnAudioData((BYTE*)m_visBuffer, m_visBufferLength);
+    m_visBufferLength = 0;
+  }
 }
 
 void COMXAudio::WaitCompletion()
@@ -963,18 +971,6 @@ void COMXAudio::WaitCompletion()
   param.nPortIndex = m_omx_render.GetInputPort();
 
   unsigned int start = XbmcThreads::SystemClockMillis();
-  */
-
-  // maximum wait 1s.
-  /*
-  int nSleep = 0;
-  while(nSleep < (AUDIO_BUFFER_SECONDS * 1000)) {
-    if(GetDelay() == AUDIO_BUFFER_SECONDS)
-      break;
-
-    OMXSleep(10);
-    nSleep += 10;
-  }
   */
 }
 

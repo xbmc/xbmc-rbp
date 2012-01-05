@@ -236,7 +236,7 @@
 #ifdef _ARMEL
 #undef HAS_AVAHI
 #undef HAS_ZEROCONF
-#undef HAS_VISUALISATION
+//#undef HAS_VISUALISATION
 #undef HAS_FILESYSTEM_HTSP
 #endif
 

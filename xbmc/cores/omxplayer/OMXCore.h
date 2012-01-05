@@ -144,8 +144,8 @@ public:
   void FlushInput();
   void FlushOutput();
 
-  OMX_BUFFERHEADERTYPE *GetInputBuffer();
-  OMX_BUFFERHEADERTYPE *GetOutputBuffer();
+  OMX_BUFFERHEADERTYPE *GetInputBuffer(long timeout=200);
+  OMX_BUFFERHEADERTYPE *GetOutputBuffer(long timeout=200);
 
   OMX_ERRORTYPE AllocInputBuffers(void);
   OMX_ERRORTYPE AllocOutputBuffers(void);
