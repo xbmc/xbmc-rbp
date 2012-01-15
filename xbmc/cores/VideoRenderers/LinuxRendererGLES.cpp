@@ -1260,9 +1260,6 @@ bool CLinuxRendererGLES::RenderCapture(CRenderCapture* capture)
   if (!m_bValidated)
     return false;
 
-  // get our screen rect
-  const CRect rv = g_graphicsContext.GetViewWindow();
-
   // save current video rect
   CRect saveSize = m_destRect;
 
@@ -1281,7 +1278,7 @@ bool CLinuxRendererGLES::RenderCapture(CRenderCapture* capture)
 
   Render(RENDER_FLAG_NOOSD, m_iYV12RenderBuffer);
   // read pixels
-  glReadPixels(0, rv.y2 - capture->GetHeight(), capture->GetWidth(), capture->GetHeight(),
+  glReadPixels(0, g_graphicsContext.GetHeight() - capture->GetHeight(), capture->GetWidth(), capture->GetHeight(),
                GL_RGBA, GL_UNSIGNED_BYTE, capture->GetRenderBuffer());
 
   // OpenGLES returns in RGBA order but CRenderCapture needs BGRA order
@@ -1289,12 +1286,7 @@ bool CLinuxRendererGLES::RenderCapture(CRenderCapture* capture)
   unsigned char* pixels = (unsigned char*)capture->GetRenderBuffer();
   for (int i = 0; i < capture->GetWidth() * capture->GetHeight(); i++, pixels+=4)
   {
-    if (pixels[0] != pixels[2])
-    {
-      pixels[0] ^= pixels[2];
-      pixels[2] ^= pixels[0];
-      pixels[0] ^= pixels[2];
-    }
+    std::swap(pixels[0], pixels[2]);
   }
 
   capture->EndRender();
@@ -1832,9 +1824,13 @@ bool CLinuxRendererGLES::Supports(EINTERLACEMETHOD method)
   if(method == VS_INTERLACEMETHOD_AUTO)
     return true;
 
+#if defined(__i386__) || defined(__x86_64__)
   if(method == VS_INTERLACEMETHOD_DEINTERLACE
   || method == VS_INTERLACEMETHOD_DEINTERLACE_HALF
   || method == VS_INTERLACEMETHOD_SW_BLEND)
+#else
+  if(method == VS_INTERLACEMETHOD_SW_BLEND)
+#endif
     return true;
 
   return false;

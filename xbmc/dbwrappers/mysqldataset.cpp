@@ -109,7 +109,7 @@ int MysqlDatabase::connect(bool create_new) {
   if (host.empty() || db.empty())
     return DB_CONNECTION_NONE;
 
-  CLog::Log(LOGDEBUG, "Connecting to mysql:%s:%s", host.c_str(), db.c_str());
+  //CLog::Log(LOGDEBUG, "Connecting to mysql:%s:%s", host.c_str(), db.c_str());
 
   try
   {
@@ -182,10 +182,12 @@ int MysqlDatabase::connect(bool create_new) {
 }
 
 void MysqlDatabase::disconnect(void) {
-  if (!active || conn == NULL)
-    return;
-  mysql_close(conn);
-  conn = NULL;
+  if (conn != NULL)
+  {
+    mysql_close(conn);
+    conn = NULL;
+  }
+
   active = false;
 }
 
@@ -267,8 +269,9 @@ int MysqlDatabase::query_with_reconnect(const char* query) {
   int attempts = 5;
   int result;
 
-  // try to reconnect if server is gone (up to 3 times)
-  while ( ((result = mysql_real_query(conn, query, strlen(query))) == CR_SERVER_GONE_ERROR) &&
+  // try to reconnect if server is gone
+  while ( ((result = mysql_real_query(conn, query, strlen(query))) != MYSQL_OK) &&
+          ((result = mysql_errno(conn)) == CR_SERVER_GONE_ERROR) && 
           (attempts-- > 0) )
   {
     CLog::Log(LOGINFO,"MYSQL server has gone. Will try %d more attempt(s) to reconnect.", attempts);
@@ -276,11 +279,6 @@ int MysqlDatabase::query_with_reconnect(const char* query) {
     connect(true);
   }
 
-  // grab the latest error if not ok
-  if (result != MYSQL_OK)
-    result = mysql_errno(conn);
-
-  // set the error return string and return
   return result;
 }
 

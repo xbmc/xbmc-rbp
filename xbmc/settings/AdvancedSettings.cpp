@@ -142,7 +142,6 @@ void CAdvancedSettings::Initialize()
   m_handleMounting = g_application.IsStandAlone();
 
   m_fullScreenOnMovieStart = true;
-  m_noDVDROM = false;
   m_cachePath = "special://temp/";
 
   m_videoCleanDateTimeRegExp = "(.*[^ _\\,\\.\\(\\)\\[\\]\\-])[ _\\.\\(\\)\\[\\]\\-]+(19[0-9][0-9]|20[0-1][0-9])([ _\\,\\.\\(\\)\\[\\]\\-]|[^0-9]$)";
@@ -320,7 +319,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
   TiXmlDocument advancedXML;
   if (!CFile::Exists(file))
   {
-    CLog::Log(LOGNOTICE, "No settings file to load to load (%s)", file.c_str());
+    CLog::Log(LOGNOTICE, "No settings file to load (%s)", file.c_str());
     return;
   }
 
@@ -676,7 +675,6 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
 
   XMLUtils::GetBoolean(pRootElement, "handlemounting", m_handleMounting);
 
-  XMLUtils::GetBoolean(pRootElement, "nodvdrom", m_noDVDROM);
 #ifdef HAS_SDL
   XMLUtils::GetBoolean(pRootElement, "fullscreen", m_startFullScreen);
 #endif

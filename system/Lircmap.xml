@@ -337,7 +337,7 @@
 		<right>KEY_RIGHT</right>
 		<up>KEY_UP</up>
 		<down>KEY_DOWN</down>
-		<select>#KEY_OK</select>
+		<select>KEY_OK</select>
 		<pageplus>KEY_CHANNELUP</pageplus>
 		<pageminus>KEY_CHANNELDOWN</pageminus>
 		<back>KEY_BACKSPACE</back>
@@ -414,13 +414,20 @@
 		<right>KEY_RIGHT</right>
 		<up>KEY_UP</up>
 		<down>KEY_DOWN</down>
+		<select>KEY_OK</select>
 		<select>KEY_ENTER</select>
 		<start>KEY_SELECT</start>
+		<back>KEY_ESC</back>
 		<back>KEY_EXIT</back>
+		<back>KEY_BACK</back>
+		<back>KEY_CLOSE</back>
 		<record>KEY_RECORD</record>
 		<play>KEY_PLAY</play>
+		<play>KEY_PLAYPAUSE</play>
 		<pause>KEY_PAUSE</pause>
+		<pause>KEY_PLAYPAUSE</pause>
 		<stop>KEY_STOP</stop>
+		<stop>KEY_STOPCD</stop>
 		<forward>KEY_FASTFORWARD</forward>
 		<reverse>KEY_REWIND</reverse>
 		<volumeplus>KEY_VOLUMEUP</volumeplus>
@@ -431,6 +438,7 @@
 		<skipminus>KEY_PREVIOUSSONG</skipminus>
 		<title>KEY_TEXT</title>
 		<subtitle>KEY_SUBTITLE</subtitle>
+		<language>KEY_LANGUAGE</language>
 		<mute>KEY_MUTE</mute>
 		<power>KEY_POWER</power>
 		<myvideo>KEY_VIDEO</myvideo>
@@ -451,5 +459,11 @@
 		<green>KEY_GREEN</green>
 		<yellow>KEY_YELLOW</yellow>
 		<blue>KEY_BLUE</blue>
+		<menu>KEY_MENU</menu>
+		<info>KEY_INFO</info>
+		<info>KEY_PROPS</info>
+		<start>KEY_HOME</start>
+		<display>KEY_ANGLE</display>
+		<teletext>KEY_TEXT</teletext>
 	</remote>
 </lircmap>
