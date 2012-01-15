@@ -701,6 +701,8 @@ OMX_ERRORTYPE COMXCoreComponent::FreeInputBuffers(bool wait)
   if(wait)
     omx_err = WaitForEvent(OMX_EventCmdComplete);
 
+  assert(m_omx_input_buffers.size() == m_omx_input_avaliable.size());
+
   for (size_t i = 0; i < m_omx_input_buffers.size(); i++)
   {
 #ifdef OMX_USEBUFFER
@@ -746,6 +748,8 @@ OMX_ERRORTYPE COMXCoreComponent::FreeOutputBuffers(bool wait)
   omx_err = OMX_SendCommand(m_handle, OMX_CommandPortDisable, m_output_port, NULL);
   if(wait)
     omx_err = WaitForEvent(OMX_EventCmdComplete);
+
+  assert(m_omx_output_buffers.size() == m_omx_output_avaliable.size());
 
   for (size_t i = 0; i < m_omx_output_buffers.size(); i++)
   {

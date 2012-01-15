@@ -480,6 +480,7 @@ void OMXReader::Process()
       if (result < 0)
       {
         m_eof = true;
+        m_stop = true;
         FlushRead();
         UnLock();
         continue;
@@ -496,6 +497,7 @@ void OMXReader::Process()
         m_dllAvCodec.av_free_packet(&pkt);
 
         m_eof = true;
+        m_stop = true;
         UnLock();
         continue;
       }

@@ -55,13 +55,6 @@
 
 #define MAX_CHAPTERS 64
 
-typedef struct Chapter
-{
-  std::string name;
-  int64_t     seekto_ms;
-  double      ts;
-} Chapter;
-
 class COMXPlayer : public IPlayer, public CThread
 {
 public:
@@ -207,8 +200,6 @@ private:
 
   int                     m_chapter_count;
 
-  Chapter                 m_chapters[MAX_CHAPTERS];
-
   float                   m_video_fps;
   int                     m_video_width;
   int                     m_video_height;
@@ -220,7 +211,6 @@ private:
   DllBcmHostDisplay       m_BcmHostDisplay;
   DllBcmHost              m_BcmHost;
 
-  CCriticalSection        m_SeekSection;
   int64_t                 m_seek_ms;
   int                     m_seek_req;
 

@@ -434,24 +434,6 @@ bool COMXPlayer::CloseFile()
   // we are done after the StopThread call
   StopThread();
   
-  m_av_clock->Stop();
-
-  CloseVideoDecoder();
-  CloseAudioDecoder();
-  CloseAudioCodec();
-
-  if(m_audio_pkt)
-  {
-    m_omx_reader.FreePacket(m_audio_pkt);
-    m_audio_pkt = NULL;
-  }
-
-  if(m_video_pkt)
-  {
-    m_omx_reader.FreePacket(m_video_pkt);
-    m_video_pkt = NULL;
-  }
-
   m_omx_reader.Close();
 
   g_Windowing.InformVideoInfo(m_tv_state.width, m_tv_state.height, m_tv_state.frame_rate);
@@ -690,7 +672,7 @@ void COMXPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
  
 void COMXPlayer::SetAudioStream(int SetAudioStream)
 {
-  CSingleLock lock(m_SeekSection);
+  CSingleLock lock(m_csection);
 
   if(m_omx_reader.SetAudioStream(SetAudioStream))
   {
@@ -824,7 +806,7 @@ void COMXPlayer::GetChapterName(CStdString& strChapterName)
 
 int COMXPlayer::SeekChapter(int chapter_index)
 {
-  CSingleLock lock(m_SeekSection);
+  CSingleLock lock(m_csection);
 
   // chapter_index is a one based value.
   CLog::Log(LOGDEBUG, "COMXPlayer::SeekChapter:chapter_index(%d)", chapter_index);
@@ -858,7 +840,7 @@ float COMXPlayer::GetActualFPS()
 
 void COMXPlayer::SeekTime(__int64 seek_ms)
 {
-  CSingleLock lock(m_SeekSection);
+  CSingleLock lock(m_csection);
 
   int seek_flags = (seek_ms - m_elapsed_ms) < 0 ? AVSEEK_FLAG_BACKWARD : 0;
 
@@ -1067,7 +1049,7 @@ void COMXPlayer::Process()
     goto do_exit;
 
   m_dst_rect.SetRect(0, 0, 0, 0);
-  //if(m_VideoCodecOpen)
+  //if(m_video_decoder)
   //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
   m_Passthrough = IsPassthrough(m_hints_audio);
@@ -1131,8 +1113,8 @@ void COMXPlayer::Process()
 
     m_videoStats.Start();
 
-    CSingleLock lock(m_SeekSection);
-    m_SeekSection.unlock();
+    CSingleLock lock(m_csection);
+    m_csection.unlock();
 
     while (!m_bStop && !m_StopPlaying)
     {
@@ -1150,7 +1132,7 @@ void COMXPlayer::Process()
           m_av_clock->Resume();
       }
 
-      m_SeekSection.lock();
+      m_csection.lock();
 
       if(m_audio_change && m_audio_count)
       {
@@ -1166,7 +1148,7 @@ void COMXPlayer::Process()
         if(!OpenAudioCodec(m_hints_audio))
         {
           CLog::Log(LOGERROR, "%s - failed to open audio codec", __FUNCTION__);
-          m_SeekSection.unlock();
+          m_csection.unlock();
           goto do_exit;
         }
 
@@ -1179,7 +1161,7 @@ void COMXPlayer::Process()
         if(!OpenAudioDecoder(m_hints_audio))
         {
           CLog::Log(LOGERROR, "%s - failed to open audio decoder", __FUNCTION__);
-          m_SeekSection.unlock();
+          m_csection.unlock();
           goto do_exit;
         }
 
@@ -1348,7 +1330,7 @@ void COMXPlayer::Process()
       else
         m_elapsed_ms = 0;
 
-      m_SeekSection.unlock();
+      m_csection.unlock();
 
       if(m_omx_reader.IsEof())
         break;
@@ -1363,6 +1345,9 @@ do_exit:
 
   m_av_clock->Stop();
 
+  CloseAudioDecoder();
+  CloseVideoDecoder();
+  CloseAudioCodec();
 
   if(m_audio_pkt)
   {
