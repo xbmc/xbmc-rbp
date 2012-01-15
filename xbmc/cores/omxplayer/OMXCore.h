@@ -50,8 +50,6 @@
   (a).nVersion.s.nRevision = OMX_VERSION_REVISION; \
   (a).nVersion.s.nStep = OMX_VERSION_STEP
 
-#define INPUT_BUFFER_SIZE 1024*512
-
 #include "DllAvFormat.h"
 
 typedef struct omx_event {
@@ -141,6 +139,7 @@ public:
   unsigned int GetInputBufferSpace();
   unsigned int GetOutputBufferSpace();
 
+  void FlushAll();
   void FlushInput();
   void FlushOutput();
 

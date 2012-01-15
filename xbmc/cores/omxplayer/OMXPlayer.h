@@ -42,6 +42,7 @@
 #include "OMXClock.h"
 #include "OMXVideo.h"
 #include "OMXAudio.h"
+#include "OMXReader.h"
 
 #include "utils/BitstreamStats.h"
 
@@ -171,21 +172,14 @@ protected:
   std::string m_filename; // holds the actual filename
 
 private:
-
-  std::vector<AVStream*> m_video_streams;
-  std::vector<AVStream*> m_audio_streams;
- 
-  virtual bool GetStreams();
-  virtual bool GetHints(AVStream *stream, COMXStreamInfo *hints);
-  virtual bool OpenVideoDecoder(AVStream *stream);
+  virtual bool OpenVideoDecoder(COMXStreamInfo hints);
   virtual void CloseVideoDecoder();
-  virtual bool IsPassthrough(AVStream *stream);
-  virtual bool OpenAudioCodec(AVStream *stream);
+  virtual bool IsPassthrough(COMXStreamInfo hints);
+  virtual bool OpenAudioCodec(COMXStreamInfo hints);
   virtual void CloseAudioCodec();
-  virtual bool OpenAudioDecoder(AVStream *stream);
+  virtual bool OpenAudioDecoder(COMXStreamInfo hints);
   virtual void CloseAudioDecoder();
-
-  virtual void GetStreamCodecName(AVStream *stream, CStdString &strStreamName);
+  virtual void ResetStreams();
 
   int                     m_speed;
   bool                    m_paused;
@@ -200,6 +194,7 @@ private:
   int64_t                 m_duration_ms;
   int                     m_audio_index;
   int                     m_audio_count;
+  bool                    m_audio_change;
   CStdString              m_audio_info;
   int64_t                 m_audio_offset_ms;
   int                     m_video_index;
@@ -220,14 +215,8 @@ private:
   CRect                   m_dst_rect;
   int                     m_view_mode;
 
-  XFILE::CFile            *m_pFile;
   COMXStreamInfo          m_hints_audio;
   COMXStreamInfo          m_hints_video;
-  AVFormatContext         *m_pFormatContext;
-  ByteIOContext           *m_ioContext;
-  DllAvUtil               m_dllAvUtil;
-  DllAvCodec              m_dllAvCodec;
-  DllAvFormat             m_dllAvFormat;
   DllBcmHostDisplay       m_BcmHostDisplay;
   DllBcmHost              m_BcmHost;
 
@@ -235,15 +224,16 @@ private:
   int64_t                 m_seek_ms;
   int                     m_seek_req;
 
-  AVStream                *m_pVideoStream;
-  AVStream                *m_pAudioStream;
-  bool                    m_AudioCodecOpen;
-  bool                    m_VideoCodecOpen;
-  bool                    m_AudioRenderOpen;
   OMXClock                *m_av_clock;
   COMXAudioCodecOMX       *m_pAudioCodec;
   COMXAudio               *m_audio_render;
   COMXVideo               *m_video_decoder;
+  OMXReader               m_omx_reader;
+  OMXPacket               *m_video_pkt;
+  OMXPacket               *m_audio_pkt;
+
+  double                  m_startpts;
+
   enum PCMChannels        *m_pChannelMap;
 
   CStdString              m_audio_codec_name;
@@ -251,15 +241,10 @@ private:
 
   COMXCore                m_OMX;
 
-  bool                    m_bMatroska;
-  bool                    m_bAVI;
   bool                    m_bMpeg;
-  double                  m_last_pts;
   double                  m_videoClock;
   double                  m_audioClock;
   double                  m_frametime;
-  bool                    m_pkt_consumed;
-  AVPacket                m_pkt;
 
   bool                    m_Passthrough;
   bool                    m_HWDecode;
@@ -267,6 +252,6 @@ private:
 
   BitstreamStats          m_videoStats;
   TV_GET_STATE_RESP_T     m_tv_state;
-  bool                    m_buffer_seek;
+  bool                    m_buffer_empty;
   bool                    m_mode3d_sbs;
 };

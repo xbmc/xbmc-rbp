@@ -40,10 +40,10 @@
 #include "XMemUtils.h"
 #endif
 
-//#define OMX_USEBUFFER
+#define OMX_USEBUFFER
 
 //#define OMX_DEBUG_EVENTS
-//#define OMX_DEBUG_EVENTHANDLER
+#define OMX_DEBUG_EVENTHANDLER
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 #define CLASSNAME "COMXCoreComponent"
@@ -450,11 +450,22 @@ unsigned int COMXCoreComponent::GetOutputBufferSpace()
   return free;
 }
 
+void COMXCoreComponent::FlushAll()
+{
+  OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+  omx_err = SendCommand(OMX_CommandFlush, OMX_ALL, NULL);
+
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "COMXCoreComponent::FlushAll - Error on component %s omx_err(0x%08x)", 
+              m_componentName.c_str(), (int)omx_err);
+  }
+}
+
 void COMXCoreComponent::FlushInput()
 {
-
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
-  omx_err = OMX_SendCommand(m_handle, OMX_CommandFlush, m_input_port, NULL);
+  omx_err = SendCommand(OMX_CommandFlush, m_input_port, NULL);
 
   if(omx_err != OMX_ErrorNone)
   {
@@ -466,8 +477,7 @@ void COMXCoreComponent::FlushInput()
 void COMXCoreComponent::FlushOutput()
 {
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
-
-  omx_err = OMX_SendCommand(m_handle, OMX_CommandFlush, m_output_port, NULL);
+  omx_err = SendCommand(OMX_CommandFlush, m_output_port, NULL);
 
   if(omx_err != OMX_ErrorNone)
   {
@@ -949,8 +959,8 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType, long time
 
     int retcode = pthread_cond_timedwait(&m_omx_event_cond, &m_omx_event_mutex, &endtime);
     if (retcode != 0) {
-      CLog::Log(LOGERROR, "COMXCoreComponent::WaitForEvent %s wait event timeout 0x%08x\n",
-                          m_componentName.c_str(), (int)eventType);
+      CLog::Log(LOGERROR, "COMXCoreComponent::WaitForEvent %s wait event 0x%08x timeout %ld\n",
+                          m_componentName.c_str(), (int)eventType, timeout);
       pthread_mutex_unlock(&m_omx_event_mutex);
       return OMX_ErrorHardware;
     }
@@ -1218,8 +1228,7 @@ bool COMXCoreComponent::Deinitialize()
   if(m_handle) 
   {
 
-    FlushInput();
-    FlushOutput();
+    FlushAll();
 
     if(GetState() == OMX_StateExecuting)
       SetStateForComponent(OMX_StatePause);

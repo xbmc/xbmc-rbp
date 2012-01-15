@@ -42,6 +42,24 @@
 #define DVD_PLAYSPEED_PAUSE       0       // frame stepping
 #define DVD_PLAYSPEED_NORMAL      1000
 
+#ifdef OMX_SKIP64BIT
+static inline OMX_TICKS ToOMXTime(int64_t pts)
+{
+  OMX_TICKS ticks;
+  ticks.nLowPart = pts;
+  ticks.nHighPart = pts >> 32;
+  return ticks;
+}
+static inline uint64_t FromOMXTime(OMX_TICKS ticks)
+{
+  uint64_t pts = ticks.nLowPart | ((uint64_t)ticks.nHighPart << 32);
+  return pts;
+}
+#else
+#define FromOMXTime(x) (x)
+#define ToOMXTime(x) (x)
+#endif
+
 enum {
   AV_SYNC_AUDIO_MASTER,
   AV_SYNC_VIDEO_MASTER,
@@ -68,23 +86,18 @@ public:
   bool Initialize(bool has_video, bool has_audio);
   void Deinitialize();
   bool IsPaused() { return m_pause; };
+  bool Stop();
   bool Pause();
   bool Resume();
-  bool WaitStart(uint64_t pts);
+  bool WaitStart(double pts);
   bool Speed(int speed);
   int  PlaySpeed() { return m_play_speed; };
   COMXCoreComponent *GetOMXClock();
+  bool StatePause();
   bool StateExecute();
   static void Sleep(unsigned int dwMilliSeconds);
-  static double NormalizeFrameduration(double frameduration);
-  static double ConvertTimestamp(int64_t pts, int64_t start_time, AVRational *time_base);
-  void UpdateCurrentPTS(AVFormatContext *ctx);
-  double GetCurrentPts() { return m_iCurrentPts; };
-  void SetCurrentPts(int64_t pts) { m_iCurrentPts = pts; };
-  void UpdateVideoClock(double videoClock) { m_video_clock = videoClock; };
-  double GetVideoClock() { return m_video_clock; };
-  void UpdateAudioClock(double audioClock) { m_audio_clock = audioClock; };
-  double GetAudioClock() { return m_audio_clock; };
+  double GetPTS() { return m_iCurrentPts; };
+  void   SetPTS(double pts) { m_iCurrentPts = pts; };
 };
 
 inline void OMXSleep(unsigned int dwMilliSeconds)

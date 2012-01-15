@@ -79,6 +79,7 @@ static const uint16_t DTSFSCod   [] = {0, 8000, 16000, 32000, 0, 0, 11025, 22050
 //////////////////////////////////////////////////////////////////////
 //***********************************************************************************************
 COMXAudio::COMXAudio() :
+  m_pCallback       (NULL   ),
   m_Initialized     (false  ),
   m_Pause           (false  ),
   m_CanPause        (false  ),
@@ -96,14 +97,14 @@ COMXAudio::COMXAudio() :
   m_external_clock  (false  ),
   m_setStartTime    (false  ),
   m_SampleSize      (0      ),
-  m_firstFrame      (true   ),
+  m_first_frame     (true   ),
   m_LostSync        (true   ),
   m_SampleRate      (0      ),
   m_eEncoding       (OMX_AUDIO_CodingPCM),
   m_extradata       (NULL   ),
   m_extrasize       (0      ),
   m_visBufferLength (0      ),
-  m_pCallback       (NULL   )
+  m_last_pts        (DVD_NOPTS_VALUE)
 {
 }
 
@@ -475,7 +476,8 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
 
   m_Initialized   = true;
   m_setStartTime  = true;
-  m_firstFrame    = true;
+  m_first_frame   = true;
+  m_last_pts      = DVD_NOPTS_VALUE;
 
   SetCurrentVolume(m_CurrentVolume);
 
@@ -492,16 +494,12 @@ bool COMXAudio::Deinitialize()
     return true;
 
   if(!m_external_clock && m_av_clock != NULL)
-  {
     m_av_clock->Pause();
-  }
 
   m_omx_tunnel_clock.Deestablish();
-
   m_omx_tunnel_decoder.Deestablish();
 
   m_omx_decoder.Deinitialize();
-
   m_omx_render.Deinitialize();
 
   m_Initialized = false;
@@ -522,7 +520,7 @@ bool COMXAudio::Deinitialize()
   m_av_clock  = NULL;
 
   m_Initialized = false;
-  m_firstFrame  = false;
+  m_first_frame  = false;
   m_LostSync    = true;
   m_HWDecode    = false;
 
@@ -533,6 +531,8 @@ bool COMXAudio::Deinitialize()
 
   m_dllAvUtil.Unload();
 
+  m_last_pts  = DVD_NOPTS_VALUE;
+
   return true;
 }
 
@@ -541,12 +541,39 @@ void COMXAudio::Flush()
   if(!m_Initialized)
     return;
 
-  m_omx_decoder.FlushInput();
-  m_omx_render.FlushInput();
   m_omx_tunnel_clock.Flush();
   m_omx_tunnel_decoder.Flush();
 
-  m_setStartTime = true;
+  m_omx_clock->SetStateForComponent(OMX_StatePause);
+  m_omx_decoder.SetStateForComponent(OMX_StatePause);
+  m_omx_render.SetStateForComponent(OMX_StatePause);
+
+  m_omx_render.SendCommand(OMX_CommandPortDisable, m_omx_render.GetOutputPort(), NULL);
+  m_omx_render.SendCommand(OMX_CommandPortDisable, m_omx_render.GetInputPort(), NULL);
+  m_omx_decoder.SendCommand(OMX_CommandPortDisable, m_omx_decoder.GetOutputPort(), NULL);
+
+  m_omx_render.WaitForCommand(OMX_CommandPortDisable, m_omx_render.GetOutputPort());
+  m_omx_render.WaitForCommand(OMX_CommandPortDisable, m_omx_render.GetInputPort());
+  m_omx_decoder.WaitForCommand(OMX_CommandPortDisable, m_omx_decoder.GetOutputPort());
+
+  m_omx_decoder.FlushAll();
+  m_omx_render.FlushAll();
+
+  m_omx_render.SendCommand(OMX_CommandPortEnable, m_omx_render.GetOutputPort(), NULL);
+  m_omx_render.SendCommand(OMX_CommandPortEnable, m_omx_render.GetInputPort(), NULL);
+  m_omx_decoder.SendCommand(OMX_CommandPortEnable, m_omx_decoder.GetOutputPort(), NULL);
+
+  m_omx_render.WaitForCommand(OMX_CommandPortEnable, m_omx_render.GetOutputPort());
+  m_omx_render.WaitForCommand(OMX_CommandPortEnable, m_omx_render.GetInputPort());
+  m_omx_decoder.WaitForCommand(OMX_CommandPortEnable, m_omx_decoder.GetOutputPort());
+
+  m_omx_clock->SetStateForComponent(OMX_StateExecuting); 
+  m_omx_decoder.SetStateForComponent(OMX_StateExecuting); 
+  m_omx_render.SetStateForComponent(OMX_StateExecuting); 
+
+  m_setStartTime  = true;
+  m_last_pts      = DVD_NOPTS_VALUE;
+  //m_first_frame   = true;
 }
 
 //***********************************************************************************************
@@ -641,7 +668,7 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len)
 }
 
 //***********************************************************************************************
-unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t dts, int64_t pts)
+unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dts, double pts)
 {
   if(!m_Initialized) {
     CLog::Log(LOGERROR,"COMXAudio::AddPackets - sanity failed. no valid play handle!");
@@ -720,47 +747,39 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
     omx_buffer->nFilledLen = (demuxer_bytes > omx_buffer->nAllocLen) ? omx_buffer->nAllocLen : demuxer_bytes;
     memcpy(omx_buffer->pBuffer, demuxer_content, omx_buffer->nFilledLen);
 
-    if(m_setStartTime) 
+    /*
+    if (m_SampleSize > 0 && pts != DVD_NOPTS_VALUE && !(omx_buffer->nFlags & OMX_BUFFERFLAG_TIME_UNKNOWN) && !m_Passthrough && !m_HWDecode)
+    {
+      pts += ((double)omx_buffer->nFilledLen * DVD_TIME_BASE) / m_SampleSize;
+    }
+    */
+
+    uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;;
+    if(m_setStartTime)
     {
       omx_buffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
 
       m_setStartTime = false;
+      m_last_pts = pts;
     }
     else
     {
-      if((uint64_t)pts == AV_NOPTS_VALUE)
+      if(pts == DVD_NOPTS_VALUE)
+      {
+        omx_buffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+        m_last_pts = pts;
+      }
+      else if (m_last_pts != pts)
+      {
+        m_last_pts = pts;
+      }
+      else if (m_last_pts == pts)
       {
         omx_buffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
       }
     }
 
-    uint64_t val = ((uint64_t)pts == AV_NOPTS_VALUE) ? 0 : pts;
-#ifdef OMX_SKIP64BIT
-    if((uint64_t)pts == AV_NOPTS_VALUE || (omx_buffer->nFlags & OMX_BUFFERFLAG_TIME_UNKNOWN))
-    {
-      omx_buffer->nTimeStamp.nLowPart = 0;
-      omx_buffer->nTimeStamp.nHighPart = 0;
-    }
-    else
-    {
-      omx_buffer->nTimeStamp.nLowPart = val & 0x00000000FFFFFFFF;
-      omx_buffer->nTimeStamp.nHighPart = (val & 0xFFFFFFFF00000000) >> 32;
-    }
-#else
-    omx_buffer->nTimeStamp = val; // in microseconds
-#endif
-
-    /*
-    CLog::Log(LOGDEBUG, "COMXAudio::AddPackets ADec : pts %lld omx_buffer 0x%08x buffer 0x%08x number %d\n", 
-        pts, omx_buffer, omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate);
-    printf("ADec : pts %lld omx_buffer 0x%08x buffer 0x%08x number %d\n", 
-        pts, omx_buffer, omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate);
-    */
-
-    if (m_SampleSize > 0 && (uint64_t)pts != AV_NOPTS_VALUE && !(omx_buffer->nFlags & OMX_BUFFERFLAG_TIME_UNKNOWN) && !m_Passthrough && !m_HWDecode)
-    {
-      pts += ((double)omx_buffer->nFilledLen * DVD_TIME_BASE) / m_SampleSize;
-    }
+    omx_buffer->nTimeStamp = ToOMXTime(val);
 
     demuxer_bytes -= omx_buffer->nFilledLen;
     demuxer_content += omx_buffer->nFilledLen;
@@ -779,9 +798,9 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, int64_t d
       return 0;
     }
 
-    if(m_firstFrame)
+    if(m_first_frame)
     {
-      m_firstFrame = false;
+      m_first_frame = false;
       m_omx_render.WaitForEvent(OMX_EventPortSettingsChanged);
 
       m_omx_render.SendCommand(OMX_CommandPortDisable, m_omx_render.GetInputPort(), NULL);

@@ -43,7 +43,8 @@
 #include "OMXStreamInfo.h"
 #include "BitstreamConverter.h"
 
-#define AUDIO_BUFFER_SECONDS 6
+#define AUDIO_BUFFER_SECONDS 2
+#define VIS_PACKET_SIZE 3840
 
 class COMXAudio : public IAudioRenderer
 {
@@ -61,7 +62,7 @@ public:
   virtual ~COMXAudio();
 
   virtual unsigned int AddPackets(const void* data, unsigned int len);
-  virtual unsigned int AddPackets(const void* data, unsigned int len, int64_t dts, int64_t pts);
+  virtual unsigned int AddPackets(const void* data, unsigned int len, double dts, double pts);
   virtual unsigned int GetSpace();
   virtual bool Deinitialize();
   virtual bool Pause();
@@ -114,12 +115,16 @@ private:
   bool          m_external_clock;
   bool          m_setStartTime;
   int           m_SampleSize;
-  bool          m_firstFrame;
+  bool          m_first_frame;
   bool          m_LostSync;
   int           m_SampleRate;
   OMX_AUDIO_CODINGTYPE m_eEncoding;
   uint8_t       *m_extradata;
   int           m_extrasize;
+  // stuff for visualisation
+  unsigned int  m_visBufferLength;
+  double        m_last_pts;
+  short            m_visBuffer[VIS_PACKET_SIZE+2];
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm;
   OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;
   WAVEFORMATEXTENSIBLE        m_wave_header;
@@ -131,11 +136,6 @@ protected:
   COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCore          m_OMX;
   DllAvUtil         m_dllAvUtil;
-
-  // stuff for visualisation
-  unsigned int     m_visBufferLength;
-  #define VIS_PACKET_SIZE 3840
-  short            m_visBuffer[VIS_PACKET_SIZE+2];
 };
 #endif
 

@@ -10,6 +10,8 @@ SRCS=	\
 	OMXVideo.cpp \
 	OMXImage.cpp \
 	OMXTexture.cpp \
+	OMXThread.cpp \
+	OMXReader.cpp \
 	BitstreamConverter.cpp
 
 LIB=	OMXPlayer.a

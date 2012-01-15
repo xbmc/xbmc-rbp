@@ -54,18 +54,20 @@ public:
   virtual ~COMXVideo();
 
   // Required overrides
+  bool SendDecoderConfig();
   bool Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace = false);
   void Close(void);
   unsigned int GetFreeSpace();
   unsigned int GetSize();
-  int  Decode(uint8_t *pData, int iSize, int64_t dts, int64_t pts);
-  //int  DecodeText(uint8_t *pData, int iSize, int64_t dts, int64_t pts);
+  int  Decode(uint8_t *pData, int iSize, double dts, double pts);
+  //int  DecodeText(uint8_t *pData, int iSize, double dts, double pts);
   void Reset(void);
   void SetDropState(bool bDrop);
   bool Pause();
   bool Resume();
   CStdString GetDecoderName() { return m_video_codec_name; };
   void SetVideoRect(const CRect& SrcRect, const CRect& DestRect);
+  int GetInputBufferSize();
 protected:
   // Video format
   bool              m_drop_state;
@@ -101,6 +103,8 @@ protected:
 
   bool              m_deinterlace;
   bool              m_first_frame;
+
+  double            m_last_pts;
 };
 
 #endif

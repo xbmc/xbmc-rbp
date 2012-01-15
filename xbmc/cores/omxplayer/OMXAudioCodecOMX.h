@@ -30,9 +30,6 @@
 #include "utils/PCMRemap.h"
 #include "linux/PlatformDefs.h"
 
-#include "OMXCore.h"
-#include "OMXClock.h"
-
 class COMXAudioCodecOMX
 {
 public:
@@ -67,23 +64,12 @@ protected:
   int m_iBuffered;
 
   int     m_channels;
-  int     m_omx_channels;
-  int64_t m_layout;
-
-  bool    m_exit;
-  bool    m_firstFrame;
-  OMX_AUDIO_CODINGTYPE m_eEncoding;
-  OMX_AUDIO_PARAM_PCMMODETYPE m_pcm;
-  CodecID m_codec;
+  uint64_t m_layout;
 
   DllAvCodec m_dllAvCodec;
   DllAvCore m_dllAvCore;
   DllAvUtil m_dllAvUtil;
 
   void BuildChannelMap();
-  
-  COMXCoreComponent m_omx_decoder;
-
-  void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm);
 };
 
