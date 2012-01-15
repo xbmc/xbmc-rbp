@@ -167,7 +167,7 @@ protected:
 private:
   virtual bool OpenVideoDecoder(COMXStreamInfo hints);
   virtual void CloseVideoDecoder();
-  virtual bool IsPassthrough(COMXStreamInfo hints);
+  virtual IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo hints);
   virtual bool OpenAudioCodec(COMXStreamInfo hints);
   virtual void CloseAudioCodec();
   virtual bool OpenAudioDecoder(COMXStreamInfo hints);
@@ -236,7 +236,7 @@ private:
   double                  m_audioClock;
   double                  m_frametime;
 
-  bool                    m_Passthrough;
+  IAudioRenderer::EEncoded m_Passthrough;
   bool                    m_HWDecode;
   bool                    m_use_hw_audio;
 

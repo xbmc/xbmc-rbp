@@ -156,18 +156,18 @@ void COMXPlayer::CloseAudioCodec()
   m_pAudioCodec = NULL;
 }
 
-bool COMXPlayer::IsPassthrough(COMXStreamInfo hints)
+IAudioRenderer::EEncoded COMXPlayer::IsPassthrough(COMXStreamInfo hints)
 {
   int  m_outputmode = 0;
   bool bitstream = false;
-  bool passthrough = false;
+  IAudioRenderer::EEncoded passthrough = IAudioRenderer::ENCODED_NONE;
 
   m_outputmode = g_guiSettings.GetInt("audiooutput.mode");
 
   switch(m_outputmode)
   {
     case 0:
-      passthrough = false;
+      passthrough = IAudioRenderer::ENCODED_NONE;
       break;
     case 1:
       bitstream = true;
@@ -181,11 +181,11 @@ bool COMXPlayer::IsPassthrough(COMXStreamInfo hints)
   {
     if(hints.codec == CODEC_ID_AC3 && g_guiSettings.GetBool("audiooutput.ac3passthrough"))
     {
-      passthrough = true;
+      passthrough = IAudioRenderer::ENCODED_IEC61937_AC3;
     }
     if(hints.codec == CODEC_ID_DTS && g_guiSettings.GetBool("audiooutput.dtspassthrough"))
     {
-      passthrough = true;
+      passthrough = IAudioRenderer::ENCODED_IEC61937_DTS;
     }
   }
 
@@ -361,7 +361,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_frametime       = 0;
     m_buffer_empty    = true;
 
-    m_Passthrough     = false;
+    m_Passthrough     = IAudioRenderer::ENCODED_NONE;
     m_HWDecode        = false;
     m_use_hw_audio    = g_advancedSettings.m_omHWAudioDecode;
 
@@ -1206,7 +1206,6 @@ void COMXPlayer::Process()
       if(!m_video_pkt)
       {
         m_video_pkt = m_omx_reader.GetVideoPacket();
-        if (!m_video_pkt) OMXSleep(1);
       }
       else
       {
@@ -1248,7 +1247,6 @@ void COMXPlayer::Process()
       if(!m_audio_pkt)
       {
         m_audio_pkt = m_omx_reader.GetAudioPacket();
-        if (!m_audio_pkt) OMXSleep(1);
       }
       else
       {
