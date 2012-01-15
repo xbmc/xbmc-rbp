@@ -82,7 +82,7 @@ bool COMXPlayer::Initialize(TiXmlElement* pConfig)
   return true;
 }
 
-bool COMXPlayer::OpenVideoDecoder(COMXStreamInfo hints)
+bool COMXPlayer::OpenVideoDecoder(COMXStreamInfo &hints)
 {
   m_video_codec_name = "";
 
@@ -129,7 +129,7 @@ void COMXPlayer::CloseVideoDecoder()
   m_video_codec_name = "";
 }
 
-bool COMXPlayer::OpenAudioCodec(COMXStreamInfo hints)
+bool COMXPlayer::OpenAudioCodec(COMXStreamInfo &hints)
 {
   m_pAudioCodec = new COMXAudioCodecOMX();
 
@@ -150,7 +150,7 @@ void COMXPlayer::CloseAudioCodec()
   m_pAudioCodec = NULL;
 }
 
-IAudioRenderer::EEncoded COMXPlayer::IsPassthrough(COMXStreamInfo hints)
+IAudioRenderer::EEncoded COMXPlayer::IsPassthrough(COMXStreamInfo &hints)
 {
   int  m_outputmode = 0;
   bool bitstream = false;
@@ -186,15 +186,14 @@ IAudioRenderer::EEncoded COMXPlayer::IsPassthrough(COMXStreamInfo hints)
   return passthrough;
 }
 
-bool COMXPlayer::OpenAudioDecoder(COMXStreamInfo hints)
+bool COMXPlayer::OpenAudioDecoder(COMXStreamInfo &hints)
 {
   bool bAudioRenderOpen = false;
 
   if(!m_pAudioCodec)
     return false;
 
-  if(m_Passthrough)
-    m_Passthrough = IsPassthrough(hints);
+  m_Passthrough = IsPassthrough(hints);
   if(!m_Passthrough && m_use_hw_audio)
     m_HWDecode = COMXAudio::HWDecode(hints.codec);
 
@@ -679,13 +678,13 @@ void COMXPlayer::SetAudioStream(int SetAudioStream)
 {
   CSingleLock lock(m_csection);
 
-  unsigned int index = SetAudioStream - 1;
-  if(m_omx_reader.SetAudioStream(index))
+  if(m_omx_reader.SetAudioStream(SetAudioStream))
   {
     ResetStreams();
     m_audio_change = true;
   }
-  m_audio_index = index;
+
+  m_audio_index = SetAudioStream;
 }
 
 void COMXPlayer::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
@@ -1035,8 +1034,6 @@ void COMXPlayer::Process()
     CLog::Log(LOGDEBUG, "COMXPlayer: SetThreadPriority failed");
 
   int                 result            = -1;
-  int                 m_video_index_use = -1;
-  int                 m_audio_index_use = -1;
 
   m_video_count   = m_omx_reader.VideoStreamCount();
   m_audio_count   = m_omx_reader.AudioStreamCount();

@@ -165,12 +165,12 @@ protected:
   std::string m_filename; // holds the actual filename
 
 private:
-  virtual bool OpenVideoDecoder(COMXStreamInfo hints);
+  virtual bool OpenVideoDecoder(COMXStreamInfo &hints);
   virtual void CloseVideoDecoder();
-  virtual IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo hints);
-  virtual bool OpenAudioCodec(COMXStreamInfo hints);
+  virtual IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo &hints);
+  virtual bool OpenAudioCodec(COMXStreamInfo &hints);
   virtual void CloseAudioCodec();
-  virtual bool OpenAudioDecoder(COMXStreamInfo hints);
+  virtual bool OpenAudioDecoder(COMXStreamInfo &hints);
   virtual void CloseAudioDecoder();
   virtual void ResetStreams();
 

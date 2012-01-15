@@ -248,10 +248,10 @@ bool OMXReader::Open(CStdString filename, bool dump_format)
 
   // if format can be nonblocking, let's use that
   m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
-  if(m_bMatroska || m_bAVI)
-    m_pFormatContext->max_analyze_duration = 0;
-  else
-    m_pFormatContext->max_analyze_duration = 5000000;
+
+  // analyse very short to speed up mjpeg playback start
+  if (iformat && (strcmp(iformat->name, "mjpeg") == 0) && m_ioContext->is_streamed)
+    m_pFormatContext->max_analyze_duration = 500000;
 
   result = m_dllAvFormat.av_find_stream_info(m_pFormatContext);
   if(result < 0)
@@ -700,13 +700,14 @@ bool OMXReader::GetStreams()
         // add streams from selected program
         for (unsigned int i = 0; i < m_pFormatContext->programs[m_program]->nb_stream_indexes; i++)
         {
-          if(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+          int index = m_pFormatContext->programs[m_program]->stream_index[i];
+          if(m_pFormatContext->streams[index]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
           {
-            m_video_streams.push_back(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]);
+            m_video_streams.push_back(m_pFormatContext->streams[index]);
           }
-          if(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+          if(m_pFormatContext->streams[index]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
           {
-            m_audio_streams.push_back(m_pFormatContext->streams[m_pFormatContext->programs[m_program]->stream_index[i]]);
+            m_audio_streams.push_back(m_pFormatContext->streams[index]);
           }
         }
       }
@@ -795,15 +796,9 @@ bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
   if(!hints || !stream)
     return false;
 
-  //hints->codec_fourcc  = stream->codec->codec_tag;
-  hints->width         = stream->codec->width;
-  hints->height        = stream->codec->height;
   hints->codec         = stream->codec->codec_id;
   hints->extradata     = stream->codec->extradata;
   hints->extrasize     = stream->codec->extradata_size;
-  hints->profile       = stream->codec->profile;
-  hints->fpsscale      = stream->r_frame_rate.num;
-  hints->fpsrate       = stream->r_frame_rate.den;
   hints->codec         = stream->codec->codec_id;
   hints->extradata     = stream->codec->extradata;
   hints->extrasize     = stream->codec->extradata_size;
@@ -814,6 +809,10 @@ bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
   hints->bitspersample = stream->codec->bits_per_coded_sample;
   if(hints->bitspersample == 0)
     hints->bitspersample = 16;
+
+  hints->width         = stream->codec->width;
+  hints->height        = stream->codec->height;
+  hints->profile       = stream->codec->profile;
 
   if(stream->codec->codec_type == AVMEDIA_TYPE_VIDEO)
   {
@@ -840,9 +839,6 @@ bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
       hints->aspect = 0.0f;
     else
       hints->aspect = av_q2d(stream->sample_aspect_ratio) * stream->codec->width / stream->codec->height;
-  
-    hints->extradata     = stream->codec->extradata;
-    hints->extrasize     = stream->codec->extradata_size;
   }
 
   return true;
