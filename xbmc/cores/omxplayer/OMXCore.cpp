@@ -42,8 +42,8 @@
 
 #define OMX_USEBUFFER
 
-#define OMX_DEBUG_EVENTS
-#define OMX_DEBUG_EVENTHANDLER
+//#define OMX_DEBUG_EVENTS
+//#define OMX_DEBUG_EVENTHANDLER
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 #define CLASSNAME "COMXCoreComponent"

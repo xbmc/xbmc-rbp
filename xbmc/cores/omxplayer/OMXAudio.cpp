@@ -119,13 +119,21 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
                            COMXStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode)
 {
   m_HWDecode = false;
+  m_Passthrough = false;
 
-  if(bPassthrough)
+  if(bPassthrough != IAudioRenderer::ENCODED_NONE)
+  {
+    m_Passthrough = true;
     SetCodingType(hints.codec);
+  }
   else if(bUseHWDecode)
+  {
     m_HWDecode = CanHWDecode(hints.codec);
+  }
   else
+  {
     SetCodingType(CODEC_ID_PCM_S16LE);
+  }
 
   SetClock(clock);
 
@@ -151,7 +159,11 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   if(!m_dllAvUtil.Load())
     return false;
 
-  m_Passthrough = bPassthrough;
+  m_Passthrough = false;
+
+  if(bPassthrough != IAudioRenderer::ENCODED_NONE)
+    m_Passthrough =true;
+
   m_drc         = 0;
 
   memset(&m_wave_header, 0x0, sizeof(m_wave_header));
@@ -302,7 +314,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   omx_err = m_omx_decoder.GetParameter(OMX_IndexParamPortDefinition, &port_param);
   if(omx_err != OMX_ErrorNone)
   {
-    CLog::Log(LOGERROR, "COMXAudio::Initialize error OMX_IndexParamPortDefinition omx_err(0x%08x)\n", omx_err);
+    CLog::Log(LOGERROR, "COMXAudio::Initialize error get OMX_IndexParamPortDefinition omx_err(0x%08x)\n", omx_err);
     return false;
   }
 
@@ -314,7 +326,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   omx_err = m_omx_decoder.SetParameter(OMX_IndexParamPortDefinition, &port_param);
   if(omx_err != OMX_ErrorNone)
   {
-    CLog::Log(LOGERROR, "COMXAudio::Initialize error OMX_IndexParamPortDefinition omx_err(0x%08x)\n", omx_err);
+    CLog::Log(LOGERROR, "COMXAudio::Initialize error set OMX_IndexParamPortDefinition omx_err(0x%08x)\n", omx_err);
     return false;
   }
 

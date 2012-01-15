@@ -193,6 +193,11 @@ bool COMXPlayer::OpenAudioDecoder(COMXStreamInfo hints)
   if(!m_pAudioCodec)
     return false;
 
+  if(m_Passthrough)
+    m_Passthrough = IsPassthrough(hints);
+  if(!m_Passthrough && m_use_hw_audio)
+    m_HWDecode = COMXAudio::HWDecode(hints.codec);
+
   m_pChannelMap = m_pAudioCodec->GetChannelMap();
 
   m_audio_render = new COMXAudio();
@@ -205,9 +210,9 @@ bool COMXPlayer::OpenAudioDecoder(COMXStreamInfo hints)
     m_HWDecode = false;
 
     deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
-    //m_audio_render->SetCodingType(m_hints_audio.codec);
+    m_audio_render->SetCodingType(hints.codec);
 
-    //m_hints_audio.channels = 2;
+    //hints.channels = 2;
     bAudioRenderOpen = m_audio_render->Initialize(NULL, deviceString.substr(4), m_pChannelMap,
                                                    hints, m_av_clock, m_Passthrough, m_HWDecode);
   }
@@ -674,12 +679,13 @@ void COMXPlayer::SetAudioStream(int SetAudioStream)
 {
   CSingleLock lock(m_csection);
 
-  if(m_omx_reader.SetAudioStream(SetAudioStream))
+  unsigned int index = SetAudioStream - 1;
+  if(m_omx_reader.SetAudioStream(index))
   {
     ResetStreams();
     m_audio_change = true;
   }
-  m_audio_index = SetAudioStream;
+  m_audio_index = index;
 }
 
 void COMXPlayer::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
@@ -1052,10 +1058,6 @@ void COMXPlayer::Process()
   //if(m_video_decoder)
   //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
-  m_Passthrough = IsPassthrough(m_hints_audio);
-  if(!m_Passthrough && m_use_hw_audio)
-    m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
-
   m_av_clock->StateExecute();
 
   m_duration_ms = m_omx_reader.GetDuration();
@@ -1151,12 +1153,6 @@ void COMXPlayer::Process()
           m_csection.unlock();
           goto do_exit;
         }
-
-        if(m_Passthrough)
-          m_Passthrough = IsPassthrough(m_hints_audio);
-
-        if(!m_Passthrough && m_use_hw_audio)
-          m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
 
         if(!OpenAudioDecoder(m_hints_audio))
         {
