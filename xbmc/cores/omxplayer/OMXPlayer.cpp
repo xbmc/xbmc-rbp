@@ -1206,6 +1206,7 @@ void COMXPlayer::Process()
       if(!m_video_pkt)
       {
         m_video_pkt = m_omx_reader.GetVideoPacket();
+        if (!m_video_pkt) OMXSleep(1);
       }
       else
       {
@@ -1247,6 +1248,7 @@ void COMXPlayer::Process()
       if(!m_audio_pkt)
       {
         m_audio_pkt = m_omx_reader.GetAudioPacket();
+        if (!m_audio_pkt) OMXSleep(1);
       }
       else
       {
