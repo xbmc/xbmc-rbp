@@ -42,7 +42,7 @@
 
 #define OMX_USEBUFFER
 
-//#define OMX_DEBUG_EVENTS
+#define OMX_DEBUG_EVENTS
 #define OMX_DEBUG_EVENTHANDLER
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -701,7 +701,9 @@ OMX_ERRORTYPE COMXCoreComponent::FreeInputBuffers(bool wait)
   if(wait)
     omx_err = WaitForEvent(OMX_EventCmdComplete);
 
-  assert(m_omx_input_buffers.size() == m_omx_input_avaliable.size());
+  printf("%s m_omx_input_buffers.size()=%d, m_omx_input_avaliable.size()=%d\n", m_componentName.c_str(),
+      m_omx_input_buffers.size(), m_omx_input_avaliable.size());
+  //assert(m_omx_input_buffers.size() == m_omx_input_avaliable.size());
 
   for (size_t i = 0; i < m_omx_input_buffers.size(); i++)
   {
@@ -1232,7 +1234,7 @@ bool COMXCoreComponent::Deinitialize()
   if(m_handle) 
   {
 
-    FlushAll();
+    //FlushAll();
 
     if(GetState() == OMX_StateExecuting)
       SetStateForComponent(OMX_StatePause);
