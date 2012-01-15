@@ -647,31 +647,27 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace)
 
 void COMXVideo::Close()
 {
-  /*
   m_omx_tunnel_decoder.Flush();
 
   if(m_deinterlace)
     m_omx_tunnel_image_fx.Flush();
 
   //m_omx_tunnel_text.Flush();
-
   //m_omx_tunnel_text.Deestablish();
-  */
 
   m_omx_tunnel_clock.Deestablish();
   m_omx_tunnel_sched.Deestablish();
   m_omx_tunnel_decoder.Deestablish();
-
-  m_omx_decoder.FlushAll();
-  m_omx_render.FlushAll();
-
   if(m_deinterlace)
     m_omx_tunnel_image_fx.Deestablish();
 
   m_omx_sched.Deinitialize();
 
+  m_omx_decoder.FlushAll();
   if(m_deinterlace)
     m_omx_image_fx.Deinitialize();
+  m_omx_render.FlushAll();
+
 
   m_omx_decoder.WaitForEvent(OMX_EventPortSettingsChanged);
   m_omx_decoder.Deinitialize();
@@ -967,17 +963,17 @@ void COMXVideo::Reset(void)
     m_omx_image_fx.WaitForCommand(OMX_CommandPortDisable, m_omx_image_fx.GetInputPort());
   m_omx_render.WaitForCommand(OMX_CommandPortDisable, m_omx_render.GetInputPort());
 
-  //m_omx_text.FlushAll();
-  //m_omx_decoder.FlushAll();
-  //m_omx_render.FlushAll();
-  //if(m_deinterlace)
-  //  m_omx_image_fx.FlushAll();
-
   m_omx_tunnel_clock.Flush();
   m_omx_tunnel_sched.Flush();
   m_omx_tunnel_decoder.Flush();
   if(m_deinterlace)
     m_omx_tunnel_image_fx.Flush();
+
+  //m_omx_text.FlushAll();
+  m_omx_decoder.FlushAll();
+  m_omx_render.FlushAll();
+  if(m_deinterlace)
+    m_omx_image_fx.FlushAll();
 
   m_omx_decoder.SendCommand(OMX_CommandPortEnable, m_omx_decoder.GetOutputPort(), NULL);
   if(m_deinterlace)

@@ -68,17 +68,11 @@ COMXPlayer::COMXPlayer(IPlayerCallback &callback)
   m_mode3d_sbs = false;
 
   m_OMX.Initialize();
-
-  m_av_clock = new OMXClock();
 }
 
 COMXPlayer::~COMXPlayer()
 {
   CloseFile();
-
-  if(m_av_clock)
-    delete m_av_clock;
-  m_av_clock = NULL;
 
   m_OMX.Deinitialize();
 }
@@ -392,6 +386,8 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_bMpeg = m_omx_reader.IsMpegVideo();
 
+    m_av_clock = new OMXClock();
+
     m_ready.Reset();
 
     g_renderManager.PreInit();
@@ -444,6 +440,10 @@ bool COMXPlayer::CloseFile()
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
 
   g_renderManager.UnInit();
+
+  if(m_av_clock)
+    delete m_av_clock;
+  m_av_clock = NULL;
 
   return true;
 }
@@ -1344,6 +1344,9 @@ void COMXPlayer::Process()
 do_exit:
 
   m_av_clock->Stop();
+
+  if(m_audio_render)
+    m_audio_render->WaitCompletion();
 
   CloseAudioDecoder();
   CloseVideoDecoder();

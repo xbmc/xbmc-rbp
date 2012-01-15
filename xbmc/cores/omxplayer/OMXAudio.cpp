@@ -496,8 +496,6 @@ bool COMXAudio::Deinitialize()
   if(!m_external_clock && m_av_clock != NULL)
     m_av_clock->Pause();
 
-  Flush();
-
   m_omx_tunnel_clock.Deestablish();
   m_omx_tunnel_decoder.Deestablish();
 
@@ -563,8 +561,8 @@ void COMXAudio::Flush()
 
   m_omx_tunnel_clock.Flush();
   m_omx_tunnel_decoder.Flush();
-  //m_omx_decoder.FlushAll();
-  //m_omx_render.FlushAll();
+  m_omx_decoder.FlushAll();
+  m_omx_render.FlushAll();
 
   m_omx_render.SendCommand(OMX_CommandPortEnable, m_omx_render.GetOutputPort(), NULL);
   m_omx_render.SendCommand(OMX_CommandPortEnable, m_omx_render.GetInputPort(), NULL);
