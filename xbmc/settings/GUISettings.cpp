@@ -369,7 +369,8 @@ void CGUISettings::Initialize()
 #else
   // this setting would ideally not be saved, as its value is systematically derived from videoscreen.screenmode.
   // contains a DISPLAYMODE
-  AddInt(vs, "videoscreen.screen", 240, 0, -1, 1, g_Windowing.GetNumScreens(), SPIN_CONTROL_TEXT);
+  bool showhide = true;
+  AddInt(showhide ? vs : NULL, "videoscreen.screen", 240, 0, -1, 1, g_Windowing.GetNumScreens(), SPIN_CONTROL_TEXT);
   // this setting would ideally not be saved, as its value is systematically derived from videoscreen.screenmode.
   // contains an index to the g_settings.m_ResInfo array. the only meaningful fields are iScreen, iWidth, iHeight.
 #if defined (__APPLE__)
@@ -1352,7 +1353,7 @@ RESOLUTION CGUISettings::GetResFromString(const CStdString &res)
       const RESOLUTION_INFO &info = g_settings.m_ResInfo[i];
       if (info.iScreen != screen)
         continue;
-      float score = 10*(square_error((float)info.iWidth, (float)width) + square_error((float)info.iHeight, (float)height)) + square_error(info.fRefreshRate, refresh);
+      float score = 10*(square_error((float)info.iScreenWidth, (float)width) + square_error((float)info.iScreenHeight, (float)height)) + square_error(info.fRefreshRate, refresh);
       if (score < bestScore)
       {
         bestScore = score;
@@ -1374,7 +1375,7 @@ void CGUISettings::SetResolution(RESOLUTION res)
   else if (res >= RES_CUSTOM && res < (RESOLUTION)g_settings.m_ResInfo.size())
   {
     const RESOLUTION_INFO &info = g_settings.m_ResInfo[res];
-    mode.Format("%1i%05i%05i%09.5f", info.iScreen, info.iWidth, info.iHeight, info.fRefreshRate);
+    mode.Format("%1i%05i%05i%09.5f", info.iScreen, info.iScreenWidth, info.iScreenHeight, info.fRefreshRate);
   }
   else
   {

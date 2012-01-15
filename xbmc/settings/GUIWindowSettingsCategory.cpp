@@ -2244,7 +2244,8 @@ void CGUIWindowSettingsCategory::FillInResolutions(CStdString strSetting, Displa
 
       RESOLUTION_INFO res1 = g_settings.m_ResInfo[res];
       RESOLUTION_INFO res2 = g_settings.m_ResInfo[resolutions[idx].ResInfo_Index];
-      if (res1.iScreen == res2.iScreen && res1.iWidth == res2.iWidth && res1.iHeight == res2.iHeight)
+      if (res1.iScreen == res2.iScreen && 
+          res1.iScreenWidth == res2.iScreenWidth && res1.iScreenHeight == res2.iScreenHeight)
         spinres = (RESOLUTION) resolutions[idx].ResInfo_Index;
     }
   }
@@ -2280,11 +2281,11 @@ void CGUIWindowSettingsCategory::FillInResolutions(CStdString strSetting, Displa
 
 void CGUIWindowSettingsCategory::FillInRefreshRates(CStdString strSetting, RESOLUTION res, bool UserChange)
 {
-  // The only meaningful parts of res here are iScreen, iWidth, iHeight
+  // The only meaningful parts of res here are iScreen, iScreenWidth, iScreenHeight
 
   vector<REFRESHRATE> refreshrates;
   if (res > RES_WINDOW)
-    refreshrates = g_Windowing.RefreshRates(g_settings.m_ResInfo[res].iScreen, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
+    refreshrates = g_Windowing.RefreshRates(g_settings.m_ResInfo[res].iScreen, g_settings.m_ResInfo[res].iScreenWidth, g_settings.m_ResInfo[res].iScreenHeight);
 
   // The control setting doesn't exist when not in standalone mode, don't manipulate it
   CBaseSettingControl *control = GetSetting(strSetting);
@@ -2341,7 +2342,7 @@ void CGUIWindowSettingsCategory::OnRefreshRateChanged(RESOLUTION nextRes)
   g_guiSettings.SetResolution(nextRes);
   g_graphicsContext.SetVideoResolution(nextRes);
 
-  if (!CGUIDialogYesNo::ShowAndGetInput(13110, 13111, 20022, 20022, -1, -1, cancelled, 10000))
+  if (!CGUIDialogYesNo::ShowAndGetInput(13110, 13111, 20022, 20022, -1, -1, cancelled, 20000))
   {
     g_guiSettings.SetResolution(lastRes);
     g_graphicsContext.SetVideoResolution(lastRes);
