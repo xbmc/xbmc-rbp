@@ -69,16 +69,15 @@ typedef struct OMXChapter
   double      ts;
 } OMXChapter;
 
-class OMXPacket : public COMXStreamInfo
+typedef struct OMXPacket
 {
-public:
   double    pts; // pts in DVD_TIME_BASE
   double    dts; // dts in DVD_TIME_BASE
   double    duration; // duration in DVD_TIME_BASE if available
   int       size;
   uint8_t   *data;
   int       stream_index;
-};
+} OMXPacket;
 
 class OMXReader : public OMXThread
 {

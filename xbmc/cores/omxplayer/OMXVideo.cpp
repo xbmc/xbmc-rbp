@@ -648,37 +648,27 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace)
 void COMXVideo::Close()
 {
   m_omx_tunnel_decoder.Flush();
-
   if(m_deinterlace)
     m_omx_tunnel_image_fx.Flush();
-
+  m_omx_tunnel_clock.Flush();
+  m_omx_tunnel_sched.Flush();
   //m_omx_tunnel_text.Flush();
 
-  //m_omx_tunnel_text.Deestablish();
-
+  m_omx_tunnel_clock.Deestablish();
   m_omx_tunnel_decoder.Deestablish();
   if(m_deinterlace)
     m_omx_tunnel_image_fx.Deestablish();
   m_omx_tunnel_sched.Deestablish();
-  m_omx_tunnel_clock.Deestablish();
+  //m_omx_tunnel_text.Deestablish();
 
-  m_omx_decoder.SendCommand(OMX_CommandPortDisable, m_omx_decoder.GetInputPort(), NULL);
-  //m_omx_decoder.WaitForCommand(OMX_CommandPortDisable, m_omx_decoder.GetInputPort());
-
-  m_omx_decoder.FlushAll();
-  m_omx_render.FlushAll();
+  m_omx_decoder.FlushInput();
 
   m_omx_sched.Deinitialize();
-
   if(m_deinterlace)
     m_omx_image_fx.Deinitialize();
-
-  m_omx_decoder.WaitForEvent(OMX_EventPortSettingsChanged);
   m_omx_decoder.Deinitialize();
-
-  //m_omx_text.Deinitialize();
-
   m_omx_render.Deinitialize();
+  //m_omx_text.Deinitialize();
 
   m_is_open       = false;
 
@@ -951,6 +941,7 @@ void COMXVideo::Reset(void)
   //if(m_deinterlace)
   //  m_omx_tunnel_image_fx.Flush();
 
+  /*
   m_omx_decoder.SetStateForComponent(OMX_StatePause);
   m_omx_render.SetStateForComponent(OMX_StatePause);
   m_omx_sched.SetStateForComponent(OMX_StatePause);
@@ -994,6 +985,10 @@ void COMXVideo::Reset(void)
   m_omx_sched.SetStateForComponent(OMX_StateExecuting);
   if(m_deinterlace)
     m_omx_image_fx.SetStateForComponent(OMX_StateExecuting);
+  */
+
+  m_omx_decoder.FlushInput();
+  m_omx_tunnel_decoder.Flush();
 
   m_setStartTime = true;
   m_last_pts     = DVD_NOPTS_VALUE;

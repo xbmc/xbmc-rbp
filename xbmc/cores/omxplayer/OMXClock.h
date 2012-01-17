@@ -87,6 +87,7 @@ public:
   void Deinitialize();
   bool IsPaused() { return m_pause; };
   bool Stop();
+  bool Start();
   bool Pause();
   bool Resume();
   bool WaitStart(double pts);

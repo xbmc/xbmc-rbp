@@ -59,6 +59,8 @@ bool OMXClock::Reset()
     OMX_TIME_CONFIG_CLOCKSTATETYPE clock;
     OMX_INIT_STRUCTURE(clock);
 
+    Stop();
+
     clock.eState    = OMX_TIME_ClockStateWaitingForStartTime;
     if(m_has_audio)
       clock.nWaitMask |= OMX_CLOCKPORT0;
@@ -71,6 +73,8 @@ bool OMXClock::Reset()
       CLog::Log(LOGERROR, "OMXClock::Reset error setting OMX_IndexConfigTimeClockState\n");
       return false;
     }
+
+    Start();
   }
 
   return true;
@@ -191,6 +195,29 @@ bool  OMXClock::Stop()
   if(omx_err != OMX_ErrorNone)
   {
     CLog::Log(LOGERROR, "OMXClock::Stop error setting OMX_IndexConfigTimeClockState\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool  OMXClock::Start()
+{
+  if(m_omx_clock.GetComponent() == NULL)
+  {
+    return false;
+  }
+
+  OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+  OMX_TIME_CONFIG_CLOCKSTATETYPE clock;
+  OMX_INIT_STRUCTURE(clock);
+
+  clock.eState = OMX_TIME_ClockStateRunning;
+
+  omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "OMXClock::Start error setting OMX_IndexConfigTimeClockState\n");
     return false;
   }
 

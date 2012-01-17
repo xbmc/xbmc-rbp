@@ -34,6 +34,7 @@
 OMXThread::OMXThread()
 {
   pthread_mutex_init(&m_lock, NULL);
+  pthread_attr_setdetachstate(&m_tattr, PTHREAD_CREATE_JOINABLE);
   pthread_attr_init(&m_tattr);
   m_stop      = false;
   m_running   = false;
@@ -77,7 +78,8 @@ void *OMXThread::Run(void *arg)
 {
   OMXThread *thread = static_cast<OMXThread *>(arg);
   thread->Process();
-  return NULL;
+
+  pthread_exit(NULL);
 }
 
 void OMXThread::Lock()
