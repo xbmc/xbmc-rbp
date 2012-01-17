@@ -1352,8 +1352,8 @@ do_exit:
   if(m_audio_render)
     m_audio_render->WaitCompletion();
 
-  CloseAudioDecoder();
   CloseVideoDecoder();
+  CloseAudioDecoder();
   CloseAudioCodec();
 
   if(m_audio_pkt)
