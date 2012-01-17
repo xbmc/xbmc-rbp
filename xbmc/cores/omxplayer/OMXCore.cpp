@@ -42,8 +42,8 @@
 
 #define OMX_USEBUFFER
 
-//#define OMX_DEBUG_EVENTS
-//#define OMX_DEBUG_EVENTHANDLER
+#define OMX_DEBUG_EVENTS
+#define OMX_DEBUG_EVENTHANDLER
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 #define CLASSNAME "COMXCoreComponent"
@@ -452,14 +452,8 @@ unsigned int COMXCoreComponent::GetOutputBufferSpace()
 
 void COMXCoreComponent::FlushAll()
 {
-  OMX_ERRORTYPE omx_err = OMX_ErrorNone;
-  omx_err = SendCommand(OMX_CommandFlush, OMX_ALL, NULL);
-
-  if(omx_err != OMX_ErrorNone)
-  {
-    CLog::Log(LOGERROR, "COMXCoreComponent::FlushAll - Error on component %s omx_err(0x%08x)", 
-              m_componentName.c_str(), (int)omx_err);
-  }
+  FlushInput();
+  FlushOutput();
 }
 
 void COMXCoreComponent::FlushInput()
@@ -472,6 +466,7 @@ void COMXCoreComponent::FlushInput()
     CLog::Log(LOGERROR, "COMXCoreComponent::FlushInput - Error on component %s omx_err(0x%08x)", 
               m_componentName.c_str(), (int)omx_err);
   }
+  WaitForCommand(OMX_CommandFlush, m_input_port);
 }
 
 void COMXCoreComponent::FlushOutput()
@@ -484,6 +479,7 @@ void COMXCoreComponent::FlushOutput()
     CLog::Log(LOGERROR, "COMXCoreComponent::FlushOutput - Error on component %s omx_err(0x%08x)", 
               m_componentName.c_str(), (int)omx_err);
   }
+  WaitForCommand(OMX_CommandFlush, m_output_port);
 }
 
 // timeout in milliseconds
@@ -701,9 +697,9 @@ OMX_ERRORTYPE COMXCoreComponent::FreeInputBuffers(bool wait)
   if(wait)
     omx_err = WaitForEvent(OMX_EventCmdComplete);
 
-  printf("%s m_omx_input_buffers.size()=%d, m_omx_input_avaliable.size()=%d\n", m_componentName.c_str(),
-      m_omx_input_buffers.size(), m_omx_input_avaliable.size());
   //assert(m_omx_input_buffers.size() == m_omx_input_avaliable.size());
+  printf("%s m_omx_input_buffers.size()=%d, m_omx_input_avaliable.size()=%d\n", m_componentName.c_str(),
+    m_omx_input_buffers.size(), m_omx_input_avaliable.size());
 
   for (size_t i = 0; i < m_omx_input_buffers.size(); i++)
   {
@@ -1234,7 +1230,7 @@ bool COMXCoreComponent::Deinitialize()
   if(m_handle) 
   {
 
-    //FlushAll();
+    FlushAll();
 
     if(GetState() == OMX_StateExecuting)
       SetStateForComponent(OMX_StatePause);

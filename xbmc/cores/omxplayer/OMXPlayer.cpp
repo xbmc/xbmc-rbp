@@ -291,7 +291,12 @@ void COMXPlayer::ResetStreams()
   }
 
   if(m_av_clock)
+  {
     m_av_clock->Reset();
+    m_av_clock->Resume();
+  }
+
+  m_buffer_empty = true;
 }
 
 bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
@@ -849,8 +854,8 @@ void COMXPlayer::SeekTime(__int64 seek_ms)
 
   int seek_flags = (seek_ms - m_elapsed_ms) < 0 ? AVSEEK_FLAG_BACKWARD : 0;
 
-  m_omx_reader.SeekTime(seek_ms, seek_flags, &m_startpts);
-  ResetStreams();
+  if(m_omx_reader.SeekTime(seek_ms, seek_flags, &m_startpts))
+    ResetStreams();
 }
 
 __int64 COMXPlayer::GetTime()
@@ -1188,6 +1193,12 @@ void COMXPlayer::Process()
         if(m_video_decoder)
         {
           if(m_video_decoder->GetFreeSpace() < (m_video_decoder->GetInputBufferSize() * 0.25) && m_omx_reader.GetVideoPacketsFree() == 0)
+          {
+            if(m_av_clock->IsPaused())
+              m_av_clock->Resume();
+            m_buffer_empty = false;
+          }
+          else if(m_video_decoder->GetFreeSpace() == 0)
           {
             if(m_av_clock->IsPaused())
               m_av_clock->Resume();
