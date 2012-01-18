@@ -22,7 +22,6 @@
 #ifndef _OMX_READER_H_
 #define _OMX_READER_H_
 
-#include "OMXThread.h"
 #include "utils/StdString.h"
 #include "DllAvUtil.h"
 #include "DllAvFormat.h"
@@ -30,6 +29,11 @@
 #include "DllAvCodec.h"
 #include "DllAvCore.h"
 #include "OMXStreamInfo.h"
+#ifdef STANDALONE
+#include "OMXThread.h"
+#else
+#include "threads/Thread.h"
+#endif
 #include <queue>
 
 #include "OMXStreamInfo.h"
@@ -77,9 +81,14 @@ typedef struct OMXPacket
   int       size;
   uint8_t   *data;
   int       stream_index;
+  AVStream  *pStream;
 } OMXPacket;
 
+#ifdef STANDALONE
 class OMXReader : public OMXThread
+#else
+class OMXReader : public CThread
+#endif
 {
 protected:
   AVStream                  *m_pVideoStream;
@@ -119,6 +128,10 @@ protected:
 #ifdef STANDALONE
   void flush_packet_queue(AVFormatContext *s);
   void av_read_frame_flush(AVFormatContext *s);
+#else
+  pthread_mutex_t           m_lock;
+  void Lock();
+  void UnLock();
 #endif
   void FlushVideoPackets();
   void FlushAudioPackets();
@@ -159,6 +172,8 @@ public:
   void GetChapterName(std::string& strChapterName);
   bool SeekChapter(int chapter, double* startpts);
   bool GetAudioIndex() { return m_audio_index; };
+  AVStream *VideoStream() { return m_pVideoStream; };
+  AVStream *AudioStream() { return m_pAudioStream; };
   int GetStreamLength();
   static double NormalizeFrameduration(double frameduration);
   bool IsMpegVideo() { return m_bMpeg; };

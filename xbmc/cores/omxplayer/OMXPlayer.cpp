@@ -264,30 +264,36 @@ void COMXPlayer::CloseAudioDecoder()
   m_audio_codec_name = "";
 }
 
-void COMXPlayer::ResetStreams()
+void COMXPlayer::ResetStreams(bool video, bool audio)
 {
   if(m_av_clock)
     m_av_clock->Pause();
 
-  if(m_pAudioCodec)
-    m_pAudioCodec->Reset();
-
-  if(m_video_decoder)
-    m_video_decoder->Reset();
-
-  if(m_audio_render)
-    m_audio_render->Flush();
-
-  if(m_video_pkt)
+  if(video)
   {
-    m_omx_reader.FreePacket(m_video_pkt);
-    m_video_pkt = NULL;
+    if(m_video_decoder)
+      m_video_decoder->Reset();
+
+    if(m_video_pkt)
+    {
+      m_omx_reader.FreePacket(m_video_pkt);
+      m_video_pkt = NULL;
+    }
   }
 
-  if(m_audio_pkt)
+  if(audio)
   {
-    m_omx_reader.FreePacket(m_audio_pkt);
-    m_audio_pkt = NULL;
+    if(m_pAudioCodec)
+      m_pAudioCodec->Reset();
+
+    if(m_audio_render)
+      m_audio_render->Flush();
+
+    if(m_audio_pkt)
+    {
+      m_omx_reader.FreePacket(m_audio_pkt);
+      m_audio_pkt = NULL;
+    }
   }
 
   if(m_av_clock)
@@ -378,31 +384,11 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     memset(&m_tv_state, 0, sizeof(TV_GET_STATE_RESP_T));
     m_BcmHost.vc_tv_get_state(&m_tv_state);
 
-    if(m_filename.find("3DSBS") != string::npos) {
-      CLog::Log(LOGNOTICE, "3DSBS movie found");
-      m_mode3d_sbs = true;
-    }
-
-    if(!m_omx_reader.Open(m_filename, false))
-      return false;
-
-    m_video_count   = m_omx_reader.VideoStreamCount();
-    m_audio_count   = m_omx_reader.AudioStreamCount();
-    m_chapter_count = m_omx_reader.GetChapterCount();
-
-    m_hints_audio = m_omx_reader.GetAudioHints();
-    m_hints_video = m_omx_reader.GetVideoHints();
-
-    m_bMpeg = m_omx_reader.IsMpegVideo();
-
-    m_av_clock = new OMXClock();
-
     m_ready.Reset();
 
     g_renderManager.PreInit();
 
     Create();
-
     if (!m_ready.WaitMSec(100))
     {
       CGUIDialogBusy* dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
@@ -411,8 +397,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
         g_windowManager.ProcessRenderLoop(false);
       dialog->Close();
     }
-    // just in case process thread throws.
-    //m_ready.Set();
 
     // Playback might have been stopped due to some error
     if (m_bStop || m_StopPlaying)
@@ -685,7 +669,7 @@ void COMXPlayer::SetAudioStream(int SetAudioStream)
 
   if(m_omx_reader.SetAudioStream(SetAudioStream))
   {
-    ResetStreams();
+    ResetStreams(true, false);
     m_audio_change = true;
   }
 
@@ -826,7 +810,7 @@ int COMXPlayer::SeekChapter(int chapter_index)
     g_infoManager.SetDisplayAfterSeek(100000);
 
     m_omx_reader.SeekChapter(chapter_index, &m_startpts);
-    ResetStreams();
+    ResetStreams(true, true);
 
     m_callback.OnPlayBackSeekChapter(chapter_index);
     g_infoManager.SetDisplayAfterSeek();
@@ -855,7 +839,7 @@ void COMXPlayer::SeekTime(__int64 seek_ms)
   int seek_flags = (seek_ms - m_elapsed_ms) < 0 ? AVSEEK_FLAG_BACKWARD : 0;
 
   if(m_omx_reader.SeekTime(seek_ms, seek_flags, &m_startpts))
-    ResetStreams();
+    ResetStreams(true, true);
 }
 
 __int64 COMXPlayer::GetTime()
@@ -1040,33 +1024,44 @@ void COMXPlayer::Process()
 
   int                 result            = -1;
 
-  m_video_count   = m_omx_reader.VideoStreamCount();
-  m_audio_count   = m_omx_reader.AudioStreamCount();
-  m_chapter_count = m_omx_reader.GetChapterCount();
-
-  m_hints_audio = m_omx_reader.GetAudioHints();
-  m_hints_video = m_omx_reader.GetVideoHints();
-
-  if(!m_av_clock->Initialize(m_video_count, m_audio_count))
-    goto do_exit;
-
-  if(!m_video_count && !m_audio_count)
-    goto do_exit;
-
-  if(m_video_count && !OpenVideoDecoder(m_hints_video))
-    goto do_exit;
-
-  m_dst_rect.SetRect(0, 0, 0, 0);
-  //if(m_video_decoder)
-  //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
-
-  m_av_clock->StateExecute();
-
-  m_duration_ms = m_omx_reader.GetDuration();
-
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
   try
   {
+    if(m_filename.find("3DSBS") != string::npos) {
+      CLog::Log(LOGNOTICE, "3DSBS movie found");
+      m_mode3d_sbs = true;
+    }
+
+    if(!m_omx_reader.Open(m_filename, false))
+      goto do_exit;
+
+    m_video_count   = m_omx_reader.VideoStreamCount();
+    m_audio_count   = m_omx_reader.AudioStreamCount();
+    m_chapter_count = m_omx_reader.GetChapterCount();
+
+    m_hints_audio = m_omx_reader.GetAudioHints();
+    m_hints_video = m_omx_reader.GetVideoHints();
+
+    m_bMpeg = m_omx_reader.IsMpegVideo();
+
+    m_av_clock = new OMXClock();
+    if(!m_av_clock->Initialize(m_video_count, m_audio_count))
+      goto do_exit;
+
+    if(!m_video_count && !m_audio_count)
+      goto do_exit;
+
+    if(m_video_count && !OpenVideoDecoder(m_hints_video))
+      goto do_exit;
+
+    m_dst_rect.SetRect(0, 0, 0, 0);
+    //if(m_video_decoder)
+    //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
+
+    m_av_clock->StateExecute();
+
+    m_duration_ms = m_omx_reader.GetDuration();
+
     m_speed = DVD_PLAYSPEED_NORMAL;
     m_callback.OnPlayBackSpeedChanged(m_speed);
 
@@ -1251,6 +1246,11 @@ void COMXPlayer::Process()
       if(!m_audio_pkt)
       {
         m_audio_pkt = m_omx_reader.GetAudioPacket();
+        if(m_audio_pkt && m_audio_pkt->pStream != m_omx_reader.AudioStream())
+        {
+          m_omx_reader.FreePacket(m_audio_pkt);
+          m_audio_pkt = NULL;
+        }
       }
       else
       {

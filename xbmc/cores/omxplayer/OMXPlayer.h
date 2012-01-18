@@ -172,7 +172,7 @@ private:
   virtual void CloseAudioCodec();
   virtual bool OpenAudioDecoder(COMXStreamInfo &hints);
   virtual void CloseAudioDecoder();
-  virtual void ResetStreams();
+  virtual void ResetStreams(bool video, bool audio);
 
   int                     m_speed;
   bool                    m_paused;

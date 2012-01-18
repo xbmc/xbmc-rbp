@@ -138,6 +138,9 @@ OMXReader::OMXReader()
   m_seek_req      = false;
 
   pthread_cond_init(&m_packet_buffer_cond, NULL);
+#ifndef STANDALONE
+  pthread_mutex_init(&m_lock, NULL);
+#endif
 }
 
 OMXReader::~OMXReader()
@@ -145,7 +148,22 @@ OMXReader::~OMXReader()
   Close();
 
   pthread_cond_destroy(&m_packet_buffer_cond);
+#ifndef STANDALONE
+  pthread_mutex_destroy(&m_lock);
+#endif
 }
+#ifndef STANDALONE
+void OMXReader::Lock()
+{
+  pthread_mutex_lock(&m_lock);
+}
+
+void OMXReader::UnLock()
+{
+  pthread_mutex_unlock(&m_lock);
+}
+
+#endif
 
 static int interrupt_cb(void)
 {
@@ -296,8 +314,12 @@ bool OMXReader::Open(CStdString filename, bool dump_format)
 
   UpdateCurrentPTS();
 
+#ifdef STANDALONE
   if(!Start())
     return false;
+#else
+  Create();
+#endif
 
   m_open        = true;
 
@@ -309,7 +331,11 @@ bool OMXReader::Close()
 {
   pthread_cond_broadcast(&m_packet_buffer_cond);
 
+#ifdef STANDALONE
   Stop();
+#else
+  StopThread();
+#endif
 
   m_video_streams.clear();
   m_audio_streams.clear();
@@ -454,10 +480,7 @@ void OMXReader::Process()
   m_video_index_use = m_video_index;
   m_audio_index_use = m_audio_index;
 
-  GetHints(m_pVideoStream, &m_hints_video);
-  GetHints(m_pAudioStream, &m_hints_audio);
-
-  while(!m_stop)
+  while(!m_bStop)
   {
     if(!m_omx_pkt && !m_eof)
     {
@@ -478,7 +501,7 @@ void OMXReader::Process()
       if (result < 0)
       {
         m_eof = true;
-        m_stop = true;
+        m_bStop = true;
         FlushRead();
         UnLock();
         continue;
@@ -495,7 +518,7 @@ void OMXReader::Process()
         m_dllAvCodec.av_free_packet(&pkt);
 
         m_eof = true;
-        m_stop = true;
+        m_bStop = true;
         UnLock();
         continue;
       }
@@ -556,6 +579,7 @@ void OMXReader::Process()
       m_omx_pkt->duration = DVD_SEC_TO_TIME((double)pkt.duration * pStream->time_base.num / pStream->time_base.den);
 
       m_omx_pkt->stream_index = pkt.stream_index;
+      m_omx_pkt->pStream = m_pFormatContext->streams[pkt.stream_index];
 
       // used to guess streamlength
       if (m_omx_pkt->dts != DVD_NOPTS_VALUE && (m_omx_pkt->dts > m_iCurrentPts || m_iCurrentPts == DVD_NOPTS_VALUE))
@@ -599,9 +623,10 @@ void OMXReader::Process()
       AddTimespecs(endtime, timeout);
 
       Lock();
-      while (1 && !m_stop)
+      while (1 && !m_bStop)
       {
-        if(m_pVideoStream == m_pFormatContext->streams[m_omx_pkt->stream_index])
+        //if(m_pVideoStream == m_pFormatContext->streams[m_omx_pkt->stream_index])
+        if(m_pFormatContext->streams[m_omx_pkt->stream_index]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
         {
           if(m_pkt_video.size() < MAX_OMX_VIDEO_PACKETS)
           {
@@ -610,7 +635,8 @@ void OMXReader::Process()
             break;
           }
         }
-        else if(m_pAudioStream == m_pFormatContext->streams[m_omx_pkt->stream_index])
+        //else if(m_pAudioStream == m_pFormatContext->streams[m_omx_pkt->stream_index])
+        else if(m_pFormatContext->streams[m_omx_pkt->stream_index]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
         {
           if(m_pkt_audio.size() < MAX_OMX_AUDIO_PACKETS)
           {
@@ -637,7 +663,7 @@ void OMXReader::Process()
     Lock();
     /* nothing more to handle */
     if(m_pkt_video.empty() && m_pkt_audio.empty() && m_eof)
-      m_stop = true;
+      m_bStop = true;
     UnLock();
     //printf("m_pkt_video.size %d m_pkt_audio.size %d\n", m_pkt_video.size(), m_pkt_audio.size());
   }
@@ -645,7 +671,7 @@ void OMXReader::Process()
   if(m_omx_pkt)
     FreePacket(m_omx_pkt);
 
-  m_stop = true;
+  m_bStop = true;
 }
 
 void OMXReader::FlushVideoPackets()
@@ -742,6 +768,9 @@ bool OMXReader::GetStreams()
     m_pAudioStream = m_audio_streams[0];
     m_audio_index = 0;
   }
+
+  GetHints(m_pVideoStream, &m_hints_video);
+  GetHints(m_pAudioStream, &m_hints_audio);
 
   int i = 0;
   for(i = 0; i < MAX_OMX_CHAPTERS; i++)
@@ -946,8 +975,8 @@ bool OMXReader::SetAudioStream(unsigned int index)
   pthread_cond_broadcast(&m_packet_buffer_cond);
   Lock();
   m_pAudioStream = m_audio_streams[m_audio_index];
-  FlushAudioPackets();
-  FlushVideoPackets();
+  //FlushAudioPackets();
+  //FlushVideoPackets();
   GetHints(m_pAudioStream, &m_hints_audio);
   UnLock();
   return true;
