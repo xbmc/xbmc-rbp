@@ -830,7 +830,10 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
         }
         else if (m_last_pts != pts)
         {
-          m_last_pts = pts;
+          if(pts > m_last_pts)
+            m_last_pts = pts;
+          else
+            omx_buffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;;
         }
         else if (m_last_pts == pts)
         {

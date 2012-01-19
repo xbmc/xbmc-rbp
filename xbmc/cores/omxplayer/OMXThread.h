@@ -38,10 +38,11 @@ private:
 public:
   OMXThread();
   ~OMXThread();
-  bool Start();
+  bool Create();
   virtual void Process() = 0;
   bool Running();
-  bool Stop();
+  pthread_t ThreadHandle();
+  bool StopThread();
   void Lock();
   void UnLock();
 };

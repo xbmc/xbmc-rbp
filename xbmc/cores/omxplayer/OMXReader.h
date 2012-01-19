@@ -128,11 +128,10 @@ protected:
 #ifdef STANDALONE
   void flush_packet_queue(AVFormatContext *s);
   void av_read_frame_flush(AVFormatContext *s);
-#else
+#endif
   pthread_mutex_t           m_lock;
   void Lock();
   void UnLock();
-#endif
   void FlushVideoPackets();
   void FlushAudioPackets();
 private:
