@@ -1,10 +1,12 @@
 include ../Makefile.include
 
-BUILDTOOLS = help2man autoconf automake libtool pkg-config yasm cmake patchelf
+BUILDTOOLS = 
 
-SUBDIRS = liblzo2
+SUBDIRS = \
+	libjpeg-turbo tiff jasper fribidi libass libmodplug \
+	libcdio librtmp libbluray libnfs yajl boost xbmc \
 
-IMAGENAME = xbmc-aml-`date +'%y%m%d'`
+IMAGENAME = xbmc-rbp-`date +'%y%m%d'`
 
 .PHONY: $(BUILDTOOLS) $(SUBDIRS)
 

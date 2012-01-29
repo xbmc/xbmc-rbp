@@ -1,8 +1,8 @@
-SDKSTAGE=/opt/bcm-rootfs
-XBMCPREFIX=/opt/xbmc-bcm
-TARGETFS=/opt/bcm-rootfs
-TOOLCHAIN=/usr/local/bcm-gcc
-BUILDROOT=/opt/bcm-rootfs
+SDKSTAGE=/opt/xbmc-bcm/buildroot/output/staging
+XBMCPREFIX=/opt/xbmc-bcm/xbmc-bin
+TARGETFS=/opt/xbmc-bcm/buildroot/output/target
+TOOLCHAIN=/opt/xbmc-bcm/buildroot/output/host/usr/
+BUILDROOT=/opt/xbmc-bcm/buildroot
 BASE_URL=http://mirrors.xbmc.org/build-deps/darwin-libs
 TARBALLS_LOCATION=/opt/xbmc-tarballs
 RETRIEVE_TOOL=/usr/bin/curl

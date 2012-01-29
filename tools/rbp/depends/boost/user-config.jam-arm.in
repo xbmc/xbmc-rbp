@@ -1,4 +1,4 @@
-using gcc : : arm-none-linux-gnueabi-g++ :
+using gcc : : arm-unknown-linux-gnueabi-g++ :
   <cflags>"-fvisibility-inlines-hidden -DBOOST_AC_USE_PTHREADS -DBOOST_SP_USE_PTHREADS"
   <cxxflags>"-fvisibility-inlines-hidden -DBOOST_AC_USE_PTHREADS -DBOOST_SP_USE_PTHREADS"
 ;

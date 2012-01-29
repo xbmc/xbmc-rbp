@@ -7,7 +7,7 @@ VERSION=2.0.1
 SOURCE=lloyd-$(LIBNAME)-f4b2b1a
 ARCHIVE=$(LIBNAME)-$(VERSION).tar.gz
 BASE_URL=http://github.com/lloyd/yajl/tarball/2.0.1
-CMAKE=$(PREFIX)/bin/cmake
+CMAKE=cmake
 # configuration settings
 LIBDYLIB=$(SOURCE)/build/$(LIBNAME)-$(VERSION)/lib/libyajl.so
 

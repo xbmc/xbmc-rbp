@@ -3,9 +3,9 @@ include ../depends.mk
 
 # lib name, version
 LIBNAME=rtmpdump
-VERSION=2.3
+VERSION=2.4
 SOURCE=$(LIBNAME)-$(VERSION)
-ARCHIVE=$(SOURCE).tgz
+ARCHIVE=$(SOURCE).tar.gz
 
 # configuration settings
 
@@ -25,7 +25,7 @@ $(SOURCE): $(TARBALLS_LOCATION)/$(ARCHIVE)
 	cd $(SOURCE)/librtmp; patch -p0 < ../../prefix.patch
 
 $(LIBDYLIB): $(SOURCE)
-	make -j $(JOBS) -C $(SOURCE)/librtmp CROSS_COMPILE=$(TOOLCHAIN)/bin/$(HOST)- PREFIX=$(PREFIX)
+	make -j $(JOBS) -C $(SOURCE)/librtmp CROSS_COMPILE=$(TOOLCHAIN)/bin/$(HOST)- PREFIX=$(PREFIX) CC="$(CC)" LD="$(LD)"
 
 .installed:
 	make -C $(SOURCE)/librtmp install

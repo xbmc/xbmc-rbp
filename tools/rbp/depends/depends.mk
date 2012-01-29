@@ -1,23 +1,19 @@
-export HOST=arm-bcm2708-linux-gnueabi
+export HOST=arm-unknown-linux-gnueabi
 export BUILD=i686-linux
-export PREFIX=${XBMCPREFIX}
-export TARGETFS
-export SYSROOT=/usr/local/bcm-gcc/arm-bcm2708-linux-gnueabi/sys-root
-export RLINK_PATH=-Wl,-rpath-link,${SYSROOT}/lib -Wl,-rpath-link,${TARGETFS}/lib -Wl,-rpath-link,${TARGETFS}/usr/lib -Wl,-rpath-link,${TARGETFS}/opt/vc/lib
-
-export CFLAGS=-isystem${XBMCPREFIX}/include -isystem${SDKSTAGE}/usr/include -isystem${SDKSTAGE}/opt/vc/include -isystem${SDKSTAGE}/opt/vc
-export CFLAGS+=-L${XBMCPREFIX}/lib -L${SYSROOT}/lib -L${TARGETFS}/lib -L${TARGETFS}/usr/lib -L${TARGETFS}/opt/vc/lib ${RLINK_PATH}
-export CXXFLAGS=${CFLAGS}
-export CPPFLAGS=${CFLAGS}
-export LDFLAGS=${RLINK_PATH} -L${TARGETFS}/lib -L${TARGETFS}/usr/lib -L${XBMCPREFIX}/lib
-export LD=${TOOLCHAIN}/bin/${HOST}-ld
-export AR=${TOOLCHAIN}/bin/${HOST}-ar
-export CC=${TOOLCHAIN}/bin/${HOST}-gcc
-export CXX=${TOOLCHAIN}/bin/${HOST}-g++
-export CXXCPP=${CXX} -E
-export RANLIB=${TOOLCHAIN}/bin/${HOST}-ranlib
-export STRIP=${TOOLCHAIN}/bin/${HOST}-strip
-export OBJDUMP=${TOOLCHAIN}/bin/${HOST}-objdump 
-export ACLOCAL=aclocal -I ${SDKSTAGE}/usr/share/aclocal -I ${TARGETFS}/usr/share/aclocal-1.11
-export PKG_CONFIG_LIBDIR=${PREFIX}/lib/pkgconfig:${SDKSTAGE}/lib/pkgconfig:${SDKSTAGE}/usr/lib/pkgconfig
-export PATH:=${PREFIX}/bin:$(PATH):${TOOLCHAIN}/bin
+export PREFIX=$(XBMCPREFIX)
+export SYSROOT=$(BUILDROOT)/output/host/usr/arm-unknown-linux-gnueabi/sysroot
+#export CFLAGS=-pipe -O3 -mfloat-abi=softfp -march=armv6zk -fomit-frame-pointer -mabi=aapcs-linux -mtune=arm1176jzf-s -mfpu=vfp -Wno-psabi -isystem$(SYSROOT)/usr/include -isystem$(SYSROOT)/opt/vc/include -isystem$(PREFIX)/include -isystem$(PREFIX)/usr/include/mysql
+export CFLAGS=-pipe -O2 -march=armv6zk -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mfloat-abi=softfp -mfpu=vfp -O3 -mabi=aapcs-linux -Wno-psabi -Wa,-mno-warn-deprecated -isystem$(SYSROOT)/usr/include -isystem$(SYSROOT)/opt/vc/include -isystem$(PREFIX)/include -isystem$(PREFIX)/usr/include/mysql
+export CXXFLAGS=$(CFLAGS)
+export CPPFLAGS=$(CFLAGS)
+export LDFLAGS=-L$(SYSROOT)/opt/vc/lib -L$(XBMCPREFIX)/lib
+export LD=$(TOOLCHAIN)/bin/$(HOST)-ld --sysroot=$(SYSROOT)
+export CC=$(TOOLCHAIN)/bin/$(HOST)-gcc --sysroot=$(SYSROOT)
+export CXX=$(TOOLCHAIN)/bin/$(HOST)-g++ --sysroot=$(SYSROOT)
+export OBJDUMP=$(TOOLCHAIN)/bin/$(HOST)-objdump
+export RANLIB=$(TOOLCHAIN)/bin/$(HOST)-ranlib
+export STRIP=$(TOOLCHAIN)/bin/$(HOST)-strip
+export AR=$(TOOLCHAIN)/bin/$(HOST)-ar
+export CXXCPP=$(CXX) -E
+export PKG_CONFIG_PATH=$(PREFIX)/lib/pkgconfig
+export PATH:=$(PREFIX)/bin:$(BUILDROOT)/output/host/usr/bin:$(PATH)

@@ -3,13 +3,14 @@
 SCRIPT_PATH=$(cd `dirname $0` && pwd)
 
 #Edit these two
-BUILDROOT=/opt/bcm-rootfs
+BUILDROOT=/opt/xbmc-bcm/buildroot
 TARBALLS=/opt/xbmc-tarballs
 
-XBMCPREFIX=/opt/xbmc-bcm
-SDKSTAGE=$BUILDROOT
-TARGETFS=$BUILDROOT
-TOOLCHAIN=/usr/local/bcm-gcc
+XBMCPREFIX=/opt/xbmc-bcm/xbmc-bin
+SDKSTAGE=$BUILDROOT/output/staging
+TARGETFS=$BUILDROOT/output/target
+#TOOLCHAIN=$BUILDROOT/output/host/opt/ext-toolchain/
+TOOLCHAIN=$BUILDROOT/output/host/usr/
 #
 sudo mkdir -p $XBMCPREFIX
 sudo chmod 777 $XBMCPREFIX
