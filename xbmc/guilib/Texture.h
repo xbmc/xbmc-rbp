@@ -27,6 +27,11 @@
 #ifndef GUILIB_TEXTURE_H
 #define GUILIB_TEXTURE_H
 
+#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
+#include "config.h"
+#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
+#endif
+
 #include "gui3d.h"
 #include "utils/StdString.h"
 #include "XBTF.h"
@@ -39,21 +44,13 @@ struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
 #include "D3DResource.h"
 #endif
 
-// TODO: remove after we have it in configure
-#ifndef HAVE_LIBBCM_HOST
-#define HAVE_LIBBCM_HOST
-#endif
-
-
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include "xbmc/filesystem/File.h"
 #include "xbmc/cores/omxplayer/OMXImage.h"
 #include "xbmc/cores/omxplayer/OMXTexture.h"
-#else
 #endif
-
 
 class CTexture;
 class CGLTexture;
@@ -106,7 +103,7 @@ public:
 
   static unsigned int PadPow2(unsigned int x);
   bool SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, unsigned int elements = 4, unsigned int offset=0);
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   bool IsAccelerated() { return m_accelerated; }
 #endif
 
@@ -125,7 +122,7 @@ protected:
   XBMC::TexturePtr m_texture;
 #endif
   unsigned char* m_pixels;
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   EGLImageKHR  m_egl_image;
   bool         m_accelerated;
   COMXImage    *m_omx_image;

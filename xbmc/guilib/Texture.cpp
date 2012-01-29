@@ -33,7 +33,7 @@
 #include "osx/DarwinUtils.h"
 #endif
 
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
 #include "ApplicationMessenger.h"
 #include "Application.h"
 #include "xbmc/cores/omxplayer/OMXTexture.h"
@@ -49,7 +49,7 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
   m_texture = 0;
 #endif
   m_pixels = NULL;
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   m_egl_image = 0;
   m_accelerated = false;
   m_omx_image = NULL;
@@ -62,7 +62,7 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
 CBaseTexture::~CBaseTexture()
 {
   delete[] m_pixels;
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if(m_omx_image)
     delete m_omx_image;
   m_omx_image = NULL;
@@ -82,7 +82,7 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   m_textureWidth = m_imageWidth;
   m_textureHeight = m_imageHeight;
 
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if (m_accelerated) { assert(m_pixels == 0); return; }
 #endif
   if (m_format & XB_FMT_DXT_MASK)
@@ -115,7 +115,7 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
 
 void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU)
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if (m_accelerated)
   {
     if (loadToGPU)
@@ -162,7 +162,7 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
 
 void CBaseTexture::ClampToEdge()
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   assert(!m_accelerated);
 #endif
   unsigned int imagePitch = GetPitch(m_imageWidth);
@@ -196,7 +196,7 @@ void CBaseTexture::ClampToEdge()
 bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxWidth, unsigned int maxHeight,
                                 bool autoRotate, unsigned int *originalWidth, unsigned int *originalHeight)
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if (URIUtils::GetExtension(texturePath).Equals(".jpg") || 
       URIUtils::GetExtension(texturePath).Equals(".tbn") 
       /*|| URIUtils::GetExtension(texturePath).Equals(".png")*/)
@@ -384,7 +384,7 @@ unsigned int CBaseTexture::PadPow2(unsigned int x)
 
 bool CBaseTexture::SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, unsigned int elements, unsigned int offset)
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   assert(!m_accelerated);
 #endif
   if (!pixels) return false;

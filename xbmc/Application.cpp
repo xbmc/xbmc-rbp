@@ -307,7 +307,7 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
 #include "linux/RBP.h"
 #endif
 
@@ -511,7 +511,7 @@ void CApplication::Preflight()
 
 bool CApplication::Create()
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if(!g_RBP.Initialize())
     return false;
 #endif
@@ -3412,7 +3412,7 @@ void CApplication::Stop(int exitCode)
     CLog::Log(LOGERROR, "Exception in CApplication::Stop()");
   }
 
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   g_RBP.Initialize();
 #endif
 

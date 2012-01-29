@@ -20,7 +20,7 @@
  *
  */
 
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
 
 #if (defined HAVE_CONFIG_H) && (!defined WIN32)
   #include "config.h"
@@ -33,16 +33,12 @@
 #include "DynamicDll.h"
 #include "utils/log.h"
 
-#if (HAVE_LIBOPENMAX == 2)
 #include <IL/OMX_Core.h>
 #include <IL/OMX_Component.h>
 #include <IL/OMX_Index.h>
 #include <IL/OMX_Image.h>
 #include <IL/OMX_Video.h>
 #include <IL/OMX_Broadcom.h>
-#else
-#include <OMX_Core.h>
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 

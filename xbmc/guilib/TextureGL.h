@@ -27,14 +27,14 @@
 #ifndef GUILIB_TEXTUREGL_H
 #define GUILIB_TEXTUREGL_H
 
-#include "Texture.h"
-
-// TODO: remove after we have it in configure
-#ifndef HAVE_LIBBCM_HOST
-#define HAVE_LIBBCM_HOST
+#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
+#include "config.h"
+#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
 #endif
 
-#ifdef HAVE_LIBBCM_HOST
+#include "Texture.h"
+
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
 #include "xbmc/cores/omxplayer/OMXTexture.h"
 #endif
 

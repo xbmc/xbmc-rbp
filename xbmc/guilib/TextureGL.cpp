@@ -66,7 +66,7 @@ void CGLTexture::CreateTextureObject()
 
 void CGLTexture::DestroyTextureObject()
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if (m_accelerated)
   {
     if (m_egl_image)
@@ -89,7 +89,7 @@ void CGLTexture::DestroyTextureObject()
 
 void CGLTexture::LoadToGPU()
 {
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if (m_accelerated && m_omx_image)
   {
     if (m_loadedToGPU)

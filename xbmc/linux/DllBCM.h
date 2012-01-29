@@ -20,7 +20,7 @@
  *
  */
 
-#if defined(HAVE_LIBBCM_HOST)
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
 
 #if (defined HAVE_CONFIG_H) && (!defined WIN32)
   #include "config.h"

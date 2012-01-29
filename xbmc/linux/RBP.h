@@ -31,9 +31,9 @@
 #define HAVE_VMCS_CONFIG
 #endif
 
-// TODO: remove after we have it in configure
-#ifndef HAVE_LIBBCM_HOST
-#define HAVE_LIBBCM_HOST
+#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
+#include "config.h"
+#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
 #endif
 
 #include "DllBCM.h"

@@ -43,7 +43,7 @@
 #include "ALSADirectSound.h"
 #endif
 
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
 #include "cores/omxplayer/OMXAudio.h"
 #endif
 
@@ -100,8 +100,10 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
   {
 #if defined(_LINUX) && !defined(__APPLE__)
     deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
+#if !defined(HAVE_PLATFORM_RASPBERRY_PI)
     if (deviceString.Equals("custom"))
       deviceString = g_guiSettings.GetString("audiooutput.custompassthrough");
+#endif
 #else
     // osx/win platforms do not have an "audiooutput.passthroughdevice" setting but can do passthrough
     deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
@@ -110,8 +112,10 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
   else
   {
     deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
+#if !defined(HAVE_PLATFORM_RASPBERRY_PI)
     if (deviceString.Equals("custom"))
       deviceString = g_guiSettings.GetString("audiooutput.customdevice");
+#endif
   }
   int iPos = deviceString.Find(":");
   if (iPos > 0)
@@ -140,7 +144,7 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
 
   device = deviceString;
 
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
   CreateAndReturnOnValidInitialize(COMXAudio);
 #endif
 
@@ -171,7 +175,7 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
 
 void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool passthrough)
 {
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
   COMXAudio::EnumerateAudioSinks(vAudioSinks, passthrough);
 #endif
 
@@ -195,7 +199,7 @@ void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool
 
 IAudioRenderer *CAudioRendererFactory::CreateFromUri(const CStdString &soundsystem, CStdString &renderer)
 {
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
   if (soundsystem.Equals("omx"))
     ReturnNewRenderer(COMXAudio);
 #endif

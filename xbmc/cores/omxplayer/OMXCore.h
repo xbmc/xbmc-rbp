@@ -20,7 +20,7 @@
  *
  */
 
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
 
 #include "utils/StdString.h"
 

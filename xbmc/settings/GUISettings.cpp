@@ -430,9 +430,15 @@ void CGUISettings::Initialize()
 
   map<int,int> audiomode;
   audiomode.insert(make_pair(338,AUDIO_ANALOG));
+#if !defined(HAVE_PLATFORM_RASPBERRY_PI)
   audiomode.insert(make_pair(339,AUDIO_IEC958));
+#endif
   audiomode.insert(make_pair(420,AUDIO_HDMI  ));
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+  AddInt(ao, "audiooutput.mode", 337, AUDIO_HDMI, audiomode, SPIN_CONTROL_TEXT);
+#else
   AddInt(ao, "audiooutput.mode", 337, AUDIO_ANALOG, audiomode, SPIN_CONTROL_TEXT);
+#endif
 
   map<int,int> channelLayout;
   for(int layout = 0; layout < PCM_MAX_LAYOUT; ++layout)
@@ -456,11 +462,19 @@ void CGUISettings::Initialize()
   AddString(ao, "audiooutput.audiodevice", 545, "Default", SPIN_CONTROL_TEXT);
 #elif defined(_LINUX)
   AddSeparator(ao, "audiooutput.sep1");
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+  AddString(ao, "audiooutput.audiodevice", 545, "omx:hdmi", SPIN_CONTROL_TEXT);
+#else
   AddString(ao, "audiooutput.audiodevice", 545, "default", SPIN_CONTROL_TEXT);
   AddString(ao, "audiooutput.customdevice", 1300, "", EDIT_CONTROL_INPUT);
+#endif
   AddSeparator(ao, "audiooutput.sep2");
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+  AddString(ao, "audiooutput.passthroughdevice", 546, "omx:hdmi", SPIN_CONTROL_TEXT);
+#else
   AddString(ao, "audiooutput.passthroughdevice", 546, "iec958", SPIN_CONTROL_TEXT);
   AddString(ao, "audiooutput.custompassthrough", 1301, "", EDIT_CONTROL_INPUT);
+#endif
   AddSeparator(ao, "audiooutput.sep3");
 #elif defined(_WIN32)
   AddString(ao, "audiooutput.audiodevice", 545, "Default", SPIN_CONTROL_TEXT);
@@ -612,7 +626,11 @@ void CGUISettings::Initialize()
   //AddInt(5, "videoplayer.displayresolution", 169, (int)RES_AUTORES, (int)RES_AUTORES, 1, (int)CUSTOM+MAX_RESOLUTIONS, SPIN_CONTROL_TEXT);
   AddInt(NULL, "videoplayer.displayresolution", 169, (int)RES_AUTORES, (int)RES_AUTORES, 1, (int)RES_AUTORES, SPIN_CONTROL_TEXT);
 #if !(defined(__APPLE__) && defined(__arm__))
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+  AddBool(vp, "videoplayer.adjustrefreshrate", 170, true);
+#else
   AddBool(vp, "videoplayer.adjustrefreshrate", 170, false);
+#endif
   AddInt(vp, "videoplayer.pauseafterrefreshchange", 13550, 0, 0, 1, MAXREFRESHCHANGEDELAY, SPIN_CONTROL_TEXT);
 #else
   AddBool(NULL, "videoplayer.adjustrefreshrate", 170, false);

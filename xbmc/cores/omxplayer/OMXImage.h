@@ -20,19 +20,12 @@
  *
  */
 
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
 
 #include "OMXCore.h"
 #include "OMXStreamInfo.h"
 
-#if (HAVE_LIBOPENMAX == 2)
 #include <IL/OMX_Video.h>
-#else
-#include <OMX_Core.h>
-#include <OMX_Component.h>
-#include <OMX_Index.h>
-#include <OMX_Image.h>
-#endif
 
 #include "OMXClock.h"
 #ifdef STANDALONE

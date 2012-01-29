@@ -111,8 +111,10 @@ ifeq (@HAVE_XBMC_NONFREE@,1)
 DIRECTORY_ARCHIVES += lib/UnrarXLib/UnrarXLib.a
 endif
 
+ifeq (@USE_OMXPLAYER@,1)
 OMXPLAYER_ARCHIVES = xbmc/cores/omxplayer/OMXPlayer.a
 DIRECTORY_ARCHIVES += $(OMXPLAYER_ARCHIVES)
+endif
 
 BIN_DIRS = $(dir $(DIRECTORY_ARCHIVES))
 

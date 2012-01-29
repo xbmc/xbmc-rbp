@@ -75,6 +75,6 @@
   PLAYLIST::CPlayListPlayer g_playlistPlayer;
   CApplication       g_application;
 
-#ifdef HAVE_LIBBCM_HOST
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   CRBP               g_RBP;
 #endif

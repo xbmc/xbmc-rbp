@@ -20,6 +20,11 @@
  *
  */
 
+#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
+#include "config.h"
+#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
+#endif
+
 #include "FileItem.h"
 #include "cores/IPlayer.h"
 #include "dialogs/GUIDialogBusy.h"
@@ -45,11 +50,6 @@
 #include "OMXReader.h"
 
 #include "utils/BitstreamStats.h"
-
-// TODO: remove after we have it in configure
-#ifndef HAVE_LIBBCM_HOST
-#define HAVE_LIBBCM_HOST
-#endif
 
 #include "linux/DllBCM.h"
 
