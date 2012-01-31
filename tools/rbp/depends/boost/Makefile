@@ -18,6 +18,7 @@ $(TARBALLS_LOCATION)/$(ARCHIVE):
 	$(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
 	echo $(SOURCE) > .gitignore
 	cat user-config.jam-arm.in > $(SOURCE)/tools/build/v2/user-config.jam
+	sed -e 's:arm-unknown-linux-gnueabi:$(HOST):g' -i $(SOURCE)/tools/build/v2/user-config.jam
 	cd $(SOURCE); ./bootstrap.sh --prefix=$(PREFIX) --with-libraries=thread
 	cd $(SOURCE); ./bjam --prefix=$(PREFIX) toolset=gcc --toolset-root=$(TOOLCHAIN) --architecture=arm install
 	touch .installed
