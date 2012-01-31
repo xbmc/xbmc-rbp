@@ -103,7 +103,7 @@ vdadecoder_disabled="== VDADecoder support manually disabled. =="
 vtbdecoder_enabled="== VTBDecoder support enabled. =="
 vtbdecoder_disabled="== VTBDecoder support manually disabled. =="
 openmax_disabled="== OpenMax support manually disabled. =="
-openmax_not_found="== Could not find OpenMax libs. OpenMax support disabled. =="
+openmax_not_found="== Could not find libnvomx. OpenMax support disabled. =="
 ssh_not_found="== Could not find libssh. SSH FTP VFS support disabled. =="
 librtmp_not_found="== Could not find libRTMP. RTMP support disabled. =="
 librtmp_disabled="== RTMP support disabled. =="
@@ -454,29 +454,6 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 MAKE="${MAKE:-make}"
 
-# platform debug flags
-if test "$use_debug" = "yes"; then
-  final_message="$final_message\n  Debugging:\tYes"
-  if test "$use_profiling" = "yes"; then
-    final_message="$final_message\n  Profiling:\tYes"
-    DEBUG_FLAGS="-g -pg -D_DEBUG -Wall"
-  else
-    final_message="$final_message\n  Profiling:\tNo"
-    DEBUG_FLAGS="-g -D_DEBUG -Wall"
-  fi
-else
-  final_message="$final_message\n  Debugging:\tNo"
-  if test "$use_profiling" = "yes"; then
-    final_message="$final_message\n  Profiling:\tYes"
-    DEBUG_FLAGS="-pg -DNDEBUG=1"
-  else
-    final_message="$final_message\n  Profiling:\tNo"
-    DEBUG_FLAGS="-DNDEBUG=1"
-  fi
-fi
-CFLAGS="$CFLAGS $DEBUG_FLAGS"
-CXXFLAGS="$CXXFLAGS $DEBUG_FLAGS"
-
 # host detection and setup
 case $host in
   i*86*-linux-gnu*)
@@ -576,6 +553,30 @@ case $host in
      AC_MSG_ERROR(unsupported host ($host))
 esac
 AC_SUBST([ARCH])
+
+# platform debug flags
+if test "$use_debug" = "yes"; then
+  final_message="$final_message\n  Debugging:\tYes"
+  if test "$use_profiling" = "yes"; then
+    final_message="$final_message\n  Profiling:\tYes"
+    DEBUG_FLAGS="-g -pg -D_DEBUG -Wall"
+  else
+    final_message="$final_message\n  Profiling:\tNo"
+    DEBUG_FLAGS="-g -D_DEBUG -Wall"
+  fi
+else
+  final_message="$final_message\n  Debugging:\tNo"
+  if test "$use_profiling" = "yes"; then
+    final_message="$final_message\n  Profiling:\tYes"
+    DEBUG_FLAGS="-pg -DNDEBUG=1"
+  else
+    final_message="$final_message\n  Profiling:\tNo"
+    DEBUG_FLAGS="-DNDEBUG=1"
+  fi
+fi
+CFLAGS="$CFLAGS $DEBUG_FLAGS"
+CXXFLAGS="$CXXFLAGS $DEBUG_FLAGS"
+
 
 if test "$use_optimizations" = "yes"; then
   final_message="$final_message\n  Optimization:\tYes"
@@ -1500,7 +1501,7 @@ else
 fi
 
 # OpenMax
-if test "$host_vendor" = "apple"; then
+if test "$host_vendor" = "apple" ; then
   use_openmax="no"
   USE_OPENMAX=0
   AC_MSG_NOTICE($openmax_disabled)
@@ -1509,24 +1510,14 @@ elif test "$use_platform_raspberry_pi" = "yes"; then
   USE_OPENMAX=0
   AC_MSG_NOTICE($openmax_disabled)
 else
-  if test "x$use_gles" != "xno" && test "x$use_openmax" != "xno"; then
-    if test "x$use_tegra" != "xno"; then
-      PKG_CHECK_MODULES([OPENMAX], [libomxil-bellagio],
-        USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"],
-        AC_MSG_ERROR($openmax_not_found))
-    else
-      SAVE_CFLAGS="$CFLAGS"
-      CFLAGS="$CFLAGS"
-      AC_COMPILE_IFELSE(
-        [AC_LANG_SOURCE([#include <IL/OMX_Core.h>
-          void host_app_message_handler(void) {}])],
-        [ ], 
-        [ AC_MSG_ERROR($openmax_not_found) ])
-      CFLAGS="$SAVE_CFLAGS"
-      AC_DEFINE([HAVE_LIBOPENMAX], [2], [Define to 2 if you have the 'OpenMax' library.])
-      AC_DEFINE([HAVE_OMXPLAYER], [1], [Define to 1 if you have the 'OpenMax' library.])
-      USE_OPENMAX=1
-    fi
+  if test "$use_gles" = "yes" && test "$use_openmax" = "auto"; then
+    PKG_CHECK_MODULES([OPENMAX], [libomxil-bellagio],
+                      USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"],
+                      use_openmax=no;USE_OPENMAX=0;AC_MSG_RESULT($openmax_not_found))
+  elif test "$use_gles" = "yes" && test "$use_openmax" = "yes"; then
+    PKG_CHECK_MODULES([OPENMAX], [libomxil-bellagio],
+                      USE_OPENMAX=1;[INCLUDES="$INCLUDES $OPENMAX_CFLAGS"; LIBS="$LIBS $OPENMAX_LIBS"],
+                      AC_MSG_ERROR($openmax_not_found))
   else
     AC_MSG_NOTICE($openmax_disabled)
     use_openmax=no
