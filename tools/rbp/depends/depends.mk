@@ -2,8 +2,7 @@ export HOST=arm-unknown-linux-gnueabi
 export BUILD=i686-linux
 export PREFIX=$(XBMCPREFIX)
 export SYSROOT=$(BUILDROOT)/output/host/usr/arm-unknown-linux-gnueabi/sysroot
-#export CFLAGS=-pipe -O3 -mfloat-abi=softfp -march=armv6zk -fomit-frame-pointer -mabi=aapcs-linux -mtune=arm1176jzf-s -mfpu=vfp -Wno-psabi -isystem$(SYSROOT)/usr/include -isystem$(SYSROOT)/opt/vc/include -isystem$(PREFIX)/include -isystem$(PREFIX)/usr/include/mysql
-export CFLAGS=-pipe -O2 -march=armv6zk -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mfloat-abi=softfp -mfpu=vfp -O3 -mabi=aapcs-linux -Wno-psabi -Wa,-mno-warn-deprecated -isystem$(SYSROOT)/usr/include -isystem$(SYSROOT)/opt/vc/include -isystem$(PREFIX)/include -isystem$(PREFIX)/usr/include/mysql
+export CFLAGS=-pipe -O3 -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mfloat-abi=softfp -mfpu=vfp -O3 -mabi=aapcs-linux -Wno-psabi -Wa,-mno-warn-deprecated -isystem$(SYSROOT)/usr/include -isystem$(SYSROOT)/opt/vc/include -isystem$(PREFIX)/include -isystem$(PREFIX)/usr/include/mysql
 export CXXFLAGS=$(CFLAGS)
 export CPPFLAGS=$(CFLAGS)
 export LDFLAGS=-L$(SYSROOT)/opt/vc/lib -L$(XBMCPREFIX)/lib
