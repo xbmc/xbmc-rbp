@@ -1,22 +1,24 @@
 include ../Makefile.include
 
-BUILDTOOLS = 
-
-SUBDIRS = \
-	libjpeg-turbo tiff jasper fribidi libass libmodplug \
-	libcdio librtmp libbluray libnfs yajl boost xbmc \
+ifeq ($(USE_BUILDROOT),1)
+	BUILDTOOLS = 
+	SUBDIRS = libjpeg-turbo tiff jasper fribidi libass libmodplug libcdio librtmp libbluray libnfs yajl boost xbmc
+else
+	BUILDTOOLS = help2man autoconf automake libtool pkg-config yasm cmake patchelf
+	SUBDIRS = liblzo2 tiff libnfs jasper xbmc
+endif
 
 IMAGENAME = xbmc-rbp-`date +'%y%m%d'`
 
-.PHONY: $(BUILDTOOLS) $(SUBDIRS)
+.PHONY: buildtools subdirs
 
-all: $(BUILDTOOLS) $(SUBDIRS)
+all: buildtools subdirs
 
-$(BUILDTOOLS):
-	$(MAKE) -C $@
+buildtools:
+	for d in $(BUILDTOOLS); do $(MAKE) -C $$d; done
 
-$(SUBDIRS):
-	$(MAKE) -C $@
+subdirs:
+	for d in $(SUBDIRS); do $(MAKE) -C $$d; done
 
 clean:
 	for d in $(BUILDTOOLS); do $(MAKE) -C $$d clean; done

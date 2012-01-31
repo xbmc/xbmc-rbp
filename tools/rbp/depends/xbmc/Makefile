@@ -2,22 +2,15 @@ include ../../Makefile.include
 include ../depends.mk
 
 SOURCE=../../../../
-# configuration settings
-export SDKSTAGE
-# turn off 'the mangling of 'va_list' has changed in GCC 4.4' warnings
-export CFLAGS+=-Wno-psabi
 
-export PYTHON_VERSION=2.7
-export PYTHON_LDFLAGS=-L$(SDKSTAGE)/usr/lib -lpython$(PYTHON_VERSION) -lpthread -ldl -lutil -lm
-export PYTHON_CPPFLAGS=-I$(SDKSTAGE)/usr/include/python$(PYTHON_VERSION)
-export PYTHON_SITE_PKG=$(SDKSTAGE)/usr/lib/python$(PYTHON_VERSION)/site-packages
-export PYTHON_NOVERSIONCHECK=no-check
-export USE_TEXTUREPACKER_NATIVE_ROOT=$(BUILDROOT)/output/host
+ifeq ($(USE_BUILDROOT),1)
+	export PATH:=$(PREFIX)/bin:$(BUILDROOT)/output/host/usr/bin:$(SYSROOT)/usr/bin:$(PATH)
+endif
 
-export PATH:=$(SYSROOT)/usr/bin:$(PATH)
 CONFIGURE=./configure --prefix=$(PREFIX) --build=$(BUILD) --host=$(HOST) \
-  --enable-gles --enable-external-python --disable-sdl --disable-x11 --disable-xrandr \
-  --disable-optical-drive --disable-dvdcss --disable-joystick --disable-debug \
+	--enable-gles --enable-external-python --disable-sdl --disable-x11 --disable-xrandr \
+	--disable-optical-drive --disable-dvdcss --disable-joystick --disable-debug \
+	--disable-crystalhd --disable-vda --disable-vtbdecoder --disable-vaapi --disable-vdpau \
 	--enable-platform-raspberry-pi --disable-openmax --disable-pulse --disable-projectm
 
 all: configure
