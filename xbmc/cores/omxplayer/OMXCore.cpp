@@ -30,7 +30,7 @@
 
 //#include "linux/XTimeUtils.h"
 
-#if defined(HAVE_LIBOPENMAX)
+#if defined(HAVE_OMXLIB)
 #include "OMXCore.h"
 #include "utils/log.h"
 
