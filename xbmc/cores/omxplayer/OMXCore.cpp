@@ -30,7 +30,7 @@
 
 //#include "linux/XTimeUtils.h"
 
-#if defined(HAVE_OMXLIB)
+#if defined(HAVE_LIBOPENMAX)
 #include "OMXCore.h"
 #include "utils/log.h"
 
@@ -40,7 +40,7 @@
 #include "XMemUtils.h"
 #endif
 
-#define OMX_USEBUFFER
+//#define OMX_USEBUFFER
 
 //#define OMX_DEBUG_EVENTS
 //#define OMX_DEBUG_EVENTHANDLER
@@ -711,7 +711,7 @@ OMX_ERRORTYPE COMXCoreComponent::FreeInputBuffers(bool wait)
     if(buf)
       _aligned_free(buf);
 #endif
-    m_omx_input_buffers[i]->pBuffer = NULL;
+    //m_omx_input_buffers[i]->pBuffer = NULL;
     if(omx_err != OMX_ErrorNone)
     {
       CLog::Log(LOGERROR, "COMXCoreComponent::FreeInputBuffers error deallocate omx input buffer on component %s omx_err(0x%08x)\n", m_componentName.c_str(), omx_err);
@@ -759,7 +759,7 @@ OMX_ERRORTYPE COMXCoreComponent::FreeOutputBuffers(bool wait)
     if(buf)
       _aligned_free(buf);
 #endif
-    m_omx_output_buffers[i]->pBuffer = NULL;
+    //m_omx_output_buffers[i]->pBuffer = NULL;
     if(omx_err != OMX_ErrorNone)
     {
       CLog::Log(LOGERROR, "COMXCoreComponent::FreeOutputBuffers error deallocate omx output buffer on component %s omx_err(0x%08x)\n", m_componentName.c_str(), omx_err);
