@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef _OMX_PLAYERVIDEO_H_
-#define _OMX_PLAYERVIDEO_H_
+#ifndef _OMX_PLAYERAUDIO_H_
+#define _OMX_PLAYERAUDIO_H_
 
 #include "utils/StdString.h"
 #include "DllAvUtil.h"
@@ -29,10 +29,13 @@
 #include "DllAvCodec.h"
 #include "DllAvCore.h"
 
+#include "utils/PCMRemap.h"
+
 #include "OMXReader.h"
 #include "OMXClock.h"
 #include "OMXStreamInfo.h"
-#include "OMXVideo.h"
+#include "OMXAudio.h"
+#include "OMXAudioCodecOMX.h"
 #ifdef STANDALONE
 #include "OMXThread.h"
 #else
@@ -45,9 +48,9 @@
 using namespace std;
 
 #ifdef STANDALONE
-class OMXPlayerVideo : public OMXThread
+class OMXPlayerAudio : public OMXThread
 #else
-class OMXPlayerVideo : public CThread
+class OMXPlayerAudio : public CThread
 #endif
 {
 protected:
@@ -64,26 +67,27 @@ protected:
   pthread_cond_t            m_full_cond;
   pthread_mutex_t           m_lock;
   OMXClock                  *m_av_clock;
-  COMXVideo                 *m_decoder;
-  float                     m_fps;
-  double                    m_frametime;
-  bool                      m_Deinterlace;
+  COMXAudio                 *m_decoder;
+  COMXAudioCodecOMX         *m_pAudioCodec;
+  CStdString                m_codec_name;
+  CStdString                m_device;
+  IAudioRenderer::EEncoded  m_passthrough;
+  bool                      m_hw_decode;
   bool                      m_bMpeg;
-  int                       m_has_audio;
   bool                      m_bAbort;
-  bool                      m_use_thread;
+  bool                      m_use_thread; 
   bool                      m_flush;
+  enum PCMChannels          *m_pChannelMap;
   OMXPacket                 *m_omx_pkt;
   unsigned int              m_cached_size;
-  bool                      m_hdmi_clock_sync;
-  double                    m_iVideoDelay;
   void Lock();
   void UnLock();
 private:
 public:
-  OMXPlayerVideo();
-  ~OMXPlayerVideo();
-  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, int has_audio, bool hdmi_clock_sync, bool use_thread);
+  OMXPlayerAudio();
+  ~OMXPlayerAudio();
+  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, CStdString codec_name, CStdString device,
+            IAudioRenderer::EEncoded passthrough, bool hw_decode, bool mpeg, bool use_thread, enum PCMChannels *pChannelMap);
   bool Close();
   void Flush();
   bool Decode(OMXPacket *pkt);
@@ -93,13 +97,13 @@ public:
   bool AddPacket(OMXPacket *pkt);
   bool OpenDecoder();
   bool CloseDecoder();
-  int  GetDecoderBufferSize();
-  int  GetDecoderFreeSpace();
+  double GetDelay();
   double GetCurrentPTS() { return m_iCurrentPts; };
-  double GetFPS() { return m_fps; };
+  void WaitCompletion();
   unsigned int GetCached() { return m_cached_size; };
-  void  WaitCompletion();
-  void SetDelay(double delay) { m_iVideoDelay = delay; }
-  double GetDelay() { return m_iVideoDelay; }
+  void  RegisterAudioCallback(IAudioCallback* pCallback);
+  void  UnRegisterAudioCallback();
+  void  DoAudioWork();
+  void SetCurrentVolume(long nVolume);
 };
 #endif

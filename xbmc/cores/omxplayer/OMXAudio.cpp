@@ -259,7 +259,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   m_wave_header.Format.cbSize               = 0;
   m_wave_header.SubFormat                   = KSDATAFORMAT_SUBTYPE_PCM;
 
-  m_SampleSize              = (m_pcm.nChannels * m_pcm.nBitPerSample * m_pcm.nSamplingRate)>>3;
+  m_SampleSize = (m_pcm.nChannels * m_pcm.nBitPerSample * m_pcm.nSamplingRate)>>3;
 
   PrintPCM(&m_pcm);
 
@@ -1339,7 +1339,7 @@ unsigned int COMXAudio::SyncDTS(BYTE* pData, unsigned int iSize)
 unsigned int COMXAudio::SyncAC3(BYTE* pData, unsigned int iSize)
 {
   unsigned int skip = 0;
-  unsigned int fSize = 0;
+  //unsigned int fSize = 0;
 
   for(skip = 0; iSize - skip > 6; ++skip, ++pData)
   {
@@ -1368,7 +1368,7 @@ unsigned int COMXAudio::SyncAC3(BYTE* pData, unsigned int iSize)
       case 2: framesize = bitrate * 4; break;
     }
 
-    fSize = framesize * 2;
+    //fSize = framesize * 2;
     m_SampleRate = AC3FSCod[fscod];
 
     /* dont do extensive testing if we have not lost sync */

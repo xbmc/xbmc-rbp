@@ -39,6 +39,8 @@ OMXClock::OMXClock()
   m_pause       = false;
   m_iCurrentPts = AV_NOPTS_VALUE;
 
+  pthread_mutex_init(&m_lock, NULL);
+
   Reset();
 }
 
@@ -47,6 +49,17 @@ OMXClock::~OMXClock()
   Deinitialize();
 
   m_dllAvFormat.Unload();
+  pthread_mutex_destroy(&m_lock);
+}
+
+void OMXClock::Lock()
+{
+  pthread_mutex_lock(&m_lock);
+}
+
+void OMXClock::UnLock()
+{
+  pthread_mutex_unlock(&m_lock);
 }
 
 bool OMXClock::Reset()
@@ -335,6 +348,61 @@ bool OMXClock::Speed(int speed)
   if(omx_err != OMX_ErrorNone)
   {
     CLog::Log(LOGERROR, "OMXClock::Speed error setting OMX_IndexConfigTimeClockState\n");
+    return false;
+  }
+
+  return true;
+}
+
+void OMXClock::AddTimespecs(struct timespec &time, long millisecs)
+{
+   time.tv_sec  += millisecs / 1000;
+   time.tv_nsec += (millisecs % 1000) * 1000000;
+   if (time.tv_nsec > 1000000000)
+   {
+      time.tv_sec  += 1;
+      time.tv_nsec -= 1000000000;
+   }
+}
+
+double OMXClock::GetPTS() 
+{ 
+  Lock();
+  double pts = m_iCurrentPts;
+  UnLock();
+  return pts;
+}
+
+void OMXClock::SetPTS(double pts) 
+{ 
+  Lock();
+  m_iCurrentPts = pts; 
+  UnLock();
+};
+
+bool OMXClock::HDMIClockSync()
+{
+  if(m_omx_clock.GetComponent() == NULL)
+    return false;
+
+
+  OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+  OMX_CONFIG_LATENCYTARGETTYPE latencyTarget;
+  OMX_INIT_STRUCTURE(latencyTarget);
+
+  latencyTarget.nPortIndex = OMX_ALL;
+  latencyTarget.bEnabled = OMX_TRUE;
+  latencyTarget.nFilter = 10;
+  latencyTarget.nTarget = 0;
+  latencyTarget.nShift = 3;
+  latencyTarget.nSpeedFactor = -200;
+  latencyTarget.nInterFactor = 100;
+  latencyTarget.nAdjCap = 100;
+
+  omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigLatencyTarget, &latencyTarget);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "OMXClock::Speed error setting OMX_IndexConfigLatencyTarget\n");
     return false;
   }
 

@@ -51,9 +51,6 @@ using namespace std;
 
 #define MAX_OMX_CHAPTERS 64
 
-#define MAX_OMX_AUDIO_PACKETS  200
-#define MAX_OMX_VIDEO_PACKETS  100
-
 #define MAX_OMX_STREAMS        100
 
 #define OMX_PLAYSPEED_PAUSE  0
@@ -73,6 +70,8 @@ typedef struct OMXChapter
   double      ts;
 } OMXChapter;
 
+class OMXReader;
+
 typedef struct OMXPacket
 {
   double    pts; // pts in DVD_TIME_BASE
@@ -81,7 +80,10 @@ typedef struct OMXPacket
   int       size;
   uint8_t   *data;
   int       stream_index;
+  COMXStreamInfo hints;
   AVStream  *pStream;
+  OMXReader *owner;
+  AVPacket  *pkt;
 } OMXPacket;
 
 #ifdef STANDALONE
@@ -101,6 +103,7 @@ protected:
   std::vector<AVStream*>    m_audio_streams;
   std::queue<OMXPacket *>   m_pkt_video;
   std::queue<OMXPacket *>   m_pkt_audio;
+  std::queue<OMXPacket *>   m_pkt_list;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -124,44 +127,56 @@ protected:
   int                       m_seek_flags;
   int                       m_speed;
   int64_t                   m_duration_ms;
+  bool                      m_use_thread;
+  bool                      m_flush;
+  bool                      m_bAbort;
+  unsigned int              m_cached_size_video;
+  unsigned int              m_cached_size_audio;
+  unsigned int              m_cached_size;
   void AddTimespecs(struct timespec &time, long millisecs);
 #ifdef STANDALONE
   void flush_packet_queue(AVFormatContext *s);
   void av_read_frame_flush(AVFormatContext *s);
 #endif
   pthread_mutex_t           m_lock;
+  pthread_mutex_t           m_lock_read;
   void Lock();
   void UnLock();
+  void LockRead();
+  void UnLockRead();
   void FlushVideoPackets();
   void FlushAudioPackets();
+  void FlushPackets();
 private:
 public:
   OMXReader();
   ~OMXReader();
-  bool Open(CStdString filename, bool dump_format);
+  bool Open(CStdString filename, bool use_thread, bool dump_format);
   bool Close();
   void FlushRead();
   bool SeekTime(int64_t seek_ms, int seek_flags, double *startpts);
+  AVMediaType PacketType(OMXPacket *pkt);
+  OMXPacket *Read();
   void Process();
   bool GetStreams();
   bool GetHints(AVStream *stream, COMXStreamInfo *hints);
   bool IsEof() { return m_eof; };
   int  GetVideoPacketsFree();
   int  GetAudioPacketsFree();
+  int  GetPacketsFree();
   OMXPacket *GetVideoPacket();
   OMXPacket *GetAudioPacket();
+  OMXPacket *GetPacket();
   COMXStreamInfo  GetVideoHints(int index);
   COMXStreamInfo  GetAudioHints(int index);
   COMXStreamInfo  GetVideoHints() { return m_hints_video; };
   COMXStreamInfo  GetAudioHints() { return m_hints_audio; };
   int  AudioStreamCount() { return m_audio_count; };
   int  VideoStreamCount() { return m_video_count; };
-  AVStream *GetVideoStream() { return m_pVideoStream; };
-  AVStream *GetAudioStream() { return m_pAudioStream; };
   bool SetAudioStream(unsigned int index);
-  void FreePacket(OMXPacket *pkt);
   int  GetChapterCount() { return m_chapter_count; };
   OMXChapter GetChapter(unsigned int chapter) { return m_chapters[(chapter > MAX_OMX_CHAPTERS) ? MAX_OMX_CHAPTERS : chapter]; };
+  void FreePacket(OMXPacket *pkt);
   OMXPacket *AllocPacket(int size);
   void SetSpeed(int iSpeed);
   void UpdateCurrentPTS();
@@ -184,6 +199,8 @@ public:
   void GetStreamCodecName(AVStream *stream, CStdString &strStreamName);
   bool GetAudioStreamLanguage(int iStream, CStdString &strLanguage);
   int64_t GetDuration() { return m_duration_ms; };
+  unsigned int GetCachedVideo() { return m_cached_size_video; };
+  unsigned int GetCachedAudio() { return m_cached_size_audio; };
 #ifndef STANDALONE
   int GetSourceBitrate();
 #endif

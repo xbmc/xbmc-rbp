@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef _OMX_PLAYERVIDEO_H_
-#define _OMX_PLAYERVIDEO_H_
+#ifndef _OMX_PLAYERAUDIOCODEC_H_
+#define _OMX_PLAYERAUDIOCODEC_H_
 
 #include "utils/StdString.h"
 #include "DllAvUtil.h"
@@ -29,10 +29,13 @@
 #include "DllAvCodec.h"
 #include "DllAvCore.h"
 
+#include "utils/PCMRemap.h"
+
 #include "OMXReader.h"
 #include "OMXClock.h"
+#include "OMXAudio.h"
 #include "OMXStreamInfo.h"
-#include "OMXVideo.h"
+#include "OMXAudioCodecOMX.h"
 #ifdef STANDALONE
 #include "OMXThread.h"
 #else
@@ -45,15 +48,16 @@
 using namespace std;
 
 #ifdef STANDALONE
-class OMXPlayerVideo : public OMXThread
+class OMXPlayerAudioCodec : public OMXThread
 #else
-class OMXPlayerVideo : public CThread
+class OMXPlayerAudioCodec : public CThread
 #endif
 {
 protected:
   AVStream                  *m_pStream;
   int                       m_stream_id;
-  std::queue<OMXPacket *>   m_packets;
+  std::queue<OMXPacket *>   m_input_packets;
+  std::queue<OMXPacket *>   m_output_packets;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -62,44 +66,42 @@ protected:
   double                    m_iCurrentPts;
   pthread_cond_t            m_packet_cond;
   pthread_cond_t            m_full_cond;
-  pthread_mutex_t           m_lock;
+  pthread_mutex_t           m_lock_input;
+  pthread_mutex_t           m_lock_output;
   OMXClock                  *m_av_clock;
-  COMXVideo                 *m_decoder;
-  float                     m_fps;
-  double                    m_frametime;
-  bool                      m_Deinterlace;
-  bool                      m_bMpeg;
-  int                       m_has_audio;
+  COMXAudioCodecOMX         *m_pAudioCodec;
+  IAudioRenderer::EEncoded  m_passthrough;
+  bool                      m_hw_decode;
   bool                      m_bAbort;
-  bool                      m_use_thread;
   bool                      m_flush;
+  enum PCMChannels          *m_pChannelMap;
   OMXPacket                 *m_omx_pkt;
-  unsigned int              m_cached_size;
-  bool                      m_hdmi_clock_sync;
-  double                    m_iVideoDelay;
-  void Lock();
-  void UnLock();
+  unsigned int              m_cached_input_size;
+  unsigned int              m_cached_output_size;
+  void LockInput();
+  void UnLockInput();
+  void LockOutput();
+  void UnLockOutput();
 private:
 public:
-  OMXPlayerVideo();
-  ~OMXPlayerVideo();
-  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, int has_audio, bool hdmi_clock_sync, bool use_thread);
+  OMXPlayerAudioCodec();
+  ~OMXPlayerAudioCodec();
+  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, IAudioRenderer::EEncoded passthrough, bool hw_decode);
   bool Close();
-  void Flush();
   bool Decode(OMXPacket *pkt);
   void Process();
-  void FlushPackets();
-  void FlushDecoder();
+  void Flush();
   bool AddPacket(OMXPacket *pkt);
-  bool OpenDecoder();
-  bool CloseDecoder();
-  int  GetDecoderBufferSize();
-  int  GetDecoderFreeSpace();
+  OMXPacket *GetPacket();
+  bool OpenAudioCodec();
+  void CloseAudioCodec();
+  double GetDelay();
   double GetCurrentPTS() { return m_iCurrentPts; };
-  double GetFPS() { return m_fps; };
-  unsigned int GetCached() { return m_cached_size; };
-  void  WaitCompletion();
-  void SetDelay(double delay) { m_iVideoDelay = delay; }
-  double GetDelay() { return m_iVideoDelay; }
+  unsigned int GetCachedInput()   { return m_cached_input_size;   };
+  unsigned int GetCachedOutput()  { return m_cached_output_size;  };
+  enum PCMChannels* GetChannelMap();
+  int GetSampleRate();
+  int GetBitsPerSample();
+  int GetChannels();
 };
 #endif

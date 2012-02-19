@@ -8,6 +8,9 @@ SRCS=	\
 	OMXAudioCodecOMX.cpp \
 	OMXAudio.cpp \
 	OMXVideo.cpp \
+	OMXPlayerAudio.cpp \
+	OMXPlayerAudioCodec.cpp \
+	OMXPlayerVideo.cpp \
 	OMXImage.cpp \
 	OMXTexture.cpp \
 	OMXThread.cpp \

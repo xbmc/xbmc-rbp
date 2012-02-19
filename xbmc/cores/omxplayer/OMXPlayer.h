@@ -42,12 +42,12 @@
 
 #include "utils/PCMRemap.h"
 
-#include "OMXAudioCodecOMX.h"
 #include "OMXCore.h"
 #include "OMXClock.h"
-#include "OMXVideo.h"
-#include "OMXAudio.h"
 #include "OMXReader.h"
+#include "OMXPlayerAudio.h"
+#include "OMXPlayerAudioCodec.h"
+#include "OMXPlayerVideo.h"
 
 #include "utils/BitstreamStats.h"
 
@@ -165,13 +165,7 @@ protected:
   std::string m_filename; // holds the actual filename
 
 private:
-  virtual bool OpenVideoDecoder(COMXStreamInfo &hints);
-  virtual void CloseVideoDecoder();
   virtual IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo &hints);
-  virtual bool OpenAudioCodec(COMXStreamInfo &hints);
-  virtual void CloseAudioCodec();
-  virtual bool OpenAudioDecoder(COMXStreamInfo &hints);
-  virtual void CloseAudioDecoder();
   virtual void ResetStreams(bool video, bool audio);
 
   int                     m_speed;
@@ -189,7 +183,6 @@ private:
   int                     m_audio_count;
   bool                    m_audio_change;
   CStdString              m_audio_info;
-  int64_t                 m_audio_offset_ms;
   int                     m_video_index;
   int                     m_video_count;
   CStdString              m_video_info;
@@ -201,8 +194,6 @@ private:
   int                     m_chapter_count;
 
   float                   m_video_fps;
-  int                     m_video_width;
-  int                     m_video_height;
   CRect                   m_dst_rect;
   int                     m_view_mode;
 
@@ -215,16 +206,16 @@ private:
   int                     m_seek_req;
 
   OMXClock                *m_av_clock;
-  COMXAudioCodecOMX       *m_pAudioCodec;
-  COMXAudio               *m_audio_render;
-  COMXVideo               *m_video_decoder;
-  OMXReader               m_omx_reader;
+  OMXPacket               *m_omx_pkt;
   OMXPacket               *m_video_pkt;
   OMXPacket               *m_audio_pkt;
+  OMXPacket               *m_audio_decoded_pkt;
+  OMXReader               m_omx_reader;
+  OMXPlayerVideo          m_player_video;
+  OMXPlayerAudio          m_player_audio;
+  OMXPlayerAudioCodec     m_player_codec;
 
   double                  m_startpts;
-
-  enum PCMChannels        *m_pChannelMap;
 
   CStdString              m_audio_codec_name;
   CStdString              m_video_codec_name;
@@ -232,9 +223,6 @@ private:
   COMXCore                m_OMX;
 
   bool                    m_bMpeg;
-  double                  m_videoClock;
-  double                  m_audioClock;
-  double                  m_frametime;
 
   IAudioRenderer::EEncoded m_Passthrough;
   bool                    m_HWDecode;
@@ -244,4 +232,10 @@ private:
   TV_GET_STATE_RESP_T     m_tv_state;
   bool                    m_buffer_empty;
   bool                    m_mode3d_sbs;
+  bool                    m_hdmi_clock_sync;
+  long                    m_current_volume;
+  bool                    m_change_volume;
+  bool                    m_thread_reader;
+  bool                    m_thread_player;
+  bool                    m_stats;
 };

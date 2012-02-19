@@ -69,19 +69,22 @@ enum {
 class OMXClock
 {
 protected:
-  double m_video_clock;
-  double m_audio_clock;
-  bool   m_pause;
-  double m_iCurrentPts;
-  bool   m_has_video;
-  bool   m_has_audio;
-  int    m_play_speed;
+  double            m_video_clock;
+  double            m_audio_clock;
+  bool              m_pause;
+  double            m_iCurrentPts;
+  bool              m_has_video;
+  bool              m_has_audio;
+  int               m_play_speed;
+  pthread_mutex_t   m_lock;
 private:
   COMXCoreComponent m_omx_clock;
   DllAvFormat       m_dllAvFormat;
 public:
   OMXClock();
   ~OMXClock();
+  void Lock();
+  void UnLock();
   bool Reset();
   bool Initialize(bool has_video, bool has_audio);
   void Deinitialize();
@@ -97,13 +100,17 @@ public:
   bool StatePause();
   bool StateExecute();
   static void Sleep(unsigned int dwMilliSeconds);
-  double GetPTS() { return m_iCurrentPts; };
-  void   SetPTS(double pts) { m_iCurrentPts = pts; };
+  double GetPTS();
+  void   SetPTS(double pts);
+  static void AddTimespecs(struct timespec &time, long millisecs);
+  bool HDMIClockSync();
 };
 
 inline void OMXSleep(unsigned int dwMilliSeconds)
 {
   struct timespec req;
+  if (dwMilliSeconds < 10)
+    dwMilliSeconds = 10;
   req.tv_sec = dwMilliSeconds / 1000;
   req.tv_nsec = (dwMilliSeconds % 1000) * 1000000;
 

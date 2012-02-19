@@ -44,11 +44,11 @@ class COMXVideo
 {
 public:
   COMXVideo();
-  virtual ~COMXVideo();
+  ~COMXVideo();
 
   // Required overrides
   bool SendDecoderConfig();
-  bool Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace = false);
+  bool Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace = false, bool hdmi_clock_sync = false);
   void Close(void);
   unsigned int GetFreeSpace();
   unsigned int GetSize();
@@ -61,6 +61,7 @@ public:
   CStdString GetDecoderName() { return m_video_codec_name; };
   void SetVideoRect(const CRect& SrcRect, const CRect& DestRect);
   int GetInputBufferSize();
+  void WaitCompletion();
 protected:
   // Video format
   bool              m_drop_state;
@@ -95,9 +96,8 @@ protected:
   CStdString        m_video_codec_name;
 
   bool              m_deinterlace;
+  bool              m_hdmi_clock_sync;
   bool              m_first_frame;
-
-  double            m_last_pts;
 };
 
 #endif
