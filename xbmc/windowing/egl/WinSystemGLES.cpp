@@ -54,7 +54,6 @@ CWinSystemGLES::CWinSystemGLES() : CWinSystemBase()
 {
   m_window = NULL;
   m_eglBinding = new CWinBindingEGL();
-  // m_vendorBindings = new CDispmanx();
   m_eWindowSystem = WINDOW_SYSTEM_EGL;
 
   m_dispman_element = DISPMANX_NO_HANDLE;
@@ -114,13 +113,8 @@ bool CWinSystemGLES::DestroyWindowSystem()
 bool CWinSystemGLES::CreateNewWindow(const CStdString& name, bool fullScreen, RESOLUTION_INFO& res, PHANDLE_EVENT_FUNC userFunction)
 {
   m_dispman_display = m_DllBcmHostDisplay.vc_dispmanx_display_open(0);
-
-  //RESOLUTION_INFO &res = g_settings.m_ResInfo[RES_DESKTOP];
   OVERSCAN &overscan = res.Overscan;
 
-//  UpdateDesktopResolution(res, 0 /* iScreen */, width, tv->height, (float)tv->frame_rate, MAKEFLAGS(group, supported_modes[i].code, tv->scan_mode, group==HDMI_RES_GROUP_CEA_3D) /* dwFlags */);
-
-  //printf("################### %dx%d -> %dx%d\n", res.iWidth, res.iHeight, overscan.right, overscan.bottom);
   m_nWidth  = res.iWidth;
   m_nHeight = res.iHeight;
   //m_bFullScreen = fullScreen;
@@ -202,8 +196,6 @@ bool CWinSystemGLES::CreateNewWindow(const CStdString& name, bool fullScreen, RE
   CLog::Log(LOGDEBUG, "CWinSystemGLES::CreateNewWindow(%dx%d) (%dx%d)\n", m_window->width, m_window->height, res.iWidth, res.iHeight);
   if (!m_eglBinding->CreateWindow((EGLNativeDisplayType)m_display, (EGLNativeWindowType)m_window))
     return false;
-
-  UpdateDesktopResolution(g_settings.m_ResInfo[RES_DESKTOP], 0, m_nWidth, m_nHeight, 0.0);
 
   m_bWindowCreated = true;
 
@@ -294,29 +286,6 @@ bool CWinSystemGLES::InformVideoInfo(int width, int height, int frame_rate, bool
 RESOLUTION CWinSystemGLES::GetResolution()
 {
   return g_renderManager.GetResolution();
-
-  RESOLUTION res = RES_DESKTOP;
-  int i;
-  CLog::Log(LOGDEBUG, "CWinSystemGLES::GetResolution(%dx%d@%d)\n", m_videoWidth, m_videoHeight, m_videoFrameRate);
-  for (i=0; i<g_settings.m_ResInfo.size(); i++) {
-    if (g_settings.m_ResInfo[i].iWidth == 0) break;
-    if (g_settings.m_ResInfo[i].iWidth == m_videoWidth &&
-        g_settings.m_ResInfo[i].iHeight == m_videoHeight &&
-        ((int)(g_settings.m_ResInfo[i].fRefreshRate+0.5f) == m_videoFrameRate ||
-         (int)(g_settings.m_ResInfo[i].fRefreshRate+0.5f) == 2*m_videoFrameRate))
-           res = (RESOLUTION)i;
-  }
-  if (res == RES_DESKTOP)
-  for (i=0; i<g_settings.m_ResInfo.size(); i++) {
-    if (g_settings.m_ResInfo[i].iWidth == 0) break;
-    if (g_settings.m_ResInfo[i].iWidth >= m_videoWidth &&
-        g_settings.m_ResInfo[i].iHeight >= m_videoHeight &&
-        ((int)(g_settings.m_ResInfo[i].fRefreshRate+0.5f) == m_videoFrameRate ||
-         (int)(g_settings.m_ResInfo[i].fRefreshRate+0.5f) == 2*m_videoFrameRate))
-           res = (RESOLUTION)i;
-  }
-  CLog::Log(LOGDEBUG, "CWinSystemGLES::GetResolution()=%d\n", res);
-  return res;
 }
 
 bool CWinSystemGLES::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays)
@@ -365,7 +334,7 @@ void CWinSystemGLES::MapGpuToXbmcMode(TV_SUPPORTED_MODE_T *supported_modes, int 
   {
     TV_SUPPORTED_MODE_T *tv = supported_modes + index;
     UpdateDesktopResolution(g_settings.m_ResInfo[xbmc_res], 0 /* iScreen */, tv->width, tv->height,
-        (float)tv->frame_rate, MAKEFLAGS(group, index, tv->scan_mode, 0) /* dwFlags */);
+        (float)tv->frame_rate, MAKEFLAGS(group, want_mode, tv->scan_mode, 0) /* dwFlags */);
   }
 }
 
@@ -388,6 +357,7 @@ void CWinSystemGLES::GetSupportedModes(HDMI_RES_GROUP_T group)
   // replace the native xbcm displays with our ones
   if (!m_found_preferred && num_modes > 0)
   {
+#if 0
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_HDTV_1080i, HDMI_CEA_1080i60);
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_HDTV_720p, HDMI_CEA_720p60);
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_HDTV_480p_4x3, HDMI_CEA_480p60);
@@ -398,6 +368,7 @@ void CWinSystemGLES::GetSupportedModes(HDMI_RES_GROUP_T group)
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_PAL_16x9, HDMI_CEA_576p50H);
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_PAL60_4x3, HDMI_CEA_576p50);
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_PAL60_16x9, HDMI_CEA_576p50H);
+#endif
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_AUTORES, prefer_mode);
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_WINDOW, prefer_mode);
     MapGpuToXbmcMode(supported_modes, num_modes, group, RES_DESKTOP, prefer_mode);
@@ -412,7 +383,6 @@ void CWinSystemGLES::GetSupportedModes(HDMI_RES_GROUP_T group)
       int width = group==HDMI_RES_GROUP_CEA_3D ? tv->width>>1:tv->width;
       RESOLUTION_INFO res;
       CLog::Log(LOGDEBUG, "%d: %dx%d@%d %s%s:%x\n", i, width, tv->height, tv->frame_rate, tv->native?"N":"", tv->scan_mode?"I":"", tv->code);
-      //printf("%d: %dx%d@%d %s%s:%x\n", i, width, tv->height, tv->frame_rate, tv->native?"N":"", tv->scan_mode?"I":"", tv->code);
       UpdateDesktopResolution(res, 0 /* iScreen */, width, tv->height, (float)tv->frame_rate, MAKEFLAGS(group, supported_modes[i].code, tv->scan_mode, group==HDMI_RES_GROUP_CEA_3D) /* dwFlags */);
       AddResolution(res);
     }
@@ -447,7 +417,7 @@ void CWinSystemGLES::UpdateResolutions()
 
 void CWinSystemGLES::AddResolution(const RESOLUTION_INFO &res)
 {
-  for (unsigned int i = 0; i < g_settings.m_ResInfo.size(); i++)
+  for (unsigned int i = (int)RES_DESKTOP; i < g_settings.m_ResInfo.size(); i++)
     if (g_settings.m_ResInfo[i].iScreen      == res.iScreen &&
         g_settings.m_ResInfo[i].iWidth       == res.iWidth &&
         g_settings.m_ResInfo[i].iHeight      == res.iHeight &&
