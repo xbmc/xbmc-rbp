@@ -886,8 +886,9 @@ void COMXPlayer::Process()
   if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
     CLog::Log(LOGDEBUG, "COMXPlayer: SetThreadPriority failed");
 
-  int    result = -1;
-  struct timespec starttime, endtime;
+  int     result = -1;
+  struct  timespec starttime, endtime;
+  bool    got_eof = false;
 
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
   try
@@ -1197,7 +1198,10 @@ void COMXPlayer::Process()
       m_csection.unlock();
 
       if(m_omx_reader.IsEof())
-          break;
+      {
+        got_eof = true; 
+        break;
+      }
     }
   }
   catch(...)
@@ -1207,10 +1211,13 @@ void COMXPlayer::Process()
 
 do_exit:
 
-  if(m_audio_count)
-    m_player_audio.WaitCompletion();
-  else if(m_video_count)
-    m_player_video.WaitCompletion();
+  if(got_eof)
+  {
+    if(m_audio_count)
+      m_player_audio.WaitCompletion();
+    else if(m_video_count)
+      m_player_video.WaitCompletion();
+  }
 
   m_av_clock->Stop();
 
