@@ -460,7 +460,7 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     if(pos < 0)
       pos = 0;
 
-    //FlushRead();
+    FlushRead();
 
     int stream_index = -1;
     int64_t seek_target = pos;
@@ -486,7 +486,6 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     {
       printf("error while seeking seek_flags %d pos %f\n", m_seek_flags, (double)pos / AV_TIME_BASE);
       UnLock();  
-      m_eof = true;
       return false;
     }
     else
