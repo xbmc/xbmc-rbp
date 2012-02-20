@@ -43,7 +43,9 @@
 #include "interfaces/python/XBPython.h"
 #endif
 
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
 #include "linux/RBP.h"
+#endif
 
   CGUISettings       g_guiSettings;
   CSettings          g_settings;

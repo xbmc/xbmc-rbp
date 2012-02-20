@@ -46,6 +46,7 @@ void CGLTexture::CreateTextureObject()
 {
   glGenTextures(1, (GLuint*) &m_texture);
 
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
   if (m_accelerated && !m_egl_image && m_texture)
   {
     EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
@@ -62,6 +63,7 @@ void CGLTexture::CreateTextureObject()
     }
     m_egl_image = eglCreateImageKHR(egl_display, egl_context, EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)m_texture, NULL);
   }
+#endif
 }
 
 void CGLTexture::DestroyTextureObject()

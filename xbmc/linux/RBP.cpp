@@ -20,6 +20,8 @@
  */
 
 #include "RBP.h"
+#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+
 #include "utils/log.h"
 
 #define CLASSNAME "CRBP"
@@ -56,3 +58,4 @@ void CRBP::Deinitialize()
 
   m_initialized = false;
 }
+#endif
