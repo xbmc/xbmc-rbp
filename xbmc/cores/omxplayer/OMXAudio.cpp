@@ -1009,16 +1009,46 @@ void COMXAudio::WaitCompletion()
   if(!m_Initialized || m_Pause)
     return;
 
-  /*
-  OMX_PARAM_U32TYPE param;
+  OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+  OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetInputBuffer();
+  struct timespec starttime, endtime;
+  
+  if(omx_buffer == NULL)
+  {
+    CLog::Log(LOGERROR, "%s::%s - buffer error 0x%08x", CLASSNAME, __func__, omx_err);
+    return;
+  }
+  
+  omx_buffer->nOffset     = 0;
+  omx_buffer->nFilledLen  = 0;
+  omx_buffer->nTimeStamp  = ToOMXTime(0LL);
 
-  memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
-  param.nSize = sizeof(OMX_PARAM_U32TYPE);
-  param.nVersion.nVersion = OMX_VERSION;
-  param.nPortIndex = m_omx_render.GetInputPort();
+  omx_buffer->nFlags = OMX_BUFFERFLAG_ENDOFFRAME | OMX_BUFFERFLAG_EOS | OMX_BUFFERFLAG_TIME_UNKNOWN;
+  
+  omx_err = m_omx_decoder.EmptyThisBuffer(omx_buffer);
+  if (omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "%s::%s - OMX_EmptyThisBuffer() failed with result(0x%x)\n", CLASSNAME, __func__, omx_err);
+    return;
+  }
 
-  unsigned int start = XbmcThreads::SystemClockMillis();
-  */
+  clock_gettime(CLOCK_REALTIME, &starttime);
+
+  while(true)
+  {
+    if(m_omx_render.IsEOS())
+      break;
+    clock_gettime(CLOCK_REALTIME, &endtime);
+    if((endtime.tv_sec - starttime.tv_sec) > 2)
+    {
+      printf("%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
+      CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
+      break;
+    }
+    OMXSleep(100);
+  }
+
+  return;
 }
 
 void COMXAudio::SwitchChannels(int iAudioStream, bool bAudioOnAllSpeakers)

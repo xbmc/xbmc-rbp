@@ -152,6 +152,8 @@ public:
   OMX_ERRORTYPE FreeInputBuffers(bool wait);
   OMX_ERRORTYPE FreeOutputBuffers(bool wait);
 
+  bool IsEOS() { return m_eos; };
+
 private:
   OMX_HANDLETYPE m_handle;
   unsigned int   m_input_port;
@@ -184,6 +186,7 @@ private:
   pthread_cond_t    m_input_buffer_cond;
   pthread_cond_t    m_output_buffer_cond;
   pthread_cond_t    m_omx_event_cond;
+  bool          m_eos;
 };
 
 class COMXCore

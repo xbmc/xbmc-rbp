@@ -350,6 +350,8 @@ COMXCoreComponent::COMXCoreComponent()
   m_output_buffer_size  = 0;
   m_output_buffer_count = 0;
 
+  m_eos                 = false;
+
   m_exit = false;
   m_DllOMXOpen = false;
 
@@ -1440,6 +1442,14 @@ OMX_ERRORTYPE COMXCoreComponent::DecoderEventHandler(
       #if defined(OMX_DEBUG_EVENTHANDLER)
       CLog::Log(LOGDEBUG, "%s::%s %s - OMX_EventBufferFlag(input)\n", CLASSNAME, __func__, comp->GetName().c_str());
       #endif
+      switch(nData2)
+      {
+        case OMX_BUFFERFLAG_EOS:
+          m_eos = true;
+          break;
+        default:
+          break;
+      }
     break;
     case OMX_EventPortSettingsChanged:
       #if defined(OMX_DEBUG_EVENTHANDLER)

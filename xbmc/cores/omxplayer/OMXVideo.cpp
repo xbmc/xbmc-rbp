@@ -1091,12 +1091,44 @@ void COMXVideo::WaitCompletion()
   if(!m_is_open)
     return;
 
-  OMX_CONFIG_BRCMPORTSTATSTYPE stats;
-  OMX_INIT_STRUCTURE(stats);
-  stats.nPortIndex = m_omx_render.GetInputPort();
+  OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+  OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_decoder.GetInputBuffer();
+  struct timespec starttime, endtime;
   
-  m_omx_render.GetConfig(OMX_IndexConfigBrcmPortStats, &stats);
+  if(omx_buffer == NULL)
+  {
+    CLog::Log(LOGERROR, "%s::%s - buffer error 0x%08x", CLASSNAME, __func__, omx_err);
+    return;
+  }
+  
+  omx_buffer->nOffset     = 0;
+  omx_buffer->nFilledLen  = 0;
+  omx_buffer->nTimeStamp  = ToOMXTime(0LL);
 
-  //printf("nImageCount %d nBufferCount %d nFrameCount %d nEOS %d\n", 
-  //       stats.nImageCount, stats.nBufferCount, stats.nFrameCount, stats.nEOS);
+  omx_buffer->nFlags = OMX_BUFFERFLAG_ENDOFFRAME | OMX_BUFFERFLAG_EOS | OMX_BUFFERFLAG_TIME_UNKNOWN;
+  
+  omx_err = m_omx_decoder.EmptyThisBuffer(omx_buffer);
+  if (omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "%s::%s - OMX_EmptyThisBuffer() failed with result(0x%x)\n", CLASSNAME, __func__, omx_err);
+    return;
+  }
+
+  clock_gettime(CLOCK_REALTIME, &starttime);
+
+  while(true)
+  {
+    if(m_omx_render.IsEOS())
+      break;
+    clock_gettime(CLOCK_REALTIME, &endtime);
+    if((endtime.tv_sec - starttime.tv_sec) > 2)
+    {
+      printf("%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
+      CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
+      break;
+    }
+    OMXSleep(100);
+  }
+
+  return;
 }

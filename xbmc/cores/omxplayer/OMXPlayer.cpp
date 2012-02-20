@@ -1207,8 +1207,10 @@ void COMXPlayer::Process()
 
 do_exit:
 
-  m_player_video.WaitCompletion();
-  m_player_audio.WaitCompletion();
+  if(m_audio_count)
+    m_player_audio.WaitCompletion();
+  else if(m_video_count)
+    m_player_video.WaitCompletion();
 
   m_av_clock->Stop();
 
