@@ -184,9 +184,6 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
     m_iCurrentPts += m_frametime;
     m_av_clock->SetPTS(m_iCurrentPts);
 
-    if(m_has_audio == 0)
-      usleep(m_frametime - 100);
-
     return true;
   }
   else

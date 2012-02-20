@@ -265,7 +265,7 @@ bool OMXReader::Open(CStdString filename, bool use_thread, bool dump_format)
 
     buffer = (unsigned char*)m_dllAvUtil.av_malloc(FFMPEG_FILE_BUFFER_SIZE);
     m_ioContext = m_dllAvFormat.av_alloc_put_byte(buffer, FFMPEG_FILE_BUFFER_SIZE, 0, m_pFile, dvd_file_read, NULL, dvd_file_seek);
-    m_ioContext->max_packet_size = 6144 /*m_pFile->GetChunkSize()*/;
+    m_ioContext->max_packet_size = 6144;
     if(m_ioContext->max_packet_size)
       m_ioContext->max_packet_size *= FFMPEG_FILE_BUFFER_SIZE / m_ioContext->max_packet_size;
 
@@ -432,10 +432,11 @@ void OMXReader::FlushRead()
     return;
 
 #ifdef STANDALONE
-    av_read_frame_flush(m_pFormatContext);
+  av_read_frame_flush(m_pFormatContext);
 #else
-    m_dllAvFormat.av_read_frame_flush(m_pFormatContext);
+  m_dllAvFormat.av_read_frame_flush(m_pFormatContext);
 #endif
+  m_iCurrentPts = DVD_NOPTS_VALUE;
 }
 
 bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
@@ -459,7 +460,7 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     if(pos < 0)
       pos = 0;
 
-    FlushRead();
+    //FlushRead();
 
     int stream_index = -1;
     int64_t seek_target = pos;
@@ -484,7 +485,8 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     if(ret < 0)
     {
       printf("error while seeking seek_flags %d pos %f\n", m_seek_flags, (double)pos / AV_TIME_BASE);
-      UnLock();
+      UnLock();  
+      m_eof = true;
       return false;
     }
     else
@@ -1008,6 +1010,17 @@ OMXPacket *OMXReader::GetPacket()
   return pkt;
 }
 
+bool OMXReader::IsEof()
+{
+  bool eof = false;
+  Lock();
+  if(m_pkt_list.empty() && m_pkt_audio.empty() && m_pkt_video.empty() && m_eof)
+  {
+    eof = true;
+  }
+  UnLock();
+  return eof;
+}
 int OMXReader::GetVideoPacketsFree()
 {
   int ret = 0;

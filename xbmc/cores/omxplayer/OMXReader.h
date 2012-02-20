@@ -160,7 +160,7 @@ public:
   void Process();
   bool GetStreams();
   bool GetHints(AVStream *stream, COMXStreamInfo *hints);
-  bool IsEof() { return m_eof; };
+  bool IsEof();
   int  GetVideoPacketsFree();
   int  GetAudioPacketsFree();
   int  GetPacketsFree();

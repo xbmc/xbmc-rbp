@@ -1095,28 +1095,28 @@ void COMXPlayer::Process()
 
       if(m_thread_reader)
       {
-        if(!m_video_pkt)
+        if(!m_video_pkt && m_video_count)
         {
           m_video_pkt = m_omx_reader.GetVideoPacket();
         }
         if(m_video_pkt)
         {
-          if(m_player_video.GetCurrentPTS() == DVD_NOPTS_VALUE || m_player_audio.GetCurrentPTS() == DVD_NOPTS_VALUE)
-          {
+          //if(m_player_video.GetCurrentPTS() == DVD_NOPTS_VALUE || m_player_audio.GetCurrentPTS() == DVD_NOPTS_VALUE)
+          //{
             if(m_player_video.AddPacket(m_video_pkt))
             {
               m_videoStats.AddSampleBytes(m_video_pkt->size);
               m_video_pkt = NULL;
             }
-          }
-          else if(((m_player_video.GetCurrentPTS() - m_player_audio.GetCurrentPTS()) / DVD_TIME_BASE) < 2.0f)
-          {
-            if(m_player_video.AddPacket(m_video_pkt))
-              m_video_pkt = NULL;
-          }
+          //}
+          //else if(((m_player_video.GetCurrentPTS() - m_player_audio.GetCurrentPTS()) / DVD_TIME_BASE) < 2.0f)
+          //{
+          //  if(m_player_video.AddPacket(m_video_pkt))
+          //    m_video_pkt = NULL;
+          //}
         }
 
-        if(!m_audio_pkt)
+        if(!m_audio_pkt && m_audio_count)
         {
           m_audio_pkt = m_omx_reader.GetAudioPacket();
         }
@@ -1197,7 +1197,7 @@ void COMXPlayer::Process()
       m_csection.unlock();
 
       if(m_omx_reader.IsEof())
-        break;
+          break;
     }
   }
   catch(...)

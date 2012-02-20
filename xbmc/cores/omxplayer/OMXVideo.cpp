@@ -1121,13 +1121,12 @@ void COMXVideo::WaitCompletion()
     if(m_omx_render.IsEOS())
       break;
     clock_gettime(CLOCK_REALTIME, &endtime);
-    if((endtime.tv_sec - starttime.tv_sec) > 2)
+    if((endtime.tv_sec - starttime.tv_sec) > 5)
     {
-      printf("%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
       CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
       break;
     }
-    OMXSleep(100);
+    OMXSleep(50);
   }
 
   return;
