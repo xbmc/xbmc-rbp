@@ -485,6 +485,9 @@ void CLinuxRendererGLES::RenderUpdate(bool clear, DWORD flags, DWORD alpha)
 
 void CLinuxRendererGLES::FlipPage(int source)
 {
+  if (m_renderMethod & RENDER_BYPASS)
+    return;
+  
   if( source >= 0 && source < m_NumYV12Buffers )
     m_iYV12RenderBuffer = source;
   else
