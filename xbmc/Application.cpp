@@ -2035,6 +2035,11 @@ void CApplication::Render()
   bool hasRendered = false;
   bool limitFrames = false;
   unsigned int singleFrameTime = 10; // default limit 100 fps
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
+  singleFrameTime = 40;  // 25 fps, <=40 ms latency to wake up
+  limitFrames     = true;
+  decrement       = true;
+#endif
 
   {
     // Less fps in DPMS
@@ -2045,6 +2050,11 @@ void CApplication::Render()
     m_bPresentFrame = false;
     if (!extPlayerActive && g_graphicsContext.IsFullScreenVideo() && !IsPaused())
     {
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
+      singleFrameTime = 40;  // 25 fps, <=40 ms latency to wake up
+      limitFrames     = true;
+      decrement       = true;
+#else
       CSingleLock lock(m_frameMutex);
 
       TightConditionVariable<int&> cv(m_frameCond,m_frameCount);
@@ -2053,6 +2063,7 @@ void CApplication::Render()
       m_bPresentFrame = m_frameCount > 0;
       decrement = m_bPresentFrame;
       hasRendered = true;
+#endif
     }
     else
     {
@@ -2083,12 +2094,14 @@ void CApplication::Render()
   CSingleLock lock(g_graphicsContext);
   g_infoManager.UpdateFPS();
 
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
   if (g_graphicsContext.IsFullScreenVideo() && IsPlaying() && vsync_mode == VSYNC_VIDEO)
     g_Windowing.SetVSync(true);
   else if (vsync_mode == VSYNC_ALWAYS)
     g_Windowing.SetVSync(true);
   else if (vsync_mode != VSYNC_DRIVER)
     g_Windowing.SetVSync(false);
+#endif
 
   if(!g_Windowing.BeginRender())
     return;
@@ -2128,7 +2141,9 @@ void CApplication::Render()
 
     unsigned int frameTime = now - m_lastFrameTime;
     if (frameTime < singleFrameTime)
+    {
       Sleep(singleFrameTime - frameTime);
+    }
   }
   m_lastFrameTime = XbmcThreads::SystemClockMillis();
 

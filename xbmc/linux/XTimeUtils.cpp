@@ -45,8 +45,38 @@
 
 #ifdef _LINUX
 
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
+void AddTimeSpecNano(struct timespec &time, uint64_t nanoseconds)
+{
+   time.tv_sec  += nanoseconds / 1000000000;
+   time.tv_nsec += (nanoseconds % 1000000000);
+   if (time.tv_nsec > 1000000000)
+   {
+      time.tv_sec  += 1;
+      time.tv_nsec -= 1000000000;
+   }
+}
+#endif
+
 void WINAPI Sleep(DWORD dwMilliSeconds)
 {
+#ifdef HAVE_PLATFORM_RASPBERRY_PI
+  struct timespec stopTime;
+  int res = 0;
+
+  if (dwMilliSeconds < 10)
+    dwMilliSeconds = 10;
+
+  clock_gettime(CLOCK_MONOTONIC, &stopTime);
+  AddTimeSpecNano(stopTime, (uint64_t)(dwMilliSeconds * 1000000));
+
+  do
+  {
+    res = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &stopTime, &stopTime);
+    sched_yield();
+  } while (res == EINTR);
+
+#else
 #if _POSIX_PRIORITY_SCHEDULING
   if(dwMilliSeconds == 0)
   {
@@ -54,7 +84,6 @@ void WINAPI Sleep(DWORD dwMilliSeconds)
     return;
   }
 #endif
-
   struct timespec req;
   req.tv_sec = dwMilliSeconds / 1000;
   req.tv_nsec = (dwMilliSeconds % 1000) * 1000000;
@@ -62,6 +91,7 @@ void WINAPI Sleep(DWORD dwMilliSeconds)
   // many calls will be interupted. so we keep looping till we're done.
   while ( nanosleep(&req, &req) == -1 && errno == EINTR && (req.tv_nsec > 0 || req.tv_sec > 0))
     ;
+#endif
 }
 
 VOID GetLocalTime(LPSYSTEMTIME sysTime)
