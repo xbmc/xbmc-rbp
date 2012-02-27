@@ -158,6 +158,7 @@ protected:
   omx_bitstream_ctx m_sps_pps_context;
   bool              m_convert_bitstream;
   bool              m_to_annexb;
+  bool              m_convert_vc1;
 
   uint8_t           *m_extradata;
   int               m_extrasize;
@@ -165,6 +166,7 @@ protected:
   bool              m_convert_bytestream;
   DllAvUtil         *m_dllAvUtil;
   DllAvFormat       *m_dllAvFormat;
+  CodecID           m_codec;
 };
 
 #endif
