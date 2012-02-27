@@ -34,19 +34,19 @@ class COMXAudioCodecOMX
 {
 public:
   COMXAudioCodecOMX();
-  virtual ~COMXAudioCodecOMX();
-  virtual bool Open(COMXStreamInfo &hints);
-  virtual void Dispose();
-  virtual int Decode(BYTE* pData, int iSize);
-  virtual int GetData(BYTE** dst);
-  virtual void Reset();
-  virtual int GetChannels();
-  virtual enum PCMChannels *GetChannelMap();
-  virtual int GetSampleRate();
-  virtual int GetBitsPerSample();
-  virtual const char* GetName() { return "FFmpeg"; }
-  virtual int GetBufferSize() { return m_iBuffered; }
-  virtual int GetBitRate();
+  ~COMXAudioCodecOMX();
+  bool Open(COMXStreamInfo &hints);
+  void Dispose();
+  int Decode(BYTE* pData, int iSize);
+  int GetData(BYTE** dst);
+  void Reset();
+  int GetChannels();
+  enum PCMChannels *GetChannelMap();
+  int GetSampleRate();
+  int GetBitsPerSample();
+  const char* GetName() { return "FFmpeg"; }
+  int GetBufferSize() { return m_iBuffered; }
+  int GetBitRate();
 
 protected:
   AVCodecContext* m_pCodecContext;
@@ -72,4 +72,3 @@ protected:
 
   void BuildChannelMap();
 };
-

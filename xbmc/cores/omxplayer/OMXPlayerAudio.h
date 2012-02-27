@@ -42,7 +42,7 @@
 #include "threads/Thread.h"
 #endif
 
-#include <queue>
+#include <deque>
 #include <sys/types.h>
 
 using namespace std;
@@ -56,7 +56,7 @@ class OMXPlayerAudio : public CThread
 protected:
   AVStream                  *m_pStream;
   int                       m_stream_id;
-  std::queue<OMXPacket *>   m_packets;
+  std::deque<OMXPacket *>   m_packets;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -64,11 +64,11 @@ protected:
   COMXStreamInfo            m_hints;
   double                    m_iCurrentPts;
   pthread_cond_t            m_packet_cond;
-  pthread_cond_t            m_full_cond;
+  pthread_cond_t            m_audio_cond;
   pthread_mutex_t           m_lock;
+  pthread_mutex_t           m_lock_decoder;
   OMXClock                  *m_av_clock;
   COMXAudio                 *m_decoder;
-  COMXAudioCodecOMX         *m_pAudioCodec;
   CStdString                m_codec_name;
   CStdString                m_device;
   IAudioRenderer::EEncoded  m_passthrough;
@@ -78,26 +78,44 @@ protected:
   bool                      m_use_thread; 
   bool                      m_flush;
   enum PCMChannels          *m_pChannelMap;
-  OMXPacket                 *m_omx_pkt;
   unsigned int              m_cached_size;
+  COMXAudioCodecOMX         *m_pAudioCodec;
+  int                       m_speed;
+  double m_error;    //last average error
+
+  int64_t m_errortime; //timestamp of last time we measured
+  int64_t m_freq;
+
+  void   HandleSyncError(double duration, double pts);
+  double m_errorbuff; //place to store average errors
+  int    m_errorcount;//number of errors stored
+  bool   m_syncclock;
+
+  double m_integral; //integral correction for resampler
+  int    m_skipdupcount; //counter for skip/duplicate synctype
+  bool   m_prevskipped;
+
   void Lock();
   void UnLock();
+  void LockDecoder();
+  void UnLockDecoder();
 private:
 public:
   OMXPlayerAudio();
   ~OMXPlayerAudio();
   bool Open(COMXStreamInfo &hints, OMXClock *av_clock, CStdString codec_name, CStdString device,
-            IAudioRenderer::EEncoded passthrough, bool hw_decode, bool mpeg, bool use_thread, enum PCMChannels *pChannelMap);
+            IAudioRenderer::EEncoded passthrough, bool hw_decode, bool mpeg, bool use_thread);
   bool Close();
-  void Flush();
   bool Decode(OMXPacket *pkt);
   void Process();
-  void FlushPackets();
-  void FlushDecoder();
+  void Flush();
   bool AddPacket(OMXPacket *pkt);
+  bool OpenAudioCodec();
+  void CloseAudioCodec();      
   bool OpenDecoder();
   bool CloseDecoder();
   double GetDelay();
+  double GetCacheTime();
   double GetCurrentPTS() { return m_iCurrentPts; };
   void WaitCompletion();
   unsigned int GetCached() { return m_cached_size; };
@@ -105,5 +123,6 @@ public:
   void  UnRegisterAudioCallback();
   void  DoAudioWork();
   void SetCurrentVolume(long nVolume);
+  void SetSpeed(int iSpeed);
 };
 #endif

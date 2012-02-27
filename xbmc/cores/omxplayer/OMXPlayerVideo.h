@@ -39,7 +39,7 @@
 #include "threads/Thread.h"
 #endif
 
-#include <queue>
+#include <deque>
 #include <sys/types.h>
 
 using namespace std;
@@ -53,7 +53,7 @@ class OMXPlayerVideo : public CThread
 protected:
   AVStream                  *m_pStream;
   int                       m_stream_id;
-  std::queue<OMXPacket *>   m_packets;
+  std::deque<OMXPacket *>   m_packets;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -61,8 +61,9 @@ protected:
   COMXStreamInfo            m_hints;
   double                    m_iCurrentPts;
   pthread_cond_t            m_packet_cond;
-  pthread_cond_t            m_full_cond;
+  pthread_cond_t            m_picture_cond;
   pthread_mutex_t           m_lock;
+  pthread_mutex_t           m_lock_decoder;
   OMXClock                  *m_av_clock;
   COMXVideo                 *m_decoder;
   float                     m_fps;
@@ -73,33 +74,38 @@ protected:
   bool                      m_bAbort;
   bool                      m_use_thread;
   bool                      m_flush;
-  OMXPacket                 *m_omx_pkt;
   unsigned int              m_cached_size;
   bool                      m_hdmi_clock_sync;
   double                    m_iVideoDelay;
+  double                    m_pts;
+  bool                      m_syncclock;
+  int                       m_speed;
+  double m_FlipTimeStamp; // time stamp of last flippage. used to play at a forced framerate
   void Lock();
   void UnLock();
+  void LockDecoder();
+  void UnLockDecoder();
 private:
 public:
   OMXPlayerVideo();
   ~OMXPlayerVideo();
   bool Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, int has_audio, bool hdmi_clock_sync, bool use_thread);
   bool Close();
-  void Flush();
+  void Output(double pts);
   bool Decode(OMXPacket *pkt);
   void Process();
-  void FlushPackets();
-  void FlushDecoder();
+  void Flush();
   bool AddPacket(OMXPacket *pkt);
   bool OpenDecoder();
   bool CloseDecoder();
   int  GetDecoderBufferSize();
   int  GetDecoderFreeSpace();
-  double GetCurrentPTS() { return m_iCurrentPts; };
+  double GetCurrentPTS() { return m_pts; };
   double GetFPS() { return m_fps; };
   unsigned int GetCached() { return m_cached_size; };
   void  WaitCompletion();
   void SetDelay(double delay) { m_iVideoDelay = delay; }
   double GetDelay() { return m_iVideoDelay; }
+  void SetSpeed(int iSpeed);
 };
 #endif

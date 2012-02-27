@@ -263,7 +263,6 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
       m_codingType = OMX_VIDEO_CodingVP8;
       m_video_codec_name = "omx-vp8";
     break;
-    /*
     case CODEC_ID_VC1:
       // (role name) video_decoder.vc1
       // VC-1, WMV9
@@ -271,6 +270,7 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
       m_codingType = OMX_VIDEO_CodingWMV;
       m_video_codec_name = "omx-vc1";
       break;
+    /*
     case CODEC_ID_WMV3:
       // (role name) video_decoder.wmv3
       //WMV3
@@ -831,7 +831,7 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
       omx_buffer->nFlags = 0;
       omx_buffer->nOffset = 0;
 
-      uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;;
+      uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;
       if(m_setStartTime)
       {
         omx_buffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
@@ -1126,7 +1126,7 @@ void COMXVideo::WaitCompletion()
       CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
       break;
     }
-    OMXSleep(50);
+    OMXClock::OMXSleep(50);
   }
 
   return;

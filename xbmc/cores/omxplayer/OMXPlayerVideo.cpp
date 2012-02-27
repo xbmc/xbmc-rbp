@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #ifndef STANDALONE
 #include "FileItem.h"
@@ -37,9 +38,11 @@
 #include "linux/XMemUtils.h"
 #ifndef STANDALONE
 #include "utils/BitstreamStats.h"
+#include "cores/VideoRenderers/LinuxRendererGLES.h"
+#include "cores/VideoRenderers/RenderManager.h"
 #endif
 
-#define MAX_DATA_SIZE    3 * 1024 * 1024
+#define MAX_DATA_SIZE    10 * 1024 * 1024
 
 OMXPlayerVideo::OMXPlayerVideo()
 {
@@ -50,13 +53,18 @@ OMXPlayerVideo::OMXPlayerVideo()
   m_decoder       = NULL;
   m_fps           = 25.0f;
   m_flush         = false;
-  m_omx_pkt       = NULL;
   m_cached_size   = 0;
   m_hdmi_clock_sync = false;
   m_iVideoDelay   = 0;
+  m_pts           = 0;
+  m_syncclock     = true;
+  m_speed         = DVD_PLAYSPEED_NORMAL;
 
   pthread_cond_init(&m_packet_cond, NULL);
+  pthread_cond_init(&m_picture_cond, NULL);
   pthread_mutex_init(&m_lock, NULL);
+  pthread_mutex_init(&m_lock_decoder, NULL);
+
 }
 
 OMXPlayerVideo::~OMXPlayerVideo()
@@ -64,7 +72,9 @@ OMXPlayerVideo::~OMXPlayerVideo()
   Close();
 
   pthread_cond_destroy(&m_packet_cond);
+  pthread_cond_destroy(&m_picture_cond);
   pthread_mutex_destroy(&m_lock);
+  pthread_mutex_destroy(&m_lock_decoder);
 }
 
 void OMXPlayerVideo::Lock()
@@ -77,6 +87,18 @@ void OMXPlayerVideo::UnLock()
 {
   if(m_use_thread)
     pthread_mutex_unlock(&m_lock);
+}
+
+void OMXPlayerVideo::LockDecoder()
+{
+  if(m_use_thread)
+    pthread_mutex_lock(&m_lock_decoder);
+}
+
+void OMXPlayerVideo::UnLockDecoder()
+{
+  if(m_use_thread)
+    pthread_mutex_unlock(&m_lock_decoder);
 }
 
 bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, int has_audio, bool hdmi_clock_sync, bool use_thread)
@@ -103,6 +125,11 @@ bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinte
   m_cached_size = 0;
   m_iVideoDelay = 0;
   m_hdmi_clock_sync = hdmi_clock_sync;
+  m_pts         = 0;
+  m_syncclock   = true;
+  m_speed       = DVD_PLAYSPEED_NORMAL;
+
+  m_FlipTimeStamp = m_av_clock->GetAbsoluteClock();
 
   if(!OpenDecoder())
   {
@@ -123,18 +150,16 @@ bool OMXPlayerVideo::Close()
   m_bAbort  = true;
   m_flush   = true;
 
+  Flush();
+
   if(ThreadHandle())
   {
     Lock();
     pthread_cond_broadcast(&m_packet_cond);
-    pthread_cond_broadcast(&m_full_cond);
     UnLock();
 
     StopThread();
   }
-
-  FlushPackets();
-  FlushDecoder();
 
   CloseDecoder();
 
@@ -146,8 +171,90 @@ bool OMXPlayerVideo::Close()
   m_stream_id     = -1;
   m_iCurrentPts   = DVD_NOPTS_VALUE;
   m_pStream       = NULL;
+  m_pts           = 0;
+  m_syncclock     = true;
+  m_speed         = DVD_PLAYSPEED_NORMAL;
 
   return true;
+}
+
+void OMXPlayerVideo::Output(double pts)
+{
+  if(m_syncclock)
+  {
+    double delay = m_FlipTimeStamp - m_av_clock->GetAbsoluteClock();
+    if( delay > m_frametime ) delay = m_frametime;
+    else if( delay < 0 )    delay = 0;
+
+    //printf("OMXPlayerVideo - GENERAL_RESYNC(%f, 1) delay %f\n", pts, m_FlipTimeStamp);
+    m_av_clock->Discontinuity(pts - delay);
+    m_syncclock = false;
+  }
+
+  double iSleepTime, iClockSleep, iFrameSleep, iPlayingClock, iCurrentClock, iFrameDuration;
+  iPlayingClock = m_av_clock->GetClock(iCurrentClock, false); // snapshot current clock
+  iClockSleep = pts - iPlayingClock; //sleep calculated by pts to clock comparison
+  iFrameSleep = m_FlipTimeStamp - iCurrentClock; // sleep calculated by duration of frame
+  iFrameDuration = m_frametime;
+
+  // correct sleep times based on speed
+  if(m_speed)
+  {
+    iClockSleep = iClockSleep * DVD_PLAYSPEED_NORMAL / m_speed;
+    iFrameSleep = iFrameSleep * DVD_PLAYSPEED_NORMAL / abs(m_speed);
+    iFrameDuration = iFrameDuration * DVD_PLAYSPEED_NORMAL / abs(m_speed);
+  }
+  else
+  {
+    iClockSleep = 0;
+    iFrameSleep = 0;
+  }
+  // dropping to a very low framerate is not correct (it should not happen at all)
+  iClockSleep = min(iClockSleep, DVD_MSEC_TO_TIME(500));
+  iFrameSleep = min(iFrameSleep, DVD_MSEC_TO_TIME(500));
+
+  bool m_stalled = false;
+  int m_autosync = 1;
+  if( m_stalled )
+    iSleepTime = iFrameSleep;
+  else
+    iSleepTime = iFrameSleep + (iClockSleep - iFrameSleep) / m_autosync;
+
+  // present the current pts of this frame to user, and include the actual
+  // presentation delay, to allow him to adjust for it
+  if( m_stalled )
+    m_iCurrentPts = DVD_NOPTS_VALUE;
+  else
+    m_iCurrentPts = pts - max(0.0, iSleepTime);
+
+  // timestamp when we think next picture should be displayed based on current duration
+  m_FlipTimeStamp  = iCurrentClock;
+  m_FlipTimeStamp += max(0.0, iSleepTime);
+  m_FlipTimeStamp += iFrameDuration;
+
+  while(m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
+  {
+    OMXClock::OMXSleep(5);
+  }
+
+  /*
+  printf("iPlayingClock %f iCurrentClock %f iClockSleep %f iFrameSleep %f iFrameDuration %f WaitAbsolut %f m_FlipTimeStamp %f pts %f\n", 
+      iPlayingClock / DVD_TIME_BASE, iCurrentClock  / DVD_TIME_BASE,
+      iClockSleep / DVD_TIME_BASE, iFrameSleep / DVD_TIME_BASE,
+      iFrameDuration / DVD_TIME_BASE, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, m_FlipTimeStamp / DVD_TIME_BASE, 
+      pts / DVD_TIME_BASE);
+  */
+
+//#ifdef STANDALONE
+  m_av_clock->WaitAbsoluteClock((iCurrentClock + iSleepTime));
+//#else
+//  EFIELDSYNC mDisplayField = FS_NONE;
+//  g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_NONE);
+//#endif
+
+  // guess next frame pts. iDuration is always valid
+  if (m_speed != 0)
+    m_pts += m_frametime * m_speed / abs(m_speed);
 }
 
 bool OMXPlayerVideo::Decode(OMXPacket *pkt)
@@ -155,47 +262,54 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
   if(!pkt)
     return false;
 
-  /*
-  if((unsigned long)m_decoder->GetFreeSpace() < 1024*1024)
-    return false;
-  */
+  bool ret = false;
 
   if(!((unsigned long)m_decoder->GetFreeSpace() > pkt->size))
-    OMXSleep(10);
+    OMXClock::OMXSleep(5);
 
   if((unsigned long)m_decoder->GetFreeSpace() > pkt->size)
   {
     if (pkt->dts == DVD_NOPTS_VALUE && pkt->pts == DVD_NOPTS_VALUE)
-      pkt->pts = m_iCurrentPts;
+      pkt->pts = m_pts;
     else if (pkt->pts == DVD_NOPTS_VALUE)
       pkt->pts = pkt->dts;
 
     if(pkt->pts != DVD_NOPTS_VALUE)
-      m_iCurrentPts = pkt->pts;
+    {
+      m_pts = pkt->pts;
+      m_pts += m_iVideoDelay;
+    }
 
-    if(m_iCurrentPts != DVD_NOPTS_VALUE)
-      m_iCurrentPts += m_iVideoDelay;
-      
     if(m_bMpeg)
       m_decoder->Decode(pkt->data, pkt->size, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
     else
-      m_decoder->Decode(pkt->data, pkt->size, m_iCurrentPts, m_iCurrentPts);
+      m_decoder->Decode(pkt->data, pkt->size, m_pts, m_pts);
 
-    m_iCurrentPts += m_frametime;
-    m_av_clock->SetPTS(m_iCurrentPts);
+    //m_pts += m_frametime;
+    //m_av_clock->SetPTS(m_pts);
 
-    return true;
+    m_av_clock->SetVideoClock(m_pts);
+
+    Output(m_pts);
+
+    ret = true;
+
+    //m_pts += m_frametime;
   }
-  else
-  {
-    return false;
-  }
+
+  return ret;
 }
 
 void OMXPlayerVideo::Process()
 {
+  OMXPacket *omx_pkt = NULL;
+  uint64_t diff = 0;
+
+  m_pts = 0;
+
   while(!m_bStop && !m_bAbort)
   {
+    int64_t start = OMXClock::CurrentHostCounter();
     Lock();
     if(m_packets.empty())
       pthread_cond_wait(&m_packet_cond, &m_lock);
@@ -205,58 +319,69 @@ void OMXPlayerVideo::Process()
       break;
 
     Lock();
-    if(!m_omx_pkt && !m_packets.empty())
+    if(!omx_pkt && !m_packets.empty())
     {
-      m_omx_pkt = m_packets.front();
-      m_packets.pop();
-    }
-
-    if(Decode(m_omx_pkt))
-    {
-      m_cached_size -= m_omx_pkt->size;
-      if(m_omx_pkt)
-      {
-        OMXReader *reader = m_omx_pkt->owner;
-        reader->FreePacket(m_omx_pkt);
-      }
-      m_omx_pkt = NULL;
-      //pthread_cond_broadcast(&m_full_cond);
+      omx_pkt = m_packets.front();
+      m_cached_size -= omx_pkt->size;
+      m_packets.pop_front();
     }
     UnLock();
+
+    LockDecoder();
+    if(m_flush && omx_pkt)
+    {
+      OMXReader::FreePacket(omx_pkt);
+      omx_pkt = NULL;
+      m_flush = false;
+    }
+    else if(omx_pkt && Decode(omx_pkt))
+    {
+      OMXReader::FreePacket(omx_pkt);
+      omx_pkt = NULL;
+    }
+    UnLockDecoder();
+
+    int64_t end = OMXClock::CurrentHostCounter();
+
+    diff = (end - start) - m_frametime * 1000;
+
+    /*
+    if(m_av_clock->GetVideoClock() != DVD_NOPTS_VALUE && m_av_clock->GetAudioClock() != DVD_NOPTS_VALUE)
+    {
+      double diff = (m_av_clock->GetVideoClock() - m_av_clock->GetAudioClock()) / DVD_TIME_BASE;
+      if(diff < -1.0f || diff > 1.0f)
+      {
+        OMXClock::OMXSleep(m_frametime / 1000);
+      }
+    }
+    */
+
+    //printf("duration %lld %f frametime %f diff %lld\n", end - start, (float)(end - start) / OMXClock::CurrentHostFrequency(), 
+    //  m_frametime * 1000, diff);
   }
+
+  if(omx_pkt)
+    OMXReader::FreePacket(omx_pkt);
 }
 
-void OMXPlayerVideo::FlushPackets()
+void OMXPlayerVideo::Flush()
 {
-  m_flush = true;
   Lock();
+  LockDecoder();
+  m_flush = true;
   while (!m_packets.empty())
   {
     OMXPacket *pkt = m_packets.front(); 
-    m_packets.pop();
-    OMXReader *reader = pkt->owner;
-    reader->FreePacket(pkt);
-  }
-  if(m_omx_pkt)
-  {
-    OMXReader *reader = m_omx_pkt->owner;
-    reader->FreePacket(m_omx_pkt);
-    m_omx_pkt = NULL;
+    m_packets.pop_front();
+    OMXReader::FreePacket(pkt);
   }
   m_iCurrentPts = DVD_NOPTS_VALUE;
   m_cached_size = 0;
-  UnLock();
-  m_flush = false;
-}
-
-void OMXPlayerVideo::FlushDecoder()
-{
-  m_flush = true;
-  Lock();
   if(m_decoder)
     m_decoder->Reset();
+  m_syncclock = true;
+  UnLockDecoder();
   UnLock();
-  m_flush = false;
 }
 
 bool OMXPlayerVideo::AddPacket(OMXPacket *pkt)
@@ -264,38 +389,21 @@ bool OMXPlayerVideo::AddPacket(OMXPacket *pkt)
   bool ret = false;
 
   if(!pkt)
-    return false;
+    return ret;
 
-  if(!m_use_thread)
-  {
-    if(Decode(pkt))
-    {
-      OMXReader *reader = pkt->owner;
-      reader->FreePacket(pkt);
-      ret = true;
-    }
-  }
-  else
-  {
-    if(m_flush || m_bStop || m_bAbort)
-      return true;
+  if(m_bStop || m_bAbort)
+    return ret;
 
+  if((m_cached_size + pkt->size) < MAX_DATA_SIZE)
+  {
     Lock();
-    if((m_cached_size + pkt->size) < MAX_DATA_SIZE)
-    {
-      m_cached_size += pkt->size;
-      m_packets.push(pkt);
-      ret = true;
-      pthread_cond_broadcast(&m_packet_cond);
-    }
-    /*
-    else
-    {
-      pthread_cond_wait(&m_full_cond, &m_lock);
-    }
-    */
+    m_cached_size += pkt->size;
+    m_packets.push_back(pkt);
     UnLock();
+    ret = true;
+    pthread_cond_broadcast(&m_packet_cond);
   }
+
   return ret;
 }
 
@@ -326,6 +434,9 @@ bool OMXPlayerVideo::OpenDecoder()
         m_decoder->GetDecoderName().c_str() , m_hints.width, m_hints.height, m_hints.profile, m_fps);
   }
 
+  if(m_av_clock)
+    m_av_clock->SetRefreshRate(m_fps);
+
   return true;
 }
 
@@ -355,5 +466,25 @@ int  OMXPlayerVideo::GetDecoderFreeSpace()
 
 void OMXPlayerVideo::WaitCompletion()
 {
-  if(m_decoder) m_decoder->WaitCompletion();
+  if(!m_decoder)
+    return;
+
+  while(true)
+  {
+    Lock();
+    if(m_packets.empty())
+    {
+      UnLock();
+      break;
+    }
+    UnLock();
+    OMXClock::OMXSleep(50);
+  }
+
+  m_decoder->WaitCompletion();
+}
+
+void OMXPlayerVideo::SetSpeed(int speed)
+{
+  m_speed = speed;
 }

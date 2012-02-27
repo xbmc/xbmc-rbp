@@ -46,7 +46,6 @@
 #include "OMXClock.h"
 #include "OMXReader.h"
 #include "OMXPlayerAudio.h"
-#include "OMXPlayerAudioCodec.h"
 #include "OMXPlayerVideo.h"
 
 #include "utils/BitstreamStats.h"
@@ -207,13 +206,9 @@ private:
 
   OMXClock                *m_av_clock;
   OMXPacket               *m_omx_pkt;
-  OMXPacket               *m_video_pkt;
-  OMXPacket               *m_audio_pkt;
-  OMXPacket               *m_audio_decoded_pkt;
   OMXReader               m_omx_reader;
   OMXPlayerVideo          m_player_video;
   OMXPlayerAudio          m_player_audio;
-  OMXPlayerAudioCodec     m_player_codec;
 
   double                  m_startpts;
 

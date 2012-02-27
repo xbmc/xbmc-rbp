@@ -49,36 +49,36 @@
 class COMXAudio : public IAudioRenderer
 {
 public:
-  virtual void UnRegisterAudioCallback();
-  virtual void RegisterAudioCallback(IAudioCallback* pCallback);
-  virtual unsigned int GetChunkLen();
-  virtual float GetDelay();
-  virtual float GetCacheTime();
-  virtual float GetCacheTotal();
+  void UnRegisterAudioCallback();
+  void RegisterAudioCallback(IAudioCallback* pCallback);
+  unsigned int GetChunkLen();
+  float GetDelay();
+  float GetCacheTime();
+  float GetCacheTotal();
   COMXAudio();
-  virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
+  bool Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
                            COMXStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode);
-  virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, EEncoded bPassthrough = IAudioRenderer::ENCODED_NONE);
-  virtual ~COMXAudio();
+  bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, EEncoded bPassthrough = IAudioRenderer::ENCODED_NONE);
+  ~COMXAudio();
 
-  virtual unsigned int AddPackets(const void* data, unsigned int len);
-  virtual unsigned int AddPackets(const void* data, unsigned int len, double dts, double pts);
-  virtual unsigned int GetSpace();
-  virtual bool Deinitialize();
-  virtual bool Pause();
-  virtual bool Stop();
-  virtual bool Resume();
+  unsigned int AddPackets(const void* data, unsigned int len);
+  unsigned int AddPackets(const void* data, unsigned int len, double dts, double pts);
+  unsigned int GetSpace();
+  bool Deinitialize();
+  bool Pause();
+  bool Stop();
+  bool Resume();
 
-  virtual long GetCurrentVolume() const;
-  virtual void Mute(bool bMute);
-  virtual bool SetCurrentVolume(long nVolume);
-  virtual void SetDynamicRangeCompression(long drc) { m_drc = drc; }
-  virtual int SetPlaySpeed(int iSpeed);
-  virtual void WaitCompletion();
-  virtual void SwitchChannels(int iAudioStream, bool bAudioOnAllSpeakers);
+  long GetCurrentVolume() const;
+  void Mute(bool bMute);
+  bool SetCurrentVolume(long nVolume);
+  void SetDynamicRangeCompression(long drc) { m_drc = drc; }
+  int SetPlaySpeed(int iSpeed);
+  void WaitCompletion();
+  void SwitchChannels(int iAudioStream, bool bAudioOnAllSpeakers);
 
-  virtual void Flush();
-  virtual void DoAudioWork();
+  void Flush();
+  void DoAudioWork();
   static void EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool passthrough);
 
   void Process();
@@ -125,14 +125,17 @@ private:
   unsigned int  m_visBufferLength;
   double        m_last_pts;
   short            m_visBuffer[VIS_PACKET_SIZE+2];
-  OMX_AUDIO_PARAM_PCMMODETYPE m_pcm;
+  OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_output;
+  OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_input;
   OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;
   WAVEFORMATEXTENSIBLE        m_wave_header;
 
 protected:
   COMXCoreComponent m_omx_render;
+  COMXCoreComponent m_omx_mixer;
   COMXCoreComponent m_omx_decoder;
   COMXCoreTunel     m_omx_tunnel_clock;
+  COMXCoreTunel     m_omx_tunnel_mixer;
   COMXCoreTunel     m_omx_tunnel_decoder;
   COMXCore          m_OMX;
   DllAvUtil         m_dllAvUtil;

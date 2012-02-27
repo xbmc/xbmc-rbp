@@ -140,48 +140,25 @@ OMXReader::OMXReader()
   m_pAudioStream  = NULL;
   m_seek_ms       = 0;
   m_seek_req      = false;
-  m_flush         = false;
-  m_bAbort        = false;
-  m_cached_size_video = 0;
-  m_cached_size_audio = 0;
-  m_cached_size   = 0;
 
-  pthread_cond_init(&m_packet_buffer_cond, NULL);
   pthread_mutex_init(&m_lock, NULL);
-  pthread_mutex_init(&m_lock_read, NULL);
 }
 
 OMXReader::~OMXReader()
 {
   Close();
 
-  pthread_cond_destroy(&m_packet_buffer_cond);
   pthread_mutex_destroy(&m_lock);
-  pthread_mutex_destroy(&m_lock_read);
 }
 
 void OMXReader::Lock()
 {
-  if(m_use_thread)
-    pthread_mutex_lock(&m_lock);
+  pthread_mutex_lock(&m_lock);
 }
 
 void OMXReader::UnLock()
 {
-  if(m_use_thread)
-    pthread_mutex_unlock(&m_lock);
-}
-
-void OMXReader::LockRead()
-{
-  if(m_use_thread)
-    pthread_mutex_lock(&m_lock_read);
-}
-
-void OMXReader::UnLockRead()
-{
-  if(m_use_thread)
-    pthread_mutex_unlock(&m_lock_read);
+  pthread_mutex_unlock(&m_lock);
 }
 
 static int interrupt_cb(void)
@@ -212,20 +189,14 @@ static offset_t dvd_file_seek(void *h, offset_t pos, int whence)
     return pFile->Seek(pos, whence & ~AVSEEK_FORCE);
 }
 
-bool OMXReader::Open(CStdString filename, bool use_thread, bool dump_format)
+bool OMXReader::Open(CStdString filename, bool dump_format)
 {
   if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load())
     return false;
   
-  if(ThreadHandle())
-    Close();
-
   m_iCurrentPts = DVD_NOPTS_VALUE;
   m_filename    = filename; 
   m_speed       = DVD_PLAYSPEED_NORMAL;
-  m_use_thread  = use_thread;
-  m_flush       = false;
-  m_bAbort      = false;
 
   m_dllAvFormat.av_register_all();
   m_dllAvFormat.url_set_interrupt_cb(interrupt_cb);
@@ -344,9 +315,6 @@ bool OMXReader::Open(CStdString filename, bool use_thread, bool dump_format)
 
   UpdateCurrentPTS();
 
-  if(m_use_thread)
-    Create();
-
   m_open        = true;
 
   m_duration_ms = (int)(m_pFormatContext->duration / (AV_TIME_BASE /  1000));
@@ -355,24 +323,8 @@ bool OMXReader::Open(CStdString filename, bool use_thread, bool dump_format)
 
 bool OMXReader::Close()
 {
-  m_bAbort  = true;
-  m_flush   = true;
-
-  if(ThreadHandle())
-  {
-    Lock();
-    pthread_cond_broadcast(&m_packet_buffer_cond);
-    UnLock();
-
-    StopThread();
-  }
-
   m_video_streams.clear();
   m_audio_streams.clear();
-
-  FlushVideoPackets();
-  FlushAudioPackets();
-  FlushPackets();
 
   if (m_pFormatContext)
   {
@@ -441,10 +393,7 @@ void OMXReader::FlushRead()
 
 bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
 {
-  m_flush = true;
   Lock();
-  LockRead();
-  pthread_cond_broadcast(&m_packet_buffer_cond);
 
   m_seek_flags = seek_flags;
   if(m_pFile && m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL))
@@ -482,6 +431,14 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
 
     int ret = m_dllAvFormat.av_seek_frame(m_pFormatContext, stream_index, seek_target, m_seek_flags);
 
+    /*
+    int64_t seek_pts = (int64_t)seek_ms * 1000;
+    if (m_pFormatContext->start_time != (int64_t)AV_NOPTS_VALUE)
+      seek_pts += m_pFormatContext->start_time;
+
+    int ret = m_dllAvFormat.av_seek_frame(m_pFormatContext, -1, seek_pts, m_seek_flags);
+    */
+
     if(ret < 0)
     {
       printf("error while seeking seek_flags %d pos %f\n", m_seek_flags, (double)pos / AV_TIME_BASE);
@@ -490,9 +447,6 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     }
     else
     {
-      FlushVideoPackets();
-      FlushAudioPackets();
-      FlushPackets();
       UpdateCurrentPTS();
     }
 
@@ -503,9 +457,7 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     m_seek_ms = 0;
   }
 
-  UnLockRead();
   UnLock();
-  m_flush = false;
   return true;
 }
 
@@ -526,6 +478,8 @@ OMXPacket *OMXReader::Read()
   if(!m_pFormatContext)
     return NULL;
 
+  Lock();
+
   // assume we are not eof
   if(m_pFormatContext->pb)
     m_pFormatContext->pb->eof_reached = 0;
@@ -542,6 +496,7 @@ OMXPacket *OMXReader::Read()
     m_eof = true;
     FlushRead();
     m_dllAvCodec.av_free_packet(&pkt);
+    UnLock();
     return NULL;
   }
   else if (pkt.size < 0 || pkt.stream_index >= MAX_OMX_STREAMS)
@@ -556,6 +511,7 @@ OMXPacket *OMXReader::Read()
     m_dllAvCodec.av_free_packet(&pkt);
 
     m_eof = true;
+    UnLock();
     return NULL;
   }
 
@@ -565,6 +521,7 @@ OMXPacket *OMXReader::Read()
   if(pStream != m_pAudioStream && pStream != m_pVideoStream)
   {
     m_dllAvCodec.av_free_packet(&pkt);
+    UnLock();
     return NULL;
   }
   /* only accept streams we take care off */
@@ -576,6 +533,7 @@ OMXPacket *OMXReader::Read()
       break;
     default:
       m_dllAvCodec.av_free_packet(&pkt);
+      UnLock();
       return NULL;
   }
   */
@@ -617,6 +575,7 @@ OMXPacket *OMXReader::Read()
   {
     m_eof = true;
     m_dllAvCodec.av_free_packet(&pkt);
+    UnLock();
     return NULL;
   }
 
@@ -668,128 +627,8 @@ OMXPacket *OMXReader::Read()
 
   m_dllAvCodec.av_free_packet(&pkt);
 
+  UnLock();
   return m_omx_pkt;
-}
-
-void OMXReader::Process()
-{
-  OMXPacket *m_omx_pkt = NULL;
-
-  while(!m_bStop && !m_bAbort)
-  {
-    if(m_flush)
-    {
-      OMXSleep(10);
-      continue;
-    }
-
-    if(!m_omx_pkt && !m_eof)
-    {
-      LockRead();
-      m_omx_pkt = Read();
-      UnLockRead();
-    }
-
-    Lock();
-    while (m_omx_pkt && !m_bStop)
-    {
-      switch(m_pFormatContext->streams[m_omx_pkt->stream_index]->codec->codec_type)
-      {
-        case AVMEDIA_TYPE_VIDEO:
-          if((m_cached_size_video + m_omx_pkt->size)  < MAX_DATA_SIZE_VIDEO)
-          {
-            m_pkt_video.push(m_omx_pkt);
-            m_cached_size_video += m_omx_pkt->size;
-            m_omx_pkt = NULL;
-          }
-          break;
-        case AVMEDIA_TYPE_AUDIO:
-          if((m_cached_size_audio + m_omx_pkt->size)  < MAX_DATA_SIZE_AUDIO)
-          {
-            m_pkt_audio.push(m_omx_pkt);
-            m_cached_size_audio += m_omx_pkt->size;
-            m_omx_pkt = NULL;
-          }
-          break;
-        /*
-        case AVMEDIA_TYPE_VIDEO:
-        case AVMEDIA_TYPE_AUDIO:
-          if((m_cached_size + m_omx_pkt->size)  < MAX_DATA_SIZE)
-          {
-            m_pkt_list.push(m_omx_pkt);
-            m_cached_size += m_omx_pkt->size;
-            m_omx_pkt = NULL;
-          }
-          break;
-        */
-        default:
-          FreePacket(m_omx_pkt);
-          m_omx_pkt = NULL;
-          break;
-      }
-
-      if(m_omx_pkt) 
-        pthread_cond_wait(&m_packet_buffer_cond, &m_lock);
-
-      if(m_flush)
-      {
-        FreePacket(m_omx_pkt);
-        m_omx_pkt = NULL;
-      }
-    }
-
-    /* nothing more to handle */
-    if(m_pkt_video.empty() && m_pkt_audio.empty() && m_eof)
-      m_bStop = true;
-    UnLock();
-  }
-
-  if(m_omx_pkt)
-    FreePacket(m_omx_pkt);
-
-  m_bStop = true;
-}
-
-void OMXReader::FlushVideoPackets()
-{
-  if(!m_open)
-    return;
-
-  while (!m_pkt_video.empty())
-  {
-    OMXPacket *pkt = m_pkt_video.front(); 
-    m_pkt_video.pop();
-    FreePacket(pkt);
-  }
-  m_cached_size_video = 0;
-}
-
-void OMXReader::FlushAudioPackets()
-{
-  if(!m_open)
-    return;
-
-  while (!m_pkt_audio.empty())
-  {
-    OMXPacket *pkt = m_pkt_audio.front(); 
-    m_pkt_audio.pop();
-    FreePacket(pkt);
-  }
-  m_cached_size_audio = 0;
-}
-
-void OMXReader::FlushPackets()
-{
-  if(!m_open)
-    return;
-
-  while (!m_pkt_list.empty())
-  {
-    OMXPacket *pkt = m_pkt_list.front(); 
-    m_pkt_list.pop();
-    FreePacket(pkt);
-  }
-  m_cached_size = 0;
 }
 
 bool OMXReader::GetStreams()
@@ -961,96 +800,9 @@ bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
   return true;
 }
 
-OMXPacket *OMXReader::GetVideoPacket()
-{
-  OMXPacket *pkt = NULL;
-  Lock();
-  if(!m_pkt_video.empty())
-  {
-    pkt = m_pkt_video.front();
-    m_pkt_video.pop();
-    m_cached_size_video -= pkt->size;
-    pthread_cond_broadcast(&m_packet_buffer_cond);
-  }
-  UnLock();
-
-  return pkt;
-}
-
-OMXPacket *OMXReader::GetAudioPacket()
-{
-  OMXPacket *pkt = NULL;
-  Lock();
-  if(!m_pkt_audio.empty())
-  {
-    pkt = m_pkt_audio.front();
-    m_pkt_audio.pop();
-    m_cached_size_audio -= pkt->size;
-    pthread_cond_broadcast(&m_packet_buffer_cond);
-  }
-  UnLock();
-
-  return pkt;
-}
-
-OMXPacket *OMXReader::GetPacket()
-{
-  OMXPacket *pkt = NULL;
-  Lock();
-  if(!m_pkt_list.empty())
-  {
-    pkt = m_pkt_list.front();
-    m_pkt_list.pop();
-    m_cached_size -= pkt->size;
-    pthread_cond_broadcast(&m_packet_buffer_cond);
-  }
-  UnLock();
-
-  return pkt;
-}
-
 bool OMXReader::IsEof()
 {
-  bool eof = false;
-  Lock();
-  if(m_pkt_list.empty() && m_pkt_audio.empty() && m_pkt_video.empty() && m_eof)
-  {
-    eof = true;
-  }
-  UnLock();
-  return eof;
-}
-int OMXReader::GetVideoPacketsFree()
-{
-  int ret = 0;
-
-  Lock();
-  ret = MAX_DATA_SIZE_VIDEO - m_cached_size_video;
-  UnLock();
-
-  return ret;
-}
-
-int OMXReader::GetAudioPacketsFree()
-{
-  int ret = 0;
-
-  Lock();
-  ret = MAX_DATA_SIZE_AUDIO - m_cached_size_audio;
-  UnLock();
-
-  return ret;
-}
-
-int OMXReader::GetPacketsFree()
-{
-  int ret = 0;
-
-  Lock();
-  ret = MAX_DATA_SIZE - m_cached_size;
-  UnLock();
-
-  return ret;
+  return m_eof;
 }
 
 void OMXReader::FreePacket(OMXPacket *pkt)
@@ -1058,7 +810,7 @@ void OMXReader::FreePacket(OMXPacket *pkt)
   if(pkt)
   {
     if(pkt->data)
-      m_dllAvUtil.av_free(pkt->data);
+      free(pkt->data);
     free(pkt);
   }
 }
@@ -1070,7 +822,7 @@ OMXPacket *OMXReader::AllocPacket(int size)
   {
     memset(pkt, 0, sizeof(OMXPacket));
 
-    pkt->data =(uint8_t*) m_dllAvUtil.av_malloc(size + FF_INPUT_BUFFER_PADDING_SIZE);
+    pkt->data = (uint8_t*) malloc(size + FF_INPUT_BUFFER_PADDING_SIZE);
     if(!pkt->data)
     {
       free(pkt);
@@ -1082,7 +834,6 @@ OMXPacket *OMXReader::AllocPacket(int size)
       pkt->size = size;
       pkt->dts  = DVD_NOPTS_VALUE;
       pkt->pts  = DVD_NOPTS_VALUE;
-      pkt->owner = this;
     }
   }
   return pkt;
@@ -1096,6 +847,8 @@ bool OMXReader::SetAudioStream(unsigned int index)
   if(m_audio_count < 1)
     return false;
 
+  Lock();
+
   if(index > (m_audio_count - 1))
   {
     m_audio_index = (m_audio_count - 1);
@@ -1105,20 +858,11 @@ bool OMXReader::SetAudioStream(unsigned int index)
     m_audio_index = index;
   }
 
-  //m_flush = true;
-  Lock();
-  LockRead();
-  //pthread_cond_broadcast(&m_packet_buffer_cond);
   m_pAudioStream = m_audio_streams[m_audio_index];
   //FlushRead();
-  //FlushAudioPackets();
-  //FlushVideoPackets();
-  //FlushPackets();
   //UpdateCurrentPTS();
   GetHints(m_pAudioStream, &m_hints_audio);
-  UnLockRead();
   UnLock();
-  //m_flush = false;
   return true;
 }
 

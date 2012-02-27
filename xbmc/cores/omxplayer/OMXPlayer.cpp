@@ -123,20 +123,13 @@ IAudioRenderer::EEncoded COMXPlayer::IsPassthrough(COMXStreamInfo &hints)
 void COMXPlayer::ResetStreams(bool video, bool audio)
 {
   if(m_av_clock)
-    m_av_clock->Pause();
+    m_av_clock->OMXPause();
 
   if(video && m_video_count)
-  {
-    m_player_video.FlushPackets();
-    m_player_video.FlushDecoder();
-  }
+    m_player_video.Flush();
 
   if(audio && m_audio_count)
-  {
-    m_player_audio.FlushPackets();
-    m_player_audio.FlushDecoder();
-    m_player_codec.Flush();
-  }
+    m_player_audio.Flush();
 
   if(m_omx_pkt)
   {
@@ -144,28 +137,10 @@ void COMXPlayer::ResetStreams(bool video, bool audio)
     m_omx_pkt = NULL;
   }
 
-  if(m_audio_pkt)
-  {
-    m_omx_reader.FreePacket(m_audio_pkt);
-    m_audio_pkt = NULL;
-  }
-
-  if(m_video_pkt)
-  {
-    m_omx_reader.FreePacket(m_video_pkt);
-    m_video_pkt = NULL;
-  }
-
-  if(m_audio_decoded_pkt)
-  {
-    m_omx_reader.FreePacket(m_audio_decoded_pkt);
-    m_audio_decoded_pkt = NULL;
-  }
-
   if(m_av_clock)
   {
-    m_av_clock->Reset();
-    m_av_clock->Resume();
+    m_av_clock->OMXReset();
+    m_av_clock->OMXResume();
   }
 }
 
@@ -213,9 +188,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_startpts        = 0;
 
     m_omx_pkt         = NULL;
-    m_audio_pkt       = NULL;
-    m_video_pkt       = NULL;
-    m_audio_decoded_pkt = NULL;
 
     m_audio_codec_name = "";
     m_video_codec_name = "";
@@ -317,15 +289,15 @@ void COMXPlayer::Pause()
   {
     // unpause here
     m_callback.OnPlayBackResumed();
-    if(m_av_clock->IsPaused())
-      m_av_clock->Resume();
+    if(m_av_clock->OMXIsPaused())
+      m_av_clock->OMXResume();
   }
   else
   {
     // pause here
     m_callback.OnPlayBackPaused();
-    if(!m_av_clock->IsPaused())
-      m_av_clock->Pause();
+    if(!m_av_clock->OMXIsPaused())
+      m_av_clock->OMXPause();
   }
   m_paused = !m_paused;
   m_buffer_empty = false;
@@ -824,12 +796,12 @@ void COMXPlayer::ToFFRW(int iSpeed)
 
   m_omx_reader.SetSpeed(iSpeed);
 
-  if(m_av_clock->PlaySpeed() != OMX_PLAYSPEED_PAUSE && iSpeed == OMX_PLAYSPEED_PAUSE)
+  if(m_av_clock->OMXPlaySpeed() != OMX_PLAYSPEED_PAUSE && iSpeed == OMX_PLAYSPEED_PAUSE)
     m_paused = true;
-  else if(m_av_clock->PlaySpeed() == OMX_PLAYSPEED_PAUSE && iSpeed != OMX_PLAYSPEED_PAUSE)
+  else if(m_av_clock->OMXPlaySpeed() == OMX_PLAYSPEED_PAUSE && iSpeed != OMX_PLAYSPEED_PAUSE)
     m_paused = false;
 
-  m_av_clock->Speed(iSpeed);
+  m_av_clock->OMXSpeed(iSpeed);
 }
 
 bool COMXPlayer::GetCurrentSubtitle(CStdString& strSubtitle)
@@ -899,11 +871,10 @@ void COMXPlayer::Process()
     }
 
     m_hdmi_clock_sync   = g_guiSettings.GetBool("videoplayer.adjustrefreshrate");
-    m_thread_reader     = true;
-    m_thread_player     = false;
+    m_thread_player     = true;
     m_stats             = false;
 
-    if(!m_omx_reader.Open(m_filename, m_thread_reader, false))
+    if(!m_omx_reader.Open(m_filename, false))
       goto do_exit;
 
     m_video_count   = m_omx_reader.VideoStreamCount();
@@ -916,7 +887,7 @@ void COMXPlayer::Process()
     m_bMpeg = m_omx_reader.IsMpegVideo();
 
     m_av_clock = new OMXClock();
-    if(!m_av_clock->Initialize(m_video_count, m_audio_count))
+    if(!m_av_clock->OMXInitialize(m_video_count, m_audio_count))
       goto do_exit;
 
     if(m_hdmi_clock_sync && !m_av_clock->HDMIClockSync())
@@ -939,7 +910,8 @@ void COMXPlayer::Process()
     //if(m_video_decoder)
     //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
-    m_av_clock->StateExecute();
+    m_av_clock->OMXStateExecute();
+    m_av_clock->SetSpeed(DVD_PLAYSPEED_NORMAL);
 
     m_duration_ms = m_omx_reader.GetDuration();
 
@@ -1002,7 +974,7 @@ void COMXPlayer::Process()
     {
       if(m_paused)
       {
-        OMXSleep(10);
+        OMXClock::OMXSleep(10);
         continue;
       }
 
@@ -1012,10 +984,9 @@ void COMXPlayer::Process()
       if(m_audio_change && m_audio_count)
       {
         // audio stream changed. trigger reinit
-        m_av_clock->Pause();
+        m_av_clock->OMXPause();
 
         m_player_audio.Close();
-        m_player_codec.Close();
 
         m_hints_audio     = m_omx_reader.GetAudioHints();
         m_hints_video     = m_omx_reader.GetVideoHints();
@@ -1025,9 +996,6 @@ void COMXPlayer::Process()
         if(!m_Passthrough && m_use_hw_audio)
           m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
 
-        if(!m_player_codec.Open(m_hints_audio, m_av_clock, m_Passthrough, m_HWDecode))
-          goto do_exit;
-
         CStdString deviceString;
 
         if(m_Passthrough)
@@ -1036,7 +1004,7 @@ void COMXPlayer::Process()
           deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
 
         if(!m_player_audio.Open(m_hints_audio, m_av_clock, m_omx_reader.GetAudioCodecName(), deviceString,
-                                m_Passthrough, m_HWDecode, m_bMpeg, m_thread_player, m_player_codec.GetChannelMap()))
+                                m_Passthrough, m_HWDecode, m_bMpeg, m_thread_player))
           goto do_exit;
 
         if(m_change_volume)
@@ -1045,9 +1013,9 @@ void COMXPlayer::Process()
           m_change_volume = false;
         }
 
-        m_av_clock->StateExecute();
-        m_av_clock->Reset();
-        m_av_clock->Resume();
+        m_av_clock->OMXStateExecute();
+        m_av_clock->OMXReset();
+        m_av_clock->OMXResume();
 
         m_audio_codec_name = m_omx_reader.GetAudioCodecName();
 
@@ -1065,9 +1033,9 @@ void COMXPlayer::Process()
       {
         if(m_player_audio.GetDelay() < 0.1f && !m_buffer_empty)
         {
-          if(!m_av_clock->IsPaused())
+          if(!m_av_clock->OMXIsPaused())
           {
-            m_av_clock->Pause();
+            m_av_clock->OMXPause();
             //printf("buffering start\n");
             m_buffer_empty = true;
             clock_gettime(CLOCK_REALTIME, &starttime);
@@ -1075,9 +1043,9 @@ void COMXPlayer::Process()
         }
         if(m_player_audio.GetDelay() > (AUDIO_BUFFER_SECONDS * 0.75f) && m_buffer_empty)
         {
-          if(m_av_clock->IsPaused())
+          if(m_av_clock->OMXIsPaused())
           {
-            m_av_clock->Resume();
+            m_av_clock->OMXResume();
             //printf("buffering end\n");
             m_buffer_empty = false;
           }
@@ -1088,104 +1056,44 @@ void COMXPlayer::Process()
           if((endtime.tv_sec - starttime.tv_sec) > 1)
           {
             m_buffer_empty = false;
-            m_av_clock->Resume();
+            m_av_clock->OMXResume();
             //printf("buffering timed out\n");
           }
         }
       }
 
-      if(m_thread_reader)
+      if(!m_omx_pkt)
+        m_omx_pkt = m_omx_reader.Read();
+
+      if(m_omx_pkt && m_omx_pkt->pStream == m_omx_reader.VideoStream())
       {
-        if(!m_video_pkt && m_video_count)
-        {
-          m_video_pkt = m_omx_reader.GetVideoPacket();
-        }
-        if(m_video_pkt)
-        {
-          //if(m_player_video.GetCurrentPTS() == DVD_NOPTS_VALUE || m_player_audio.GetCurrentPTS() == DVD_NOPTS_VALUE)
-          //{
-            if(m_player_video.AddPacket(m_video_pkt))
-            {
-              m_videoStats.AddSampleBytes(m_video_pkt->size);
-              m_video_pkt = NULL;
-            }
-          //}
-          //else if(((m_player_video.GetCurrentPTS() - m_player_audio.GetCurrentPTS()) / DVD_TIME_BASE) < 2.0f)
-          //{
-          //  if(m_player_video.AddPacket(m_video_pkt))
-          //    m_video_pkt = NULL;
-          //}
-        }
-
-        if(!m_audio_pkt && m_audio_count)
-        {
-          m_audio_pkt = m_omx_reader.GetAudioPacket();
-        }
-        if(m_audio_pkt)
-        {
-          if(m_audio_pkt->pStream == m_omx_reader.AudioStream())
-          {
-            if(m_player_codec.AddPacket(m_audio_pkt))
-              m_audio_pkt = NULL;
-          }
-          else
-          {
-            m_omx_reader.FreePacket(m_audio_pkt);
-            m_audio_pkt = NULL;
-          }
-        }
-
-        if(!m_audio_decoded_pkt)
-        {
-          m_audio_decoded_pkt = m_player_codec.GetPacket();
-        }
-        if(m_audio_decoded_pkt)
-        {
-          if(m_player_audio.AddPacket(m_audio_decoded_pkt))
-            m_audio_decoded_pkt = NULL;
-        }
+        if(m_player_video.AddPacket(m_omx_pkt))
+          m_omx_pkt = NULL;
+        else
+          OMXClock::OMXSleep(10);
+      }
+      else if(m_omx_pkt && m_omx_pkt->pStream == m_omx_reader.AudioStream())
+      {
+        if(m_player_audio.AddPacket(m_omx_pkt))
+          m_omx_pkt = NULL;
+        else
+          OMXClock::OMXSleep(10);
       }
       else
       {
-        if(!m_omx_pkt)
-          m_omx_pkt = m_omx_reader.Read();
-
-        if(m_omx_pkt && m_omx_pkt->pStream == m_omx_reader.VideoStream())
+        if(m_omx_pkt)
         {
-          if(m_player_video.AddPacket(m_omx_pkt))
-            m_omx_pkt = NULL;
-        }
-        else if(m_omx_pkt && m_omx_pkt->pStream == m_omx_reader.AudioStream())
-        {
-          if(m_player_codec.AddPacket(m_omx_pkt))
-            m_omx_pkt = NULL;
-        }
-        else
-        {
-          if(m_omx_pkt)
-          {
-            m_omx_reader.FreePacket(m_omx_pkt);
-            m_omx_pkt = NULL;
-          }
-        }
-        if(!m_audio_decoded_pkt)
-        {
-          m_audio_decoded_pkt = m_player_codec.GetPacket();
-        }
-        else
-        {
-          if(m_player_audio.AddPacket(m_audio_decoded_pkt))
-            m_audio_decoded_pkt = NULL;
+          m_omx_reader.FreePacket(m_omx_pkt);
+          m_omx_pkt = NULL;
         }
       }
 
       if(m_stats)
       {
-        printf("V : %8.02f %8d %8d A : %8.02f %8.02f Rcv : %8d Rca : %8d Cci : %8d Cco : %8d                            \r",
-              m_player_video.GetCurrentPTS() / DVD_TIME_BASE, m_player_video.GetDecoderBufferSize(),
-              m_player_video.GetDecoderFreeSpace(), m_player_audio.GetCurrentPTS() / DVD_TIME_BASE,
-              m_player_audio.GetDelay(), m_omx_reader.GetCachedVideo(), m_omx_reader.GetCachedAudio(),
-              m_player_codec.GetCachedInput(), m_player_codec.GetCachedOutput());
+        printf("V : %8.02f %8d %8d A : %8.02f %8.02f Cv : %8d Ca : %8d                            \r",
+             m_player_video.GetCurrentPTS() / DVD_TIME_BASE, m_player_video.GetDecoderBufferSize(),
+             m_player_video.GetDecoderFreeSpace(), m_player_audio.GetCurrentPTS() / DVD_TIME_BASE,
+             m_player_audio.GetDelay(), m_player_video.GetCached(), m_player_audio.GetCached());
       }
 
       if(m_player_audio.GetCurrentPTS() != AV_NOPTS_VALUE)
@@ -1219,34 +1127,15 @@ do_exit:
       m_player_video.WaitCompletion();
   }
 
-  m_av_clock->Stop();
+  m_av_clock->OMXStop();
 
   m_player_video.Close();
   m_player_audio.Close();
-  m_player_codec.Close();
 
   if(m_omx_pkt)
   {
     m_omx_reader.FreePacket(m_omx_pkt);
     m_omx_pkt = NULL;
-  }
-
-  if(m_audio_pkt)
-  {
-    m_omx_reader.FreePacket(m_audio_pkt);
-    m_audio_pkt = NULL;
-  }
-
-  if(m_video_pkt)
-  {
-    m_omx_reader.FreePacket(m_video_pkt);
-    m_video_pkt = NULL;
-  }
-
-  if(m_audio_decoded_pkt)
-  {
-    m_omx_reader.FreePacket(m_audio_decoded_pkt);
-    m_audio_decoded_pkt = NULL;
   }
 
   m_bStop = m_StopPlaying = true;

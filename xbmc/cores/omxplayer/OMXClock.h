@@ -77,6 +77,21 @@ protected:
   bool              m_has_audio;
   int               m_play_speed;
   pthread_mutex_t   m_lock;
+  void              CheckSystemClock();
+  double            SystemToAbsolute(int64_t system);
+  double            SystemToPlaying(int64_t system);
+  int64_t           m_systemUsed;
+  int64_t           m_startClock;
+  int64_t           m_pauseClock;
+  double            m_iDisc;
+  bool              m_bReset;
+  static int64_t    m_systemFrequency;
+  static int64_t    m_systemOffset;
+  int64_t           m_ClockOffset;
+  double            m_maxspeedadjust;
+  bool              m_speedadjust;
+  static bool       m_ismasterclock;
+  double            m_fps;
 private:
   COMXCoreComponent m_omx_clock;
   DllAvFormat       m_dllAvFormat;
@@ -85,37 +100,56 @@ public:
   ~OMXClock();
   void Lock();
   void UnLock();
-  bool Reset();
-  bool Initialize(bool has_video, bool has_audio);
+  int64_t GetFrequency();
+  int64_t GetTime(bool interpolated = true);
+  double  GetAbsoluteClock(bool interpolated = true);
+  int64_t Wait(int64_t Target);
+  double  WaitAbsoluteClock(double target);
+  double GetClock(bool interpolated = true);
+  double GetClock(double& absolute, bool interpolated = true);
+  void SetSpeed(int iSpeed);
+  void SetMasterClock(bool ismasterclock) { m_ismasterclock = ismasterclock; }
+  bool IsMasterClock()                    { return m_ismasterclock;          }
+  void Discontinuity(double currentPts = 0LL);
+
+  void Reset() { m_bReset = true; }
+  void Pause();
+  void Resume();
+
+  int UpdateFramerate(double fps, double* interval = NULL);
+  bool   SetMaxSpeedAdjust(double speed);
+
+  bool OMXReset();
+  bool OMXInitialize(bool has_video, bool has_audio);
   void Deinitialize();
-  bool IsPaused() { return m_pause; };
-  bool Stop();
-  bool Start();
-  bool Pause();
-  bool Resume();
-  bool WaitStart(double pts);
-  bool Speed(int speed);
-  int  PlaySpeed() { return m_play_speed; };
+  bool OMXIsPaused() { return m_pause; };
+  bool OMXStop();
+  bool OMXStart();
+  bool OMXPause();
+  bool OMXResume();
+  bool OMXWaitStart(double pts);
+  bool OMXSpeed(int speed);
+  int  OMXPlaySpeed() { return m_play_speed; };
   COMXCoreComponent *GetOMXClock();
-  bool StatePause();
-  bool StateExecute();
-  static void Sleep(unsigned int dwMilliSeconds);
+  bool OMXStatePause();
+  bool OMXStateExecute();
   double GetPTS();
   void   SetPTS(double pts);
   static void AddTimespecs(struct timespec &time, long millisecs);
   bool HDMIClockSync();
+  static int64_t CurrentHostCounter(void);
+  static int64_t CurrentHostFrequency(void);
+  void  SetVideoClock(double video_clock) { m_video_clock = video_clock; };
+  void  SetAudioClock(double audio_clock) { m_audio_clock = audio_clock; };
+  double  GetVideoClock() { return m_video_clock; };
+  double  GetAudioClock() { return m_audio_clock; };
+  bool HasVideo() { return m_has_video; };
+  bool HasAudio() { return m_has_audio; };
+  static void AddTimeSpecNano(struct timespec &time, uint64_t nanoseconds);
+  static void OMXSleep(unsigned int dwMilliSeconds);
+
+  int     GetRefreshRate(double* interval = NULL);
+  void    SetRefreshRate(double fps) { m_fps = fps; };
 };
-
-inline void OMXSleep(unsigned int dwMilliSeconds)
-{
-  struct timespec req;
-  if (dwMilliSeconds < 10)
-    dwMilliSeconds = 10;
-  req.tv_sec = dwMilliSeconds / 1000;
-  req.tv_nsec = (dwMilliSeconds % 1000) * 1000000;
-
-  while ( nanosleep(&req, &req) == -1 && errno == EINTR && (req.tv_nsec > 0 || req.tv_sec > 0));
-  //usleep(dwMilliSeconds * 1000);
-}
 
 #endif

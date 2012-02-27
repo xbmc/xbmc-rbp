@@ -25,15 +25,17 @@
 #endif
 #include "utils/log.h"
 
+#define MAX_AUDIO_FRAME_SIZE (AVCODEC_MAX_AUDIO_FRAME_SIZE*1.5)
+
 COMXAudioCodecOMX::COMXAudioCodecOMX()
 {
   m_iBufferSize1 = 0;
-  m_pBuffer1     = (BYTE*)_aligned_malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE, 16);
-  memset(m_pBuffer1, 0, AVCODEC_MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
+  m_pBuffer1     = (BYTE*)_aligned_malloc(MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE, 16);
+  memset(m_pBuffer1, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
 
   m_iBufferSize2 = 0;
-  m_pBuffer2     = (BYTE*)_aligned_malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE, 16);
-  memset(m_pBuffer2, 0, AVCODEC_MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
+  m_pBuffer2     = (BYTE*)_aligned_malloc(MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE, 16);
+  memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
 
   m_iBuffered = 0;
   m_pCodecContext = NULL;
@@ -137,8 +139,9 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
 {
   int iBytesUsed;
   if (!m_pCodecContext) return -1;
+  if (iSize < 1) return iSize;
 
-  m_iBufferSize1 = AVCODEC_MAX_AUDIO_FRAME_SIZE ;
+  m_iBufferSize1 = AVCODEC_MAX_AUDIO_FRAME_SIZE;
   m_iBufferSize2 = 0;
 
   AVPacket avpkt;
@@ -206,6 +209,37 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
 
 int COMXAudioCodecOMX::GetData(BYTE** dst)
 {
+  // TODO: Use a third buffer and decide which is our source data
+  if(m_pCodecContext->channels == 6 && m_iBufferSize1)
+  {
+    int16_t *pDst = (int16_t *)m_pBuffer2;
+    int16_t *pSrc = (int16_t *)m_pBuffer1;
+
+    //printf("\ncopy_chunk_len %d, omx_chunk_len %d\n", copy_chunk_len, omx_chunk_len);
+    memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
+
+    m_iBufferSize2 = 0;
+    int size = m_iBufferSize1 / 2;
+    int gap = 8 - m_pCodecContext->channels;
+    int samples = 0;
+
+    for(int i = 0; i < size; pDst++, pSrc++, i++, samples++)
+    {
+      if( (i%m_pCodecContext->channels) == 0)
+      {
+        pDst    +=  gap;
+        samples +=  gap;
+      }
+
+      *pDst = *pSrc;
+    }
+
+    m_iBufferSize2 = samples * 2;
+
+    *dst = m_pBuffer2;
+    return m_iBufferSize2;
+  }
+
   if(m_iBufferSize1)
   {
     *dst = m_pBuffer1;
@@ -229,7 +263,7 @@ void COMXAudioCodecOMX::Reset()
 
 int COMXAudioCodecOMX::GetChannels()
 {
-  return m_pCodecContext->channels;
+  return (m_pCodecContext->channels == 6) ? 8 : m_pCodecContext->channels;
 }
 
 int COMXAudioCodecOMX::GetSampleRate()
@@ -298,6 +332,12 @@ void COMXAudioCodecOMX::BuildChannelMap()
 
   //terminate the channel map
   m_channelMap[index] = PCM_INVALID;
+  if(m_pCodecContext->channels == 6)
+  {
+    m_channelMap[6] = PCM_INVALID;
+    m_channelMap[7] = PCM_INVALID;
+    m_channelMap[8] = PCM_INVALID;
+  }
 }
 
 enum PCMChannels* COMXAudioCodecOMX::GetChannelMap()
