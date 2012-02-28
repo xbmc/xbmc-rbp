@@ -2019,11 +2019,6 @@ void CApplication::Render()
   bool hasRendered = false;
   bool limitFrames = false;
   unsigned int singleFrameTime = 10; // default limit 100 fps
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
-  singleFrameTime = 40;  // 25 fps, <=40 ms latency to wake up
-  limitFrames     = true;
-  decrement       = true;
-#endif
 
   {
     // Less fps in DPMS
@@ -2032,13 +2027,9 @@ void CApplication::Render()
     bool extPlayerActive = m_eCurrentPlayer >= EPC_EXTPLAYER && IsPlaying() && !m_AppFocused;
 
     m_bPresentFrame = false;
+#ifndef HAVE_PLATFORM_RASPBERRY_PI
     if (!extPlayerActive && g_graphicsContext.IsFullScreenVideo() && !IsPaused())
     {
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
-      singleFrameTime = 40;  // 25 fps, <=40 ms latency to wake up
-      limitFrames     = true;
-      decrement       = true;
-#else
       CSingleLock lock(m_frameMutex);
 
       TightConditionVariable<int&> cv(m_frameCond,m_frameCount);
@@ -2047,7 +2038,6 @@ void CApplication::Render()
       m_bPresentFrame = m_frameCount > 0;
       decrement = m_bPresentFrame;
       hasRendered = true;
-#endif
     }
     else
     {
@@ -2073,6 +2063,12 @@ void CApplication::Render()
 
       decrement = true;
     }
+#else
+    decrement = false;
+    hasRendered = true;
+    limitFrames = true;
+    singleFrameTime = 40;
+#endif
   }
 
   CSingleLock lock(g_graphicsContext);
