@@ -339,7 +339,7 @@ bool CGUIWindowVideoNav::GetDirectory(const CStdString &strDirectory, CFileItemL
           // grab the season thumb as the folder thumb
           CStdString strLabel;
           CStdString strPath;
-          if (params.GetSeason() == -1 && items.Size() > 0)
+          if (params.GetSeason() <= -1 && items.Size() > 0)
           {
             CQueryParams params2;
             dir.GetQueryParams(items[0]->GetPath(),params2);
@@ -405,7 +405,8 @@ bool CGUIWindowVideoNav::GetDirectory(const CStdString &strDirectory, CFileItemL
       CStdString label;
       if (items.GetLabel().IsEmpty() && m_rootDir.IsSource(items.GetPath(), g_settings.GetSourcesFromType("video"), &label)) 
         items.SetLabel(label);
-      LoadVideoInfo(items);
+      if (!items.IsSourcesPath())
+        LoadVideoInfo(items);
     }
   }
   return bResult;
@@ -484,10 +485,6 @@ void CGUIWindowVideoNav::LoadVideoInfo(CFileItemList &items)
       // set the watched overlay
       if (pItem->IsVideo())
         pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, pItem->HasVideoInfoTag() && pItem->GetVideoInfoTag()->m_playCount > 0);
-
-      // Since the item is not in our db but the user wants a clean label we should clean it up (stacking may do some cleaning as well)
-      if (replaceLabels)
-        pItem->CleanString();
     }
   }
 }
@@ -655,7 +652,7 @@ bool CGUIWindowVideoNav::CanDelete(const CStdString& strPath)
   if (params.GetMovieId()   != -1 ||
       params.GetEpisodeId() != -1 ||
       params.GetMVideoId()  != -1 ||
-      (params.GetTvShowId() != -1 && params.GetSeason() == -1
+      (params.GetTvShowId() != -1 && params.GetSeason() <= -1
               && !CVideoDatabaseDirectory::IsAllItem(strPath)))
     return true;
 
@@ -1504,10 +1501,12 @@ CStdString CGUIWindowVideoNav::GetStartFolder(const CStdString &dir)
     return "videodb://3/3/";
   else if (dir.Equals("MusicVideoArtists"))
     return "videodb://3/4/";
-  else if (dir.Equals("MusicVideoDirectors"))
+  else if (dir.Equals("MusicVideoAlbums"))
     return "videodb://3/5/";
-  else if (dir.Equals("MusicVideoStudios"))
+  else if (dir.Equals("MusicVideoDirectors"))
     return "videodb://3/6/";
+  else if (dir.Equals("MusicVideoStudios"))
+    return "videodb://3/7/";
   else if (dir.Equals("MusicVideos"))
     return "videodb://3/";
   else if (dir.Equals("RecentlyAddedMovies"))

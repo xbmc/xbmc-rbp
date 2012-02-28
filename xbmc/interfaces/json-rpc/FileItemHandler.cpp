@@ -174,6 +174,10 @@ void CFileItemHandler::HandleFileItem(const char *ID, bool allowFile, const char
               object["type"] = "movie";
               break;
 
+            case VIDEODB_CONTENT_TVSHOWS:
+              object["type"] = "tvshow";
+              break;
+
             default:
               break;
           }
@@ -256,8 +260,8 @@ bool CFileItemHandler::FillFileItemList(const CVariant &parameterObject, CFileIt
       if (item->IsPicture())
       {
         CPictureInfoTag picture;
-        if (picture.Load(item->GetPath()))
-          *item->GetPictureInfoTag() = picture;
+        picture.Load(item->GetPath());
+        *item->GetPictureInfoTag() = picture;
       }
       if (item->GetLabel().IsEmpty())
         item->SetLabel(CUtil::GetTitleFromPath(file, false));
@@ -333,8 +337,6 @@ bool CFileItemHandler::ParseSortMethods(const CStdString &method, const bool &ig
     sortmethod = SORT_METHOD_PLAYCOUNT;
   else if (method.Equals("unsorted"))
     sortmethod = SORT_METHOD_UNSORTED;
-  else if (method.Equals("max"))
-    sortmethod = SORT_METHOD_MAX;
   else
     return false;
 

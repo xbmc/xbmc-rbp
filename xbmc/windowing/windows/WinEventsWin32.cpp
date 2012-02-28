@@ -39,7 +39,6 @@
 #include "settings/Settings.h"
 #include "settings/AdvancedSettings.h"
 #include "peripherals/Peripherals.h"
-#include "storage/DetectDVDType.h"
 #include "utils/JobManager.h"
 
 #ifdef _WIN32
@@ -642,10 +641,7 @@ LRESULT CALLBACK CWinEventsWin32::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, L
             case SHCNE_MEDIAINSERTED:
               CLog::Log(LOGDEBUG, __FUNCTION__": Drive %s Media has arrived.", drivePath);
               if (GetDriveType(drivePath) == DRIVE_CDROM)
-              {
-                CDetectDisc* discdetection = new CDetectDisc(drivePath, true);
-                CJobManager::GetInstance().AddJob(discdetection, NULL);
-              }
+                CJobManager::GetInstance().AddJob(new CDetectDisc(drivePath, true), NULL);
               else
                 CWin32StorageProvider::SetEvent();
               break;
