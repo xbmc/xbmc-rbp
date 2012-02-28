@@ -578,6 +578,10 @@ CFLAGS="$CFLAGS $DEBUG_FLAGS"
 CXXFLAGS="$CXXFLAGS $DEBUG_FLAGS"
 
 
+if test "$use_platform_raspberry_pi" = "yes"; then
+  CXXFLAGS="$CXXFLAGS"
+  CFLAGS="$CFLAGS"
+else
 if test "$use_optimizations" = "yes"; then
   final_message="$final_message\n  Optimization:\tYes"
   CXXFLAGS="$CXXFLAGS -O2"
@@ -585,7 +589,7 @@ if test "$use_optimizations" = "yes"; then
 else
   final_message="$final_message\n  Optimization:\tNo"
 fi
-
+fi
 
 # platform specific flags
 if test "$host_vendor" = "apple" ; then
