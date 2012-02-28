@@ -347,10 +347,6 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
     }
   }
 
-  // update m_elapsed_ms and m_duration_ms.
-  GetTime();
-  GetTotalTime();
-
   int64_t seek_ms;
   if (g_advancedSettings.m_videoUseTimeSeeking &&
     (GetTotalTime() > (2 * g_advancedSettings.m_videoTimeSeekForwardBig)))
@@ -412,9 +408,6 @@ void COMXPlayer::SeekPercentage(float fPercent)
 
 float COMXPlayer::GetPercentage()
 {
-  // update m_elapsed_ms and m_duration_ms.
-  GetTime();
-  GetTotalTime();
   if (m_duration_ms)
     return 100.0f * (float)m_elapsed_ms/(float)m_duration_ms;
   else
@@ -423,7 +416,6 @@ float COMXPlayer::GetPercentage()
 
 float COMXPlayer::GetCachePercentage()
 {
-  CSingleLock lock(m_csection);
   return std::min(100.0, (double)(GetPercentage() + GetCacheLevel()));
 }
 
