@@ -470,6 +470,13 @@ void OMXPlayerVideo::Flush()
     m_decoder->Reset();
   m_syncclock = true;
   UnLockDecoder();
+  FlushSubtitles();
+  UnLock();
+}
+
+void OMXPlayerVideo::FlushSubtitles()
+{
+  LockDecoder();
   LockSubtitles();
   while (!m_subtitle_packets.empty())
   {
@@ -487,19 +494,9 @@ void OMXPlayerVideo::Flush()
     delete m_pSubtitleCodec;
   m_pSubtitleCodec = NULL;
   UnLockSubtitles();
-  UnLock();
-}
-
-void OMXPlayerVideo::FlushSubtitles()
-{
-  LockSubtitles();
-  while (!m_subtitle_packets.empty())
-  {
-    OMXPacket *pkt = m_subtitle_packets.front(); 
-    m_subtitle_packets.pop_front();
-    OMXReader::FreePacket(pkt);
-  }
-  UnLockSubtitles();
+  if(m_decoder)
+    m_decoder->ResetText();
+  UnLockDecoder();
 }
 
 bool OMXPlayerVideo::AddPacket(OMXPacket *pkt)

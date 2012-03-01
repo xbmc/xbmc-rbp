@@ -1005,7 +1005,7 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
   return false;
 }
 
-void COMXVideo::Reset(void)
+void COMXVideo::Reset()
 {
   //m_omx_tunnel_text.Flush();
   //m_omx_tunnel_clock.Flush();
@@ -1059,13 +1059,18 @@ void COMXVideo::Reset(void)
     m_omx_image_fx.SetStateForComponent(OMX_StateExecuting);
   */
 
-  m_omx_text.FlushAll();
-  m_omx_tunnel_text.Flush();
+  ResetText();
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
 
   m_setStartTime = true;
   //m_first_frame = true;
+}
+
+void COMXVideo::ResetText()
+{
+  m_omx_text.FlushAll();
+  m_omx_tunnel_text.Flush();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
