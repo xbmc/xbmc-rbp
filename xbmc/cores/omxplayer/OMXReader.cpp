@@ -131,13 +131,16 @@ OMXReader::OMXReader()
   m_pFormatContext = NULL;
   m_video_count   = 0;
   m_audio_count   = 0;
+  m_subtitle_count = 0;
   m_audio_index   = -1;
   m_video_index   = -1;
+  m_subtitle_index  = -1;
   m_eof           = false;
   m_chapter_count = 0;
   m_iCurrentPts   = DVD_NOPTS_VALUE;
   m_pVideoStream  = NULL;
   m_pAudioStream  = NULL;
+  m_pSubtitleStream  = NULL;
   m_seek_ms       = 0;
   m_seek_req      = false;
 
@@ -304,8 +307,8 @@ bool OMXReader::Open(CStdString filename, bool dump_format)
     }
   }
 
-  printf("file : %s reult %d format %s audio streams %d video streams %d chapters %d\n", 
-      m_filename.c_str(), result, m_pFormatContext->iformat->name, m_audio_count, m_video_count, m_chapter_count);
+  printf("file : %s reult %d format %s audio streams %d video streams %d chapters %d subtitles %d\n", 
+      m_filename.c_str(), result, m_pFormatContext->iformat->name, m_audio_count, m_video_count, m_chapter_count, m_subtitle_count);
 
 
   m_speed       = DVD_PLAYSPEED_NORMAL;
@@ -325,6 +328,7 @@ bool OMXReader::Close()
 {
   m_video_streams.clear();
   m_audio_streams.clear();
+  m_subtitle_streams.clear();
 
   if (m_pFormatContext)
   {
@@ -364,13 +368,16 @@ bool OMXReader::Close()
   m_bMpeg       = false;
   m_video_count = 0;
   m_audio_count = 0;
+  m_subtitle_count = 0;
   m_audio_index = -1;
   m_video_index = -1;
+  m_subtitle_index = -1;
   m_eof         = false;
   m_chapter_count = 0;
   m_iCurrentPts   = DVD_NOPTS_VALUE;
   m_pVideoStream = NULL;
   m_pAudioStream = NULL;
+  m_pSubtitleStream = NULL;
   m_seek_ms       = 0;
   m_seek_req      = false;
   m_speed         = DVD_PLAYSPEED_NORMAL;
@@ -518,7 +525,7 @@ OMXPacket *OMXReader::Read()
   AVStream *pStream = m_pFormatContext->streams[pkt.stream_index];
 
   /* only read packets for active streams */
-  if(pStream != m_pAudioStream && pStream != m_pVideoStream)
+  if(pStream != m_pAudioStream && pStream != m_pVideoStream && pStream != m_pSubtitleStream)
   {
     m_dllAvCodec.av_free_packet(&pkt);
     UnLock();
@@ -662,6 +669,10 @@ bool OMXReader::GetStreams()
           {
             m_audio_streams.push_back(m_pFormatContext->streams[index]);
           }
+          if(m_pFormatContext->streams[index]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
+          {
+            m_subtitle_streams.push_back(m_pFormatContext->streams[index]);
+          }
         }
       }
     }
@@ -682,11 +693,16 @@ bool OMXReader::GetStreams()
       {
         m_audio_streams.push_back(m_pFormatContext->streams[i]);
       }
+      if(m_pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
+      {
+        m_subtitle_streams.push_back(m_pFormatContext->streams[i]);
+      }
     }
   }
 
   m_video_count = m_video_streams.size();
   m_audio_count = m_audio_streams.size();
+  m_subtitle_count = m_subtitle_streams.size();
 
   if(m_video_count)
   {
@@ -700,8 +716,15 @@ bool OMXReader::GetStreams()
     m_audio_index = 0;
   }
 
+  if(m_subtitle_count)
+  {
+    m_pSubtitleStream = m_subtitle_streams[0];
+    m_subtitle_index = 0;
+  }
+
   GetHints(m_pVideoStream, &m_hints_video);
   GetHints(m_pAudioStream, &m_hints_audio);
+  GetHints(m_pSubtitleStream, &m_hints_subtitle);
 
   int i = 0;
   for(i = 0; i < MAX_OMX_CHAPTERS; i++)
@@ -834,6 +857,8 @@ OMXPacket *OMXReader::AllocPacket(int size)
       pkt->size = size;
       pkt->dts  = DVD_NOPTS_VALUE;
       pkt->pts  = DVD_NOPTS_VALUE;
+      pkt->now  = DVD_NOPTS_VALUE;
+      pkt->duration = DVD_NOPTS_VALUE;
     }
   }
   return pkt;
@@ -862,6 +887,31 @@ bool OMXReader::SetAudioStream(unsigned int index)
   //FlushRead();
   //UpdateCurrentPTS();
   GetHints(m_pAudioStream, &m_hints_audio);
+  UnLock();
+  return true;
+}
+
+bool OMXReader::SetSubtitleStream(unsigned int index)
+{
+  if(m_pFormatContext == NULL)
+    return false;
+
+  if(m_subtitle_count < 1)
+    return false;
+
+  Lock();
+
+  if(index > (m_subtitle_count - 1))
+  {
+    m_subtitle_index = (m_subtitle_count - 1);
+  }
+  else
+  {
+    m_subtitle_index = index;
+  }
+
+  m_pSubtitleStream = m_subtitle_streams[m_subtitle_index];
+  GetHints(m_pSubtitleStream, &m_hints_subtitle);
   UnLock();
   return true;
 }
@@ -1233,4 +1283,95 @@ COMXStreamInfo OMXReader::GetAudioHints(int index)
 
   return hints;
 }
+
+COMXStreamInfo OMXReader::GetSubtitleHints(int index)
+{
+  COMXStreamInfo hints;
+
+  if((index + 1) > m_subtitle_streams.size())
+    return hints;
+
+  GetHints(m_subtitle_streams[index], &hints);
+
+  return hints;
+}
+
+std::string OMXReader::GetSubtitleName(int index)
+{
+  std::string description = "";
+  int subtitle_index = 0;
+  AVStream *pSubtitleStream = NULL;
+
+  if (!m_pFormatContext || !m_subtitle_count)
+    return description;
+
+  Lock();
+  if(index > (m_subtitle_count - 1))
+  {
+    subtitle_index = (m_subtitle_count - 1);
+  }
+  else
+  {
+    subtitle_index = index;
+  }
+
+  pSubtitleStream = m_subtitle_streams[subtitle_index];
+
+  if(pSubtitleStream)
+  {
+    if(m_dllAvFormat.av_metadata_get(pSubtitleStream->metadata, "title", NULL, 0))
+      description = m_dllAvFormat.av_metadata_get(pSubtitleStream->metadata, "title", NULL, 0)->value;
+  }
+
+  UnLock();
+
+  return description;
+}
+
+bool OMXReader::GetSubtitleLanguage(int index, CStdString &strStreamLang)
+{
+  bool ret = false;
+  int subtitle_index = 0;
+  AVStream *pSubtitleStream = NULL;
+
+  char language[4];
+  memset(language, 0, sizeof(language));
+
+  if (!m_pFormatContext || !m_subtitle_count)
+    return ret;
+
+  Lock();
+  if(index > (m_subtitle_count - 1))
+  {
+    subtitle_index = (m_subtitle_count - 1);
+  }
+  else
+  {
+    subtitle_index = index;
+  }
+
+  pSubtitleStream = m_subtitle_streams[subtitle_index];
+
+  if(pSubtitleStream)
+  {
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
+    // API added on: 2010-10-15
+    // (Note that while the function was available earlier, the generic
+    // metadata tags were not populated by default)
+    AVMetadataTag *langTag = m_dllAvFormat.av_metadata_get(pSubtitleStream->metadata, "language", NULL, 0);
+    if (langTag)
+      strncpy(language, langTag->value, 3);
+#else
+    strcpy( language, pSubtitleStream->language );
+#endif
+    strStreamLang = language;
+    ret = true;
+  }
+
+  UnLock();
+
+  return ret;
+}
+
+
 

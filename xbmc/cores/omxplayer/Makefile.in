@@ -5,6 +5,8 @@ SRCS=	\
 	OMXClock.cpp \
 	OMXCore.cpp \
 	OMXStreamInfo.cpp \
+	OMXSubtitleTagSami.cpp \
+	OMXOverlayCodecText.cpp \
 	OMXAudioCodecOMX.cpp \
 	OMXAudio.cpp \
 	OMXVideo.cpp \

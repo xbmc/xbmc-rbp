@@ -67,7 +67,7 @@
 #define OMX_WMV3_DECODER        OMX_VIDEO_DECODER
 #define OMX_VP8_DECODER         OMX_VIDEO_DECODER
 
-//#define MAX_TEXT_LENGTH 128
+#define MAX_TEXT_LENGTH 1024
 
 COMXVideo::COMXVideo()
 {
@@ -84,6 +84,7 @@ COMXVideo::COMXVideo()
   m_deinterlace   = false;
   m_hdmi_clock_sync = false;
   m_first_frame   = true;
+  m_first_text    = true;
 }
 
 COMXVideo::~COMXVideo()
@@ -314,11 +315,10 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     if(!m_omx_image_fx.Initialize((const CStdString)componentName, OMX_IndexParamImageInit))
       return false;
   }
-  /*
+
   componentName = "OMX.broadcom.text_scheduler";
   if(!m_omx_text.Initialize((const CStdString)componentName, OMX_IndexParamOtherInit))
     return false;
-  */
 
   if(clock == NULL)
     return false;
@@ -344,7 +344,7 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
   }
   m_omx_tunnel_sched.Initialize(&m_omx_sched, m_omx_sched.GetOutputPort(), &m_omx_render, m_omx_render.GetInputPort());
   m_omx_tunnel_clock.Initialize(m_omx_clock, m_omx_clock->GetInputPort() + 1, &m_omx_sched, m_omx_sched.GetOutputPort() + 1);
-  //m_omx_tunnel_text.Initialize(m_omx_clock, m_omx_clock->GetInputPort() + 2, &m_omx_text, m_omx_text.GetInputPort() + 2);
+  m_omx_tunnel_text.Initialize(m_omx_clock, m_omx_clock->GetInputPort() + 2, &m_omx_text, m_omx_text.GetInputPort() + 2);
 
   omx_err = m_omx_tunnel_clock.Establish(false);
   if(omx_err != OMX_ErrorNone)
@@ -439,7 +439,6 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     return false;
   }
 
-  /*
   OMX_INIT_STRUCTURE(portParam);
   portParam.nPortIndex = m_omx_text.GetInputPort();
 
@@ -450,7 +449,7 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     return false;
   }
 
-  portParam.nBufferCountActual  = 1;
+  portParam.nBufferCountActual  = 100;
   portParam.nBufferSize         = MAX_TEXT_LENGTH;
 
   omx_err = m_omx_text.SetParameter(OMX_IndexParamPortDefinition, &portParam);
@@ -477,6 +476,8 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     return false;
   }
 
+  portParam.eDir = OMX_DirOutput;
+  portParam.format.other.eFormat = OMX_OTHER_FormatText;
   portParam.format.other.eFormat = OMX_OTHER_FormatText;
   portParam.nBufferCountActual  = 1;
   portParam.nBufferSize         = MAX_TEXT_LENGTH;
@@ -494,10 +495,6 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     CLog::Log(LOGERROR, "COMXVideo::Open AllocOutputBuffers\n");
     return false;
   }
-
-  OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetOutputBuffer();
-  m_omx_text.FillThisBuffer(omx_buffer);
-  */
 
   omx_err = m_omx_tunnel_decoder.Establish(false);
   if(omx_err != OMX_ErrorNone)
@@ -558,7 +555,6 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     return false;
   }
 
-  /*
   omx_err = m_omx_text.SetStateForComponent(OMX_StateExecuting);
   if (omx_err != OMX_ErrorNone)
   {
@@ -572,7 +568,17 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     CLog::Log(LOGERROR, "COMXVideo::Open m_omx_tunnel_text.Establish\n");
     return false;
   }
-  */
+
+  OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetOutputBuffer(10);
+  if(!omx_buffer)
+    return false;
+  omx_err = m_omx_text.FillThisBuffer(omx_buffer);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "COMXVideo::Open FillThisBuffer\n");
+    return false;
+  }
+  omx_buffer = NULL;
 
   omx_err = m_omx_sched.SetStateForComponent(OMX_StateExecuting);
   if (omx_err != OMX_ErrorNone)
@@ -660,6 +666,7 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     m_deinterlace, m_hdmi_clock_sync);
 
   m_first_frame   = true;
+  m_first_text    = true;
   return true;
 }
 
@@ -670,14 +677,14 @@ void COMXVideo::Close()
     m_omx_tunnel_image_fx.Flush();
   m_omx_tunnel_clock.Flush();
   m_omx_tunnel_sched.Flush();
-  //m_omx_tunnel_text.Flush();
+  m_omx_tunnel_text.Flush();
 
   m_omx_tunnel_clock.Deestablish();
   m_omx_tunnel_decoder.Deestablish();
   if(m_deinterlace)
     m_omx_tunnel_image_fx.Deestablish();
   m_omx_tunnel_sched.Deestablish();
-  //m_omx_tunnel_text.Deestablish();
+  m_omx_tunnel_text.Deestablish();
 
   m_omx_decoder.FlushInput();
 
@@ -686,7 +693,7 @@ void COMXVideo::Close()
     m_omx_image_fx.Deinitialize();
   m_omx_decoder.Deinitialize();
   m_omx_render.Deinitialize();
-  //m_omx_text.Deinitialize();
+  m_omx_text.Deinitialize();
 
   m_is_open       = false;
 
@@ -702,6 +709,7 @@ void COMXVideo::Close()
   m_video_codec_name  = "";
   m_deinterlace       = false;
   m_first_frame       = true;
+  m_first_text        = true;
   m_setStartTime      = true;
 }
 
@@ -720,7 +728,33 @@ unsigned int COMXVideo::GetSize()
   return m_omx_decoder.GetInputBufferSize();
 }
 
-#if 0
+OMXPacket *COMXVideo::GetText()
+{
+  OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetOutputBuffer(10);
+  OMXPacket *pkt = NULL;
+
+  if(omx_buffer)
+  {
+    if(omx_buffer->nFilledLen)
+    {
+      float pts = FromOMXTime(omx_buffer->nTimeStamp);
+
+      pkt = OMXReader::AllocPacket(omx_buffer->nFilledLen + 1);
+
+      if(pkt)
+      {
+        pkt->size = omx_buffer->nFilledLen;
+        memcpy(pkt->data, omx_buffer->pBuffer, omx_buffer->nFilledLen);
+        pkt->pts = pts;
+        pkt->dts = pts;
+      }
+    }
+
+    m_omx_text.FillThisBuffer(omx_buffer);
+  }
+  return pkt;
+}
+
 int COMXVideo::DecodeText(uint8_t *pData, int iSize, double dts, double pts)
 {
   OMX_ERRORTYPE omx_err;
@@ -732,8 +766,8 @@ int COMXVideo::DecodeText(uint8_t *pData, int iSize, double dts, double pts)
 
     while(demuxer_bytes)
     {
-      // 500 ms timeout
-      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetInputBuffer(500);
+      // 10 ms timeout
+      OMX_BUFFERHEADERTYPE *omx_buffer = m_omx_text.GetInputBuffer(10);
 
       if(omx_buffer == NULL)
       {
@@ -741,11 +775,6 @@ int COMXVideo::DecodeText(uint8_t *pData, int iSize, double dts, double pts)
         printf("COMXVideo::DecodeText timeout\n");
         return false;
       }
-
-      /*
-      CLog::Log(DEBUG, "COMXVideo::Video VDec : pts %lld omx_buffer 0x%08x buffer 0x%08x number %d\n", 
-          pts, omx_buffer, omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate);
-      */
 
       if(pts == DVD_NOPTS_VALUE)
       {
@@ -759,12 +788,14 @@ int COMXVideo::DecodeText(uint8_t *pData, int iSize, double dts, double pts)
       uint64_t val = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;
       omx_buffer->nTimeStamp = ToOMXTime(val);
 
-      omx_buffer->nFilledLen = (demuxer_bytes > omx_buffer->nAllocLen) ? omx_buffer->nAllocLen : demuxer_bytes;
+      omx_buffer->nFilledLen = (demuxer_bytes > (omx_buffer->nAllocLen - 1)) ? (omx_buffer->nAllocLen - 1) : demuxer_bytes;
       memset(omx_buffer->pBuffer, 0x0, omx_buffer->nAllocLen);
       memcpy(omx_buffer->pBuffer, demuxer_content, omx_buffer->nFilledLen);
 
+      /*
       printf("VDec : pts %lld omx_buffer 0x%08x buffer 0x%08x number %d text : %s\n", 
           pts, omx_buffer, omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate, omx_buffer->pBuffer);
+      */
 
       demuxer_bytes -= omx_buffer->nFilledLen;
       demuxer_content += omx_buffer->nFilledLen;
@@ -780,6 +811,21 @@ int COMXVideo::DecodeText(uint8_t *pData, int iSize, double dts, double pts)
 
         return false;
       }
+      if(m_first_text)
+      {
+        m_omx_text.SendCommand(OMX_CommandPortDisable, m_omx_text.GetInputPort(), NULL);
+        m_omx_text.WaitForCommand(OMX_CommandPortDisable, m_omx_text.GetInputPort());
+        m_omx_text.SendCommand(OMX_CommandPortDisable, m_omx_text.GetOutputPort(), NULL);
+        m_omx_text.WaitForCommand(OMX_CommandPortDisable, m_omx_text.GetOutputPort());
+
+        m_omx_text.SendCommand(OMX_CommandPortEnable, m_omx_text.GetOutputPort(), NULL);
+        m_omx_text.WaitForCommand(OMX_CommandPortEnable, m_omx_text.GetOutputPort());
+        m_omx_text.SendCommand(OMX_CommandPortEnable, m_omx_text.GetInputPort(), NULL);
+        m_omx_text.WaitForCommand(OMX_CommandPortEnable, m_omx_text.GetInputPort());
+
+        m_first_text = false;
+      }
+
     }
 
     return true;
@@ -788,7 +834,6 @@ int COMXVideo::DecodeText(uint8_t *pData, int iSize, double dts, double pts)
   
   return false;
 }
-#endif
 
 int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
 {
@@ -949,7 +994,6 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
 
           m_omx_sched.SendCommand(OMX_CommandPortEnable, m_omx_sched.GetInputPort(), NULL);
           m_omx_sched.WaitForCommand(OMX_CommandPortEnable, m_omx_sched.GetInputPort());
-
         }
       }
     }
@@ -987,7 +1031,6 @@ void COMXVideo::Reset(void)
     m_omx_image_fx.WaitForCommand(OMX_CommandPortDisable, m_omx_image_fx.GetInputPort());
   m_omx_render.WaitForCommand(OMX_CommandPortDisable, m_omx_render.GetInputPort());
 
-  //m_omx_text.FlushAll();
   //m_omx_decoder.FlushAll();
   //m_omx_render.FlushAll();
   //if(m_deinterlace)
@@ -1016,6 +1059,8 @@ void COMXVideo::Reset(void)
     m_omx_image_fx.SetStateForComponent(OMX_StateExecuting);
   */
 
+  m_omx_text.FlushAll();
+  m_omx_tunnel_text.Flush();
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
 

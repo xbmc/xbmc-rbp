@@ -38,8 +38,6 @@
 #include "linux/XMemUtils.h"
 #ifndef STANDALONE
 #include "utils/BitstreamStats.h"
-#include "cores/VideoRenderers/LinuxRendererGLES.h"
-#include "cores/VideoRenderers/RenderManager.h"
 #endif
 
 #define MAX_DATA_SIZE    10 * 1024 * 1024
@@ -59,12 +57,14 @@ OMXPlayerVideo::OMXPlayerVideo()
   m_pts           = 0;
   m_syncclock     = true;
   m_speed         = DVD_PLAYSPEED_NORMAL;
+  m_iSubtitleDelay = 0;
+  m_pSubtitleCodec = NULL;
 
   pthread_cond_init(&m_packet_cond, NULL);
   pthread_cond_init(&m_picture_cond, NULL);
   pthread_mutex_init(&m_lock, NULL);
   pthread_mutex_init(&m_lock_decoder, NULL);
-
+  pthread_mutex_init(&m_lock_subtitle, NULL);
 }
 
 OMXPlayerVideo::~OMXPlayerVideo()
@@ -75,6 +75,7 @@ OMXPlayerVideo::~OMXPlayerVideo()
   pthread_cond_destroy(&m_picture_cond);
   pthread_mutex_destroy(&m_lock);
   pthread_mutex_destroy(&m_lock_decoder);
+  pthread_mutex_destroy(&m_lock_subtitle);
 }
 
 void OMXPlayerVideo::Lock()
@@ -99,6 +100,18 @@ void OMXPlayerVideo::UnLockDecoder()
 {
   if(m_use_thread)
     pthread_mutex_unlock(&m_lock_decoder);
+}
+
+void OMXPlayerVideo::LockSubtitles()
+{
+  if(m_use_thread)
+    pthread_mutex_lock(&m_lock_subtitle);
+}
+
+void OMXPlayerVideo::UnLockSubtitles()
+{
+  if(m_use_thread)
+    pthread_mutex_unlock(&m_lock_subtitle);
 }
 
 bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, int has_audio, bool hdmi_clock_sync, bool use_thread)
@@ -128,6 +141,8 @@ bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinte
   m_pts         = 0;
   m_syncclock   = true;
   m_speed       = DVD_PLAYSPEED_NORMAL;
+  m_iSubtitleDelay = 0;
+  m_pSubtitleCodec = NULL;
 
   m_FlipTimeStamp = m_av_clock->GetAbsoluteClock();
 
@@ -174,6 +189,7 @@ bool OMXPlayerVideo::Close()
   m_pts           = 0;
   m_syncclock     = true;
   m_speed         = DVD_PLAYSPEED_NORMAL;
+  m_pSubtitleCodec = NULL;
 
   return true;
 }
@@ -245,12 +261,9 @@ void OMXPlayerVideo::Output(double pts)
       pts / DVD_TIME_BASE);
   */
 
-//#ifdef STANDALONE
+  //g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, mDisplayField);
+
   m_av_clock->WaitAbsoluteClock((iCurrentClock + iSleepTime));
-//#else
-//  EFIELDSYNC mDisplayField = FS_NONE;
-//  g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_NONE);
-//#endif
 
   // guess next frame pts. iDuration is always valid
   if (m_speed != 0)
@@ -267,19 +280,84 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
   if(!((unsigned long)m_decoder->GetFreeSpace() > pkt->size))
     OMXClock::OMXSleep(5);
 
-  if((unsigned long)m_decoder->GetFreeSpace() > pkt->size)
+  if (pkt->dts == DVD_NOPTS_VALUE && pkt->pts == DVD_NOPTS_VALUE)
+    pkt->pts = m_pts;
+  else if (pkt->pts == DVD_NOPTS_VALUE)
+    pkt->pts = pkt->dts;
+
+  if(pkt->pts != DVD_NOPTS_VALUE)
   {
-    if (pkt->dts == DVD_NOPTS_VALUE && pkt->pts == DVD_NOPTS_VALUE)
-      pkt->pts = m_pts;
-    else if (pkt->pts == DVD_NOPTS_VALUE)
-      pkt->pts = pkt->dts;
+    m_pts = pkt->pts;
+    m_pts += m_iVideoDelay;
+  }
 
-    if(pkt->pts != DVD_NOPTS_VALUE)
+  if(pkt->hints.codec == CODEC_ID_TEXT ||
+     pkt->hints.codec == CODEC_ID_SSA )
+  {
+    if(!m_pSubtitleCodec)
     {
-      m_pts = pkt->pts;
-      m_pts += m_iVideoDelay;
+      m_pSubtitleCodec = new COMXOverlayCodecText();
+      m_pSubtitleCodec->Open( pkt->hints );
     }
+    int result = m_pSubtitleCodec->Decode(pkt->data, pkt->size, pkt->pts, pkt->duration);
+    COMXOverlay* overlay;
 
+    CStdString strSubtitle = "";
+
+    double pts = pkt->dts != DVD_NOPTS_VALUE ? pkt->dts : pkt->pts;
+    double duration = pkt->duration;
+
+    if(result == OC_OVERLAY)
+    {
+
+      while((overlay = m_pSubtitleCodec->GetOverlay()) != NULL)
+      {
+        if(overlay->iPTSStopTime > overlay->iPTSStartTime)
+          duration = overlay->iPTSStopTime - overlay->iPTSStartTime;
+        else if(pkt->duration != DVD_NOPTS_VALUE)
+          duration = pkt->duration;
+        else
+          duration = 0.0;
+
+        if     (pkt->pts != DVD_NOPTS_VALUE)
+          pts = pkt->pts;
+        else if(pkt->dts != DVD_NOPTS_VALUE)
+          pts = pkt->dts;
+        else
+          pts = overlay->iPTSStartTime;
+
+        pts -= m_iSubtitleDelay;
+
+        overlay->iPTSStartTime = pts;
+        if(duration)
+          overlay->iPTSStopTime = pts + duration;
+        else
+        {
+          overlay->iPTSStopTime = 0;
+          overlay->replace = true;
+        }
+        COMXOverlayText::CElement* e = ((COMXOverlayText*)overlay)->m_pHead;
+        while (e)
+        {
+          if (e->IsElementType(COMXOverlayText::ELEMENT_TYPE_TEXT))
+          {
+            COMXOverlayText::CElementText* t = (COMXOverlayText::CElementText*)e;
+            strSubtitle += t->m_text;
+              strSubtitle += "\n";
+          }
+          e = e->pNext;
+        }
+
+        m_overlays.push_back(overlay);
+
+        if(strSubtitle.length())
+          m_decoder->DecodeText((uint8_t *)strSubtitle.c_str(), strSubtitle.length(), overlay->iPTSStartTime, overlay->iPTSStartTime);
+      }
+    }
+    ret = true;
+  }
+  else if((unsigned long)m_decoder->GetFreeSpace() > pkt->size)
+  {
     if(m_bMpeg)
       m_decoder->Decode(pkt->data, pkt->size, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
     else
@@ -303,7 +381,7 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
 void OMXPlayerVideo::Process()
 {
   OMXPacket *omx_pkt = NULL;
-  uint64_t diff = 0;
+  //uint64_t diff = 0;
 
   m_pts = 0;
 
@@ -340,12 +418,23 @@ void OMXPlayerVideo::Process()
       omx_pkt = NULL;
     }
     UnLockDecoder();
+    
+    OMXPacket *subtitle_pkt = m_decoder->GetText();
+
+    if(subtitle_pkt)
+    {
+      LockSubtitles();
+      subtitle_pkt->pts = m_av_clock->GetClock();
+      m_subtitle_packets.push_back(subtitle_pkt);
+      UnLockSubtitles();
+    }
+
 
     int64_t end = OMXClock::CurrentHostCounter();
 
+    /*
     diff = (end - start) - m_frametime * 1000;
 
-    /*
     if(m_av_clock->GetVideoClock() != DVD_NOPTS_VALUE && m_av_clock->GetAudioClock() != DVD_NOPTS_VALUE)
     {
       double diff = (m_av_clock->GetVideoClock() - m_av_clock->GetAudioClock()) / DVD_TIME_BASE;
@@ -381,7 +470,36 @@ void OMXPlayerVideo::Flush()
     m_decoder->Reset();
   m_syncclock = true;
   UnLockDecoder();
+  LockSubtitles();
+  while (!m_subtitle_packets.empty())
+  {
+    OMXPacket *pkt = m_subtitle_packets.front(); 
+    m_subtitle_packets.pop_front();
+    OMXReader::FreePacket(pkt);
+  }
+  while (!m_overlays.empty())
+  {
+    COMXOverlay *overlay = m_overlays.front();
+    m_overlays.pop_front();
+    delete overlay;
+  }
+  if(m_pSubtitleCodec)
+    delete m_pSubtitleCodec;
+  m_pSubtitleCodec = NULL;
+  UnLockSubtitles();
   UnLock();
+}
+
+void OMXPlayerVideo::FlushSubtitles()
+{
+  LockSubtitles();
+  while (!m_subtitle_packets.empty())
+  {
+    OMXPacket *pkt = m_subtitle_packets.front(); 
+    m_subtitle_packets.pop_front();
+    OMXReader::FreePacket(pkt);
+  }
+  UnLockSubtitles();
 }
 
 bool OMXPlayerVideo::AddPacket(OMXPacket *pkt)
@@ -488,3 +606,53 @@ void OMXPlayerVideo::SetSpeed(int speed)
 {
   m_speed = speed;
 }
+
+CStdString OMXPlayerVideo::GetText()
+{
+  OMXPacket *pkt = NULL;
+  CStdString strSubtitle = "";
+
+  LockSubtitles();
+  if (!m_subtitle_packets.empty())
+  {
+    pkt = m_subtitle_packets.front();
+    if(!m_overlays.empty())
+    {
+      COMXOverlay *overlay = m_overlays.front();
+      double now = m_av_clock->GetClock();
+      double iPTSStartTime = pkt->pts;
+      double iPTSStopTime = (overlay->iPTSStartTime > 0) ? iPTSStartTime + (overlay->iPTSStopTime - overlay->iPTSStartTime) : 0LL;
+
+      if((iPTSStartTime <= now)
+        && (iPTSStopTime >= now || iPTSStopTime == 0LL))
+      {
+        COMXOverlayText::CElement* e = ((COMXOverlayText*)overlay)->m_pHead;
+        while (e)
+        {
+          if (e->IsElementType(COMXOverlayText::ELEMENT_TYPE_TEXT))
+          {
+            COMXOverlayText::CElementText* t = (COMXOverlayText::CElementText*)e;
+            strSubtitle += t->m_text;
+              strSubtitle += "\n";
+          }
+          e = e->pNext;
+        }
+        /*
+        printf("OMXPlayerVideo::GetText %s iPTSStartTime %f iPTSStopTime %f now %f\n", strSubtitle.c_str(),
+          iPTSStartTime / DVD_TIME_BASE, iPTSStopTime / DVD_TIME_BASE, now / DVD_TIME_BASE);
+        */
+      }
+      else if(iPTSStopTime < now)
+      {
+        m_subtitle_packets.pop_front();
+        m_overlays.pop_front();
+        delete overlay;
+        OMXReader::FreePacket(pkt);
+      }
+    }
+  }
+  UnLockSubtitles();
+
+  return strSubtitle;
+}
+

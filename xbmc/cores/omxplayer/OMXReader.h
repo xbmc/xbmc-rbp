@@ -76,6 +76,7 @@ typedef struct OMXPacket
 {
   double    pts; // pts in DVD_TIME_BASE
   double    dts; // dts in DVD_TIME_BASE
+  double    now; // dts in DVD_TIME_BASE
   double    duration; // duration in DVD_TIME_BASE if available
   int       size;
   uint8_t   *data;
@@ -90,12 +91,16 @@ class OMXReader
 protected:
   AVStream                  *m_pVideoStream;
   AVStream                  *m_pAudioStream;
+  AVStream                  *m_pSubtitleStream;
   int                       m_video_index;
   int                       m_video_count;
   int                       m_audio_index;
+  int                       m_subtitle_index;
   int                       m_audio_count;
+  int                       m_subtitle_count;
   std::vector<AVStream*>    m_video_streams;
   std::vector<AVStream*>    m_audio_streams;
+  std::vector<AVStream*>    m_subtitle_streams;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -112,6 +117,7 @@ protected:
   int                       m_chapter_count;
   COMXStreamInfo            m_hints_audio;
   COMXStreamInfo            m_hints_video;
+  COMXStreamInfo            m_hints_subtitle;
   double                    m_iCurrentPts;
   pthread_cond_t            m_packet_buffer_cond;
   int64_t                   m_seek_ms;
@@ -143,15 +149,19 @@ public:
   bool IsEof();
   COMXStreamInfo  GetVideoHints(int index);
   COMXStreamInfo  GetAudioHints(int index);
+  COMXStreamInfo  GetSubtitleHints(int index);
   COMXStreamInfo  GetVideoHints() { return m_hints_video; };
   COMXStreamInfo  GetAudioHints() { return m_hints_audio; };
+  COMXStreamInfo  GetSubtitleHints() { return m_hints_subtitle; };
   int  AudioStreamCount() { return m_audio_count; };
   int  VideoStreamCount() { return m_video_count; };
+  int  SubtitleStreamCount() { return m_subtitle_count; };
   bool SetAudioStream(unsigned int index);
+  bool SetSubtitleStream(unsigned int index);
   int  GetChapterCount() { return m_chapter_count; };
   OMXChapter GetChapter(unsigned int chapter) { return m_chapters[(chapter > MAX_OMX_CHAPTERS) ? MAX_OMX_CHAPTERS : chapter]; };
   static void FreePacket(OMXPacket *pkt);
-  OMXPacket *AllocPacket(int size);
+  static OMXPacket *AllocPacket(int size);
   void SetSpeed(int iSpeed);
   void UpdateCurrentPTS();
   double ConvertTimestamp(int64_t pts, int den, int num);
@@ -160,8 +170,10 @@ public:
   void GetChapterName(std::string& strChapterName);
   bool SeekChapter(int chapter, double* startpts);
   bool GetAudioIndex() { return m_audio_index; };
+  bool GetSubtitleIndex() { return m_subtitle_index; };
   AVStream *VideoStream() { return m_pVideoStream; };
   AVStream *AudioStream() { return m_pAudioStream; };
+  AVStream *SubtitleStream() { return m_pSubtitleStream; };
   int GetStreamLength();
   static double NormalizeFrameduration(double frameduration);
   bool IsMpegVideo() { return m_bMpeg; };
@@ -173,6 +185,8 @@ public:
   void GetStreamCodecName(AVStream *stream, CStdString &strStreamName);
   bool GetAudioStreamLanguage(int iStream, CStdString &strLanguage);
   int64_t GetDuration() { return m_duration_ms; };
+  std::string GetSubtitleName(int index);
+  bool GetSubtitleLanguage(int index, CStdString &strStreamLang);
 #ifndef STANDALONE
   int GetSourceBitrate();
 #endif

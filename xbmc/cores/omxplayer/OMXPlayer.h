@@ -52,6 +52,8 @@
 
 #include "linux/DllBCM.h"
 
+#include <deque>
+
 #define MAX_CHAPTERS 64
 
 class COMXPlayer : public IPlayer, public CThread
@@ -101,6 +103,7 @@ public:
   virtual int   GetSubtitleCount();
   virtual int   GetSubtitle();
   virtual void  GetSubtitleName(int iStream, CStdString &strStreamName);
+  virtual void  GetSubtitleLanguage(int iStream, CStdString &strStreamLang);
   virtual void  SetSubtitle(int iStream);
   virtual bool  GetSubtitleVisible();
   virtual void  SetSubtitleVisible(bool bVisible);
@@ -188,7 +191,8 @@ private:
   int                     m_subtitle_index;
   int                     m_subtitle_count;
   bool                    m_subtitle_show;
-  int64_t                 m_subtitle_offset_ms;
+  double                  m_last_subtitle_pts;
+  CStdString              m_lastSub;
 
   int                     m_chapter_count;
 
@@ -205,10 +209,11 @@ private:
   int                     m_seek_req;
 
   OMXClock                *m_av_clock;
-  OMXPacket               *m_omx_pkt;
   OMXReader               m_omx_reader;
   OMXPlayerVideo          m_player_video;
   OMXPlayerAudio          m_player_audio;
+
+  bool                    m_flush;
 
   double                  m_startpts;
 

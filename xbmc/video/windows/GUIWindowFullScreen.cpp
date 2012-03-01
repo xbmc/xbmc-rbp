@@ -953,7 +953,9 @@ void CGUIWindowFullScreen::Render()
 
 void CGUIWindowFullScreen::RenderTTFSubtitles()
 {
-  if ((g_application.GetCurrentPlayer() == EPC_MPLAYER || g_application.GetCurrentPlayer() == EPC_DVDPLAYER) &&
+  if ((g_application.GetCurrentPlayer() == EPC_MPLAYER || 
+      g_application.GetCurrentPlayer() == EPC_DVDPLAYER ||
+      g_application.GetCurrentPlayer() == EPC_OMXPLAYER) &&
       CUtil::IsUsingTTFSubtitles() && (g_application.m_pPlayer->GetSubtitleVisible()))
   {
     CSingleLock lock (m_fontLock);

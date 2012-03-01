@@ -286,9 +286,14 @@ bool OMXClock::OMXReset()
 
     clock.eState    = OMX_TIME_ClockStateWaitingForStartTime;
     if(m_has_audio)
+    {
       clock.nWaitMask |= OMX_CLOCKPORT0;
+    }
     if(m_has_video)
+    {
       clock.nWaitMask |= OMX_CLOCKPORT1;
+      clock.nWaitMask |= OMX_CLOCKPORT2;
+    }
 
     omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
     if(omx_err != OMX_ErrorNone)
@@ -321,9 +326,14 @@ bool OMXClock::OMXInitialize(bool has_video, bool has_audio)
   clock.eState = OMX_TIME_ClockStateWaitingForStartTime;
 
   if(m_has_audio)
+  {
     clock.nWaitMask |= OMX_CLOCKPORT0;
+  }
   if(m_has_video)
+  {
     clock.nWaitMask |= OMX_CLOCKPORT1;
+    clock.nWaitMask |= OMX_CLOCKPORT2;
+  }
 
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
   if(omx_err != OMX_ErrorNone)
@@ -527,9 +537,14 @@ bool OMXClock::OMXWaitStart(double pts)
     clock.eState = OMX_TIME_ClockStateWaitingForStartTime;
 
     if(m_has_audio)
+    {
       clock.nWaitMask |= OMX_CLOCKPORT0;
+    }
     if(m_has_video)
+    {
       clock.nWaitMask |= OMX_CLOCKPORT1;
+      clock.nWaitMask |= OMX_CLOCKPORT2;
+    }
   }
 
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
