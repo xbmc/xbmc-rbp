@@ -472,7 +472,21 @@ void COMXPlayer::GetVideoInfo(CStdString &strVideoInfo)
 
 void COMXPlayer::GetGeneralInfo(CStdString& strGeneralInfo)
 {
-  //CLog::Log(LOGDEBUG, "COMXPlayer::GetGeneralInfo");
+  if (!m_bStop && m_av_clock)
+  {
+    double apts = m_av_clock->GetAudioClock();
+    double vpts = m_av_clock->GetVideoClock();
+    double dDiff = 0;
+
+    if( apts != DVD_NOPTS_VALUE && vpts != DVD_NOPTS_VALUE )
+      dDiff = (apts - vpts) / DVD_TIME_BASE;
+
+    strGeneralInfo.Format("C( a/v:% 6.3f, dcpu:%2i%% acpu:%2i%% vcpu:%2i%% )"
+                         , dDiff
+                         , (int)(CThread::GetRelativeUsage()*100)
+                         , (int)(m_player_audio.GetRelativeUsage()*100)
+                         , (int)(m_player_video.GetRelativeUsage()*100));
+  }
 }
 
 int COMXPlayer::GetAudioStreamCount()
@@ -708,6 +722,7 @@ int COMXPlayer::GetAudioBitrate()
 {
   return m_hints_audio.bitrate;
 }
+
 int COMXPlayer::GetVideoBitrate()
 {
   return (int)m_videoStats.GetBitrate();
@@ -1110,9 +1125,14 @@ void COMXPlayer::Process()
       if(omx_pkt && omx_pkt->pStream == m_omx_reader.VideoStream())
       {
         if(m_player_video.AddPacket(omx_pkt))
+        {
+          m_videoStats.AddSampleBytes(omx_pkt->size);
           omx_pkt = NULL;
+        }
         else
+        {
           OMXClock::OMXSleep(10);
+        }
       }
       else if(omx_pkt && omx_pkt->pStream == m_omx_reader.AudioStream())
       {
