@@ -463,6 +463,7 @@ void COMXPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 
   strStreamName = "";
 
+  /*
   name = m_omx_reader.GetStreamName(OMXSTREAM_AUDIO, iStream);
   if(name.length() > 0)
   {
@@ -470,6 +471,7 @@ void COMXPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
   }
   else
   {
+  */
     CStdString language = m_omx_reader.GetStreamLanguage(OMXSTREAM_AUDIO, iStream);
     if(language.length() > 0)
     {
@@ -486,7 +488,9 @@ void COMXPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
     {
       strStreamName = strStreamName + " - " + strType;
     }
+  /*
   }
+  */
 }
  
 void COMXPlayer::SetAudioStream(int SetAudioStream)
@@ -522,6 +526,7 @@ int COMXPlayer::GetSubtitle()
 
 void COMXPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 {
+  /*
   CStdString name = m_omx_reader.GetStreamName(OMXSTREAM_SUBTITLE, iStream);
 
   strStreamName = "";
@@ -531,6 +536,7 @@ void COMXPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
   }
   else
   {
+  */
     CStdString language = m_omx_reader.GetStreamLanguage(OMXSTREAM_SUBTITLE, iStream);
     if(language.length() > 0)
     {
@@ -541,7 +547,9 @@ void COMXPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
     {
       strStreamName += g_localizeStrings.Get(13205); // Unknown
     }
+  /*
   }
+  */
 }
 
 void COMXPlayer::GetSubtitleLanguage(int iStream, CStdString &strStreamLang)
