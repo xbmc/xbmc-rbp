@@ -167,8 +167,7 @@ protected:
   std::string m_filename; // holds the actual filename
 
 private:
-  virtual IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo &hints);
-  virtual void ResetStreams(bool video, bool audio);
+  virtual void FlushStreams();
 
   int                     m_speed;
   bool                    m_paused;
@@ -183,7 +182,6 @@ private:
   int64_t                 m_duration_ms;
   int                     m_audio_index;
   int                     m_audio_count;
-  bool                    m_audio_change;
   CStdString              m_audio_info;
   int                     m_video_index;
   int                     m_video_count;
@@ -217,15 +215,11 @@ private:
 
   double                  m_startpts;
 
-  CStdString              m_audio_codec_name;
-  CStdString              m_video_codec_name;
-
   COMXCore                m_OMX;
 
   bool                    m_bMpeg;
 
-  IAudioRenderer::EEncoded m_Passthrough;
-  bool                    m_HWDecode;
+  bool                    m_use_passthrough;
   bool                    m_use_hw_audio;
 
   BitstreamStats          m_videoStats;

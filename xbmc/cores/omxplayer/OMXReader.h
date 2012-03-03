@@ -82,25 +82,40 @@ typedef struct OMXPacket
   uint8_t   *data;
   int       stream_index;
   COMXStreamInfo hints;
-  AVStream  *pStream;
-  AVPacket  *pkt;
+  enum AVMediaType codec_type;
 } OMXPacket;
+
+enum OMXStreamType
+{
+  OMXSTREAM_NONE      = 0,
+  OMXSTREAM_AUDIO     = 1,
+  OMXSTREAM_VIDEO     = 2,
+  OMXSTREAM_SUBTITLE  = 3
+};
+
+typedef struct OMXStream
+{
+  char language[4];
+  std::string name;
+  std::string codec_name;
+  AVStream    *stream;
+  OMXStreamType type;
+  int         id;
+  void        *extradata;
+  unsigned int extrasize;
+  unsigned int index;
+  COMXStreamInfo hints;
+} OMXStream;
 
 class OMXReader
 {
 protected:
-  AVStream                  *m_pVideoStream;
-  AVStream                  *m_pAudioStream;
-  AVStream                  *m_pSubtitleStream;
   int                       m_video_index;
-  int                       m_video_count;
   int                       m_audio_index;
   int                       m_subtitle_index;
+  int                       m_video_count;
   int                       m_audio_count;
   int                       m_subtitle_count;
-  std::vector<AVStream*>    m_video_streams;
-  std::vector<AVStream*>    m_audio_streams;
-  std::vector<AVStream*>    m_subtitle_streams;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -114,12 +129,9 @@ protected:
   ByteIOContext             *m_ioContext;
   bool                      m_eof;
   OMXChapter                m_chapters[MAX_OMX_CHAPTERS];
+  OMXStream                 m_streams[MAX_STREAMS];
   int                       m_chapter_count;
-  COMXStreamInfo            m_hints_audio;
-  COMXStreamInfo            m_hints_video;
-  COMXStreamInfo            m_hints_subtitle;
   double                    m_iCurrentPts;
-  pthread_cond_t            m_packet_buffer_cond;
   int64_t                   m_seek_ms;
   int                       m_seek_req;
   int                       m_seek_flags;
@@ -133,11 +145,13 @@ protected:
   pthread_mutex_t           m_lock;
   void Lock();
   void UnLock();
+  bool SetActiveStreamInternal(OMXStreamType type, unsigned int index);
 private:
 public:
   OMXReader();
   ~OMXReader();
   bool Open(CStdString filename, bool dump_format);
+  void ClearStreams();
   bool Close();
   void FlushRead();
   bool SeekTime(int64_t seek_ms, int seek_flags, double *startpts);
@@ -145,19 +159,17 @@ public:
   OMXPacket *Read();
   void Process();
   bool GetStreams();
+  void AddStream(int id);
+  bool IsActive(int stream_index);
+  bool IsActive(OMXStreamType type, int stream_index);
   bool GetHints(AVStream *stream, COMXStreamInfo *hints);
+  bool GetHints(OMXStreamType type, unsigned int index, COMXStreamInfo &hints);
+  bool GetHints(OMXStreamType type, COMXStreamInfo &hints);
   bool IsEof();
-  COMXStreamInfo  GetVideoHints(int index);
-  COMXStreamInfo  GetAudioHints(int index);
-  COMXStreamInfo  GetSubtitleHints(int index);
-  COMXStreamInfo  GetVideoHints() { return m_hints_video; };
-  COMXStreamInfo  GetAudioHints() { return m_hints_audio; };
-  COMXStreamInfo  GetSubtitleHints() { return m_hints_subtitle; };
   int  AudioStreamCount() { return m_audio_count; };
   int  VideoStreamCount() { return m_video_count; };
   int  SubtitleStreamCount() { return m_subtitle_count; };
-  bool SetAudioStream(unsigned int index);
-  bool SetSubtitleStream(unsigned int index);
+  bool SetActiveStream(OMXStreamType type, unsigned int index);
   int  GetChapterCount() { return m_chapter_count; };
   OMXChapter GetChapter(unsigned int chapter) { return m_chapters[(chapter > MAX_OMX_CHAPTERS) ? MAX_OMX_CHAPTERS : chapter]; };
   static void FreePacket(OMXPacket *pkt);
@@ -171,22 +183,17 @@ public:
   bool SeekChapter(int chapter, double* startpts);
   bool GetAudioIndex() { return m_audio_index; };
   bool GetSubtitleIndex() { return m_subtitle_index; };
-  AVStream *VideoStream() { return m_pVideoStream; };
-  AVStream *AudioStream() { return m_pAudioStream; };
-  AVStream *SubtitleStream() { return m_pSubtitleStream; };
   int GetStreamLength();
   static double NormalizeFrameduration(double frameduration);
   bool IsMpegVideo() { return m_bMpeg; };
   bool IsMatroska() { return m_bMatroska; };
-  CStdString GetAudioCodecName();
-  CStdString GetVideoCodecName();
-  CStdString GetAudioCodecName(int index);
-  CStdString GetVideoCodecName(int index);
-  void GetStreamCodecName(AVStream *stream, CStdString &strStreamName);
-  bool GetAudioStreamLanguage(int iStream, CStdString &strLanguage);
+  CStdString GetCodecName(OMXStreamType type);
+  CStdString GetCodecName(OMXStreamType type, unsigned int index);
+  CStdString GetStreamCodecName(AVStream *stream);
+  CStdString GetStreamLanguage(OMXStreamType type, unsigned int index);
+  CStdString GetStreamName(OMXStreamType type, unsigned int index);
   int64_t GetDuration() { return m_duration_ms; };
-  std::string GetSubtitleName(int index);
-  bool GetSubtitleLanguage(int index, CStdString &strStreamLang);
+  CStdString GetStreamType(OMXStreamType type, unsigned int index);
 #ifndef STANDALONE
   int GetSourceBitrate();
 #endif

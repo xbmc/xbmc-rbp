@@ -85,51 +85,15 @@ bool COMXPlayer::Initialize(TiXmlElement* pConfig)
   return true;
 }
 
-IAudioRenderer::EEncoded COMXPlayer::IsPassthrough(COMXStreamInfo &hints)
-{
-  int  m_outputmode = 0;
-  bool bitstream = false;
-  IAudioRenderer::EEncoded passthrough = IAudioRenderer::ENCODED_NONE;
-
-  m_outputmode = g_guiSettings.GetInt("audiooutput.mode");
-
-  switch(m_outputmode)
-  {
-    case 0:
-      passthrough = IAudioRenderer::ENCODED_NONE;
-      break;
-    case 1:
-      bitstream = true;
-      break;
-    case 2:
-      bitstream = true;
-      break;
-  }
-
-  if(bitstream)
-  {
-    if(hints.codec == CODEC_ID_AC3 && g_guiSettings.GetBool("audiooutput.ac3passthrough"))
-    {
-      passthrough = IAudioRenderer::ENCODED_IEC61937_AC3;
-    }
-    if(hints.codec == CODEC_ID_DTS && g_guiSettings.GetBool("audiooutput.dtspassthrough"))
-    {
-      passthrough = IAudioRenderer::ENCODED_IEC61937_DTS;
-    }
-  }
-
-  return passthrough;
-}
-
-void COMXPlayer::ResetStreams(bool video, bool audio)
+void COMXPlayer::FlushStreams()
 {
   if(m_av_clock)
     m_av_clock->OMXPause();
 
-  if(video && m_video_count)
+  if(m_video_count)
     m_player_video.Flush();
 
-  if(audio && m_audio_count)
+  if(m_audio_count)
     m_player_audio.Flush();
 
   m_flush = true;
@@ -169,8 +133,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_audio_index = 0;
     m_audio_count = 0;
 
-    m_audio_change = true;
-
     m_video_index = 0;
     m_video_count = 0;
     m_video_fps   = 0.0;
@@ -187,15 +149,11 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_startpts        = 0;
 
-    m_audio_codec_name = "";
-    m_video_codec_name = "";
-
     // open file and start playing here.
 
     m_buffer_empty    = true;
 
-    m_Passthrough     = IAudioRenderer::ENCODED_NONE;
-    m_HWDecode        = false;
+    m_use_passthrough = (g_guiSettings.GetInt("audiooutput.mode") == IAudioRenderer::ENCODED_NONE) ? false : true ;
     m_use_hw_audio    = g_advancedSettings.m_omHWAudioDecode;
 
     m_current_volume  = 0;
@@ -458,7 +416,7 @@ void COMXPlayer::GetAudioInfo(CStdString &strAudioInfo)
   std::ostringstream s;
     s << "kB/s:" << fixed << setprecision(2) << (double)m_hints_audio.bitrate / 1024.0;
 
-  strAudioInfo.Format("Audio stream (%s) [%s]", m_audio_codec_name.c_str(), s.str());
+  strAudioInfo.Format("Audio stream (%s) [%s]", GetAudioCodecName().c_str(), s.str());
 }
 
 void COMXPlayer::GetVideoInfo(CStdString &strVideoInfo)
@@ -467,7 +425,7 @@ void COMXPlayer::GetVideoInfo(CStdString &strVideoInfo)
     s << "fr:"     << fixed << setprecision(3) << m_video_fps;
     s << ", Mb/s:" << fixed << setprecision(2) << (double)GetVideoBitrate() / (1024.0*1024.0);
 
-  strVideoInfo.Format("Video stream (%s) [%s]", m_video_codec_name.c_str(), s.str());
+  strVideoInfo.Format("Video stream (%s) [%s]", GetVideoCodecName().c_str(), s.str());
 }
 
 void COMXPlayer::GetGeneralInfo(CStdString& strGeneralInfo)
@@ -501,18 +459,41 @@ int COMXPlayer::GetAudioStream()
 
 void COMXPlayer::GetAudioStreamName(int iStream, CStdString &strStreamName)
 {
-  GetAudioStreamLanguage(iStream, strStreamName);
+  CStdString name;
+
+  strStreamName = "";
+
+  name = m_omx_reader.GetStreamName(OMXSTREAM_AUDIO, iStream);
+  if(name.length() > 0)
+  {
+    strStreamName += name;
+  }
+  else
+  {
+    CStdString language = m_omx_reader.GetStreamLanguage(OMXSTREAM_AUDIO, iStream);
+    if(language.length() > 0)
+    {
+      if (!g_LangCodeExpander.Lookup(strStreamName, language))
+        strStreamName += g_localizeStrings.Get(13205); // Unknown
+    }
+    else
+    {
+      strStreamName += g_localizeStrings.Get(13205); // Unknown
+    }
+    
+    CStdString strType = m_omx_reader.GetStreamType(OMXSTREAM_AUDIO, iStream);
+    if(strType.length() > 0)
+    {
+      strStreamName = strStreamName + " - " + strType;
+    }
+  }
 }
  
 void COMXPlayer::SetAudioStream(int SetAudioStream)
 {
   CSingleLock lock(m_csection);
 
-  if(m_omx_reader.SetAudioStream(SetAudioStream))
-  {
-    ResetStreams(false, true);
-    m_audio_change = true;
-  }
+  m_omx_reader.SetActiveStream(OMXSTREAM_AUDIO, SetAudioStream);
 
   m_audio_index = SetAudioStream;
 }
@@ -521,13 +502,12 @@ void COMXPlayer::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
 {
   CStdString language;
 
-  strLanguage.Format("Undefined");
+  strLanguage = "";
 
-  if(m_omx_reader.GetAudioStreamLanguage(iStream, language))
-  {
-    if(language.GetLength() > 0)
-      g_LangCodeExpander.Lookup( strLanguage, language.c_str() );
-  }
+  language = m_omx_reader.GetStreamLanguage(OMXSTREAM_AUDIO, iStream);
+
+  if(language.length() > 0)
+    strLanguage = language;
 }
 
 int COMXPlayer::GetSubtitleCount()
@@ -542,33 +522,40 @@ int COMXPlayer::GetSubtitle()
 
 void COMXPlayer::GetSubtitleName(int iStream, CStdString &strStreamName)
 {
-  std::string name = m_omx_reader.GetSubtitleName(iStream);
+  CStdString name = m_omx_reader.GetStreamName(OMXSTREAM_SUBTITLE, iStream);
 
   strStreamName = "";
   if(name.length() > 0)
-    strStreamName = name;
+  {
+    strStreamName += name;
+  }
   else
-    strStreamName = g_localizeStrings.Get(13205); // Unknown
+  {
+    CStdString language = m_omx_reader.GetStreamLanguage(OMXSTREAM_SUBTITLE, iStream);
+    if(language.length() > 0)
+    {
+      if (!g_LangCodeExpander.Lookup(strStreamName, language))
+        strStreamName += g_localizeStrings.Get(13205); // Unknown
+    }
+    else
+    {
+      strStreamName += g_localizeStrings.Get(13205); // Unknown
+    }
+  }
 }
 
 void COMXPlayer::GetSubtitleLanguage(int iStream, CStdString &strStreamLang)
 {
-  CStdString lang;
+  CStdString language;
+  language = m_omx_reader.GetStreamLanguage(OMXSTREAM_SUBTITLE, iStream);
 
-  if(m_omx_reader.GetSubtitleLanguage(iStream, lang))
-  {
-    if (!g_LangCodeExpander.Lookup(strStreamLang, lang))
-      strStreamLang = g_localizeStrings.Get(13205); // Unknown
-  }
-  else
-  {
+  if (!g_LangCodeExpander.Lookup(strStreamLang, language))
     strStreamLang = g_localizeStrings.Get(13205); // Unknown
-  }
 }
 
 void COMXPlayer::SetSubtitle(int iStream)
 {
-  if(m_omx_reader.SetSubtitleStream(iStream))
+  if(m_omx_reader.SetActiveStream(OMXSTREAM_SUBTITLE, iStream))
     m_player_video.FlushSubtitles();
 
   m_subtitle_index = iStream;
@@ -676,7 +663,7 @@ int COMXPlayer::SeekChapter(int chapter_index)
     g_infoManager.SetDisplayAfterSeek(100000);
 
     m_omx_reader.SeekChapter(chapter_index, &m_startpts);
-    ResetStreams(true, true);
+    FlushStreams();
 
     m_callback.OnPlayBackSeekChapter(chapter_index);
     g_infoManager.SetDisplayAfterSeek();
@@ -705,7 +692,7 @@ void COMXPlayer::SeekTime(__int64 seek_ms)
   int seek_flags = (seek_ms - m_elapsed_ms) < 0 ? AVSEEK_FLAG_BACKWARD : 0;
 
   if(m_omx_reader.SeekTime(seek_ms, seek_flags, &m_startpts))
-    ResetStreams(true, true);
+    FlushStreams();
 }
 
 __int64 COMXPlayer::GetTime()
@@ -750,12 +737,12 @@ int COMXPlayer::GetSampleRate()
 
 CStdString COMXPlayer::GetAudioCodecName()
 {
-  return m_audio_codec_name;
+  return m_omx_reader.GetCodecName(OMXSTREAM_AUDIO);
 }
 
 CStdString COMXPlayer::GetVideoCodecName()
 {
-  return m_video_codec_name;
+  return m_omx_reader.GetCodecName(OMXSTREAM_VIDEO);
 }
 
 int COMXPlayer::GetPictureWidth()
@@ -777,12 +764,15 @@ bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
   for(i = 0; i < m_video_count; i++)
   {
     CStreamDetailVideo *p = new CStreamDetailVideo();
-    COMXStreamInfo hints = m_omx_reader.GetVideoHints(i);
+    COMXStreamInfo hints;
+   
+    m_omx_reader.GetHints(OMXSTREAM_VIDEO, i, hints);
 
-    p->m_iWidth   = hints.width;
-    p->m_iHeight  = hints.height;
-    p->m_fAspect = hints.aspect;
-    p->m_iDuration = m_duration_ms;
+    p->m_iWidth     = hints.width;
+    p->m_iHeight    = hints.height;
+    p->m_fAspect    = hints.aspect;
+    p->m_iDuration  = m_duration_ms;
+    p->m_strCodec   = m_omx_reader.GetCodecName(OMXSTREAM_VIDEO, i);
 
     // finally, calculate seconds
     if (p->m_iDuration > 0)
@@ -795,21 +785,26 @@ bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
   for(i = 0; i < m_audio_count; i++)
   {
     CStreamDetailAudio *p = new CStreamDetailAudio();
-    COMXStreamInfo hints = m_omx_reader.GetAudioHints(i);
-    CStdString strLanguage;
-    CStdString strCodec;
+    COMXStreamInfo hints;
 
-    p->m_iChannels  = hints.channels;
-    GetAudioStreamLanguage(i, strLanguage);
-    p->m_strLanguage = strLanguage;
+    m_omx_reader.GetHints(OMXSTREAM_AUDIO, i, hints);
 
-    p->m_strCodec = m_omx_reader.GetVideoCodecName(i);
+    p->m_iChannels    = hints.channels;
+    p->m_strLanguage  = m_omx_reader.GetStreamLanguage(OMXSTREAM_AUDIO, i);
+    p->m_strCodec     = m_omx_reader.GetCodecName(OMXSTREAM_AUDIO, i);
+
+    retVal = true;
+  }
+
+  for(i = 0; i < m_subtitle_count; i++)
+  {
+    CStreamDetailSubtitle *p = new CStreamDetailSubtitle();
+
+    p->m_strLanguage  = m_omx_reader.GetStreamLanguage(OMXSTREAM_SUBTITLE, i);
 
     details.AddStream(p);
     retVal = true;
   }
-
-  // TODO: here we would have subtitles
 
   return retVal;
 }
@@ -932,8 +927,8 @@ void COMXPlayer::Process()
     m_subtitle_count  = m_omx_reader.SubtitleStreamCount();
     m_chapter_count   = m_omx_reader.GetChapterCount();
 
-    m_hints_audio = m_omx_reader.GetAudioHints();
-    m_hints_video = m_omx_reader.GetVideoHints();
+    m_omx_reader.GetHints(OMXSTREAM_AUDIO, m_hints_audio);
+    m_omx_reader.GetHints(OMXSTREAM_VIDEO, m_hints_video);
 
     m_bMpeg = m_omx_reader.IsMpegVideo();
 
@@ -945,13 +940,24 @@ void COMXPlayer::Process()
       goto do_exit;
 
     if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, true,
-                                                             m_bMpeg, m_omx_reader.AudioStreamCount(),
-                                                             m_hdmi_clock_sync, m_thread_player))
+                                             m_bMpeg, m_audio_count, m_hdmi_clock_sync, m_thread_player))
       goto do_exit;
 
+    CStdString deviceString;
+    if(m_use_passthrough)
+      deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
+    else
+      deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
+
+    if(m_audio_count && !m_player_audio.Open(m_hints_audio, m_av_clock, &m_omx_reader, deviceString,
+                                m_use_passthrough, m_use_hw_audio, m_thread_player))
+      goto do_exit;
+
+    m_av_clock->OMXStateExecute();
+    m_av_clock->OMXReset();
+    m_av_clock->OMXResume();
 
     m_video_fps         = m_player_video.GetFPS();
-    m_video_codec_name  = m_omx_reader.GetVideoCodecName();
 
     RESOLUTION res      = g_graphicsContext.GetVideoResolution();
     int video_width     = g_settings.m_ResInfo[res].iWidth;
@@ -1038,47 +1044,6 @@ void COMXPlayer::Process()
         m_flush = false;
       }
 
-      if(m_audio_change && m_audio_count)
-      {
-        // audio stream changed. trigger reinit
-        m_av_clock->OMXPause();
-
-        m_player_audio.Close();
-
-        m_hints_audio     = m_omx_reader.GetAudioHints();
-        m_hints_video     = m_omx_reader.GetVideoHints();
-
-        m_Passthrough = IsPassthrough(m_hints_audio);
-
-        if(!m_Passthrough && m_use_hw_audio)
-          m_HWDecode = COMXAudio::HWDecode(m_hints_audio.codec);
-
-        CStdString deviceString;
-
-        if(m_Passthrough)
-          deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
-        else
-          deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
-
-        if(!m_player_audio.Open(m_hints_audio, m_av_clock, m_omx_reader.GetAudioCodecName(), deviceString,
-                                m_Passthrough, m_HWDecode, m_bMpeg, m_thread_player))
-          goto do_exit;
-
-        if(m_change_volume)
-        {
-          m_player_audio.SetCurrentVolume(m_current_volume);
-          m_change_volume = false;
-        }
-
-        m_av_clock->OMXStateExecute();
-        m_av_clock->OMXReset();
-        m_av_clock->OMXResume();
-
-        m_audio_codec_name = m_omx_reader.GetAudioCodecName();
-
-        m_audio_change = false;
-      }
-
       if(m_change_volume)
       {
         m_player_audio.SetCurrentVolume(m_current_volume);
@@ -1122,7 +1087,7 @@ void COMXPlayer::Process()
       if(!omx_pkt)
         omx_pkt = m_omx_reader.Read();
 
-      if(omx_pkt && omx_pkt->pStream == m_omx_reader.VideoStream())
+      if(omx_pkt && m_omx_reader.IsActive(OMXSTREAM_VIDEO, omx_pkt->stream_index))
       {
         if(m_player_video.AddPacket(omx_pkt))
         {
@@ -1134,14 +1099,14 @@ void COMXPlayer::Process()
           OMXClock::OMXSleep(10);
         }
       }
-      else if(omx_pkt && omx_pkt->pStream == m_omx_reader.AudioStream())
+      else if(omx_pkt && omx_pkt->codec_type == AVMEDIA_TYPE_AUDIO)
       {
         if(m_player_audio.AddPacket(omx_pkt))
           omx_pkt = NULL;
         else
           OMXClock::OMXSleep(10);
       }
-      else if(omx_pkt && omx_pkt->pStream == m_omx_reader.SubtitleStream())
+      else if(omx_pkt && m_omx_reader.IsActive(OMXSTREAM_SUBTITLE, omx_pkt->stream_index))
       {
         if(omx_pkt->size && omx_pkt->hints.codec == CODEC_ID_TEXT ||
            omx_pkt->size && omx_pkt->hints.codec == CODEC_ID_SSA )
@@ -1160,6 +1125,10 @@ void COMXPlayer::Process()
           omx_pkt = NULL;
         }
       }
+
+      /* player emergency exit */
+      if(m_player_audio.Error())
+        goto do_exit;
 
       if(m_stats)
       {

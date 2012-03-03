@@ -336,6 +336,7 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
           overlay->iPTSStopTime = 0;
           overlay->replace = true;
         }
+
         COMXOverlayText::CElement* e = ((COMXOverlayText*)overlay)->m_pHead;
         while (e)
         {
@@ -354,6 +355,7 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
           m_decoder->DecodeText((uint8_t *)strSubtitle.c_str(), strSubtitle.length(), overlay->iPTSStartTime, overlay->iPTSStartTime);
       }
     }
+
     ret = true;
   }
   else if((unsigned long)m_decoder->GetFreeSpace() > pkt->size)
@@ -363,16 +365,11 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
     else
       m_decoder->Decode(pkt->data, pkt->size, m_pts, m_pts);
 
-    //m_pts += m_frametime;
-    //m_av_clock->SetPTS(m_pts);
-
     m_av_clock->SetVideoClock(m_pts);
 
     Output(m_pts);
 
     ret = true;
-
-    //m_pts += m_frametime;
   }
 
   return ret;
@@ -381,13 +378,11 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
 void OMXPlayerVideo::Process()
 {
   OMXPacket *omx_pkt = NULL;
-  //uint64_t diff = 0;
 
   m_pts = 0;
 
   while(!m_bStop && !m_bAbort)
   {
-    int64_t start = OMXClock::CurrentHostCounter();
     Lock();
     if(m_packets.empty())
       pthread_cond_wait(&m_packet_cond, &m_lock);
@@ -428,29 +423,33 @@ void OMXPlayerVideo::Process()
       m_subtitle_packets.push_back(subtitle_pkt);
       UnLockSubtitles();
     }
-
-
-    int64_t end = OMXClock::CurrentHostCounter();
-
-    /*
-    diff = (end - start) - m_frametime * 1000;
-
-    if(m_av_clock->GetVideoClock() != DVD_NOPTS_VALUE && m_av_clock->GetAudioClock() != DVD_NOPTS_VALUE)
-    {
-      double diff = (m_av_clock->GetVideoClock() - m_av_clock->GetAudioClock()) / DVD_TIME_BASE;
-      if(diff < -1.0f || diff > 1.0f)
-      {
-        OMXClock::OMXSleep(m_frametime / 1000);
-      }
-    }
-    */
-
-    //printf("duration %lld %f frametime %f diff %lld\n", end - start, (float)(end - start) / OMXClock::CurrentHostFrequency(), 
-    //  m_frametime * 1000, diff);
   }
 
   if(omx_pkt)
     OMXReader::FreePacket(omx_pkt);
+}
+
+void OMXPlayerVideo::FlushSubtitles()
+{
+  LockDecoder();
+  LockSubtitles();
+  while (!m_subtitle_packets.empty())
+  {
+    OMXPacket *pkt = m_subtitle_packets.front(); 
+    m_subtitle_packets.pop_front();
+    OMXReader::FreePacket(pkt);
+  }
+  while (!m_overlays.empty())
+  {
+    COMXOverlay *overlay = m_overlays.front(); 
+    m_overlays.pop_front();
+    delete overlay;
+  }
+  if(m_pSubtitleCodec)
+    delete m_pSubtitleCodec;
+  m_pSubtitleCodec = NULL;
+  UnLockSubtitles();
+  UnLockDecoder();
 }
 
 void OMXPlayerVideo::Flush()
@@ -472,31 +471,6 @@ void OMXPlayerVideo::Flush()
   UnLockDecoder();
   FlushSubtitles();
   UnLock();
-}
-
-void OMXPlayerVideo::FlushSubtitles()
-{
-  LockDecoder();
-  LockSubtitles();
-  while (!m_subtitle_packets.empty())
-  {
-    OMXPacket *pkt = m_subtitle_packets.front(); 
-    m_subtitle_packets.pop_front();
-    OMXReader::FreePacket(pkt);
-  }
-  while (!m_overlays.empty())
-  {
-    COMXOverlay *overlay = m_overlays.front();
-    m_overlays.pop_front();
-    delete overlay;
-  }
-  if(m_pSubtitleCodec)
-    delete m_pSubtitleCodec;
-  m_pSubtitleCodec = NULL;
-  UnLockSubtitles();
-  if(m_decoder)
-    m_decoder->ResetText();
-  UnLockDecoder();
 }
 
 bool OMXPlayerVideo::AddPacket(OMXPacket *pkt)
@@ -612,7 +586,7 @@ CStdString OMXPlayerVideo::GetText()
   LockSubtitles();
   if (!m_subtitle_packets.empty())
   {
-    pkt = m_subtitle_packets.front();
+    pkt = m_subtitle_packets.front(); 
     if(!m_overlays.empty())
     {
       COMXOverlay *overlay = m_overlays.front();
@@ -634,10 +608,6 @@ CStdString OMXPlayerVideo::GetText()
           }
           e = e->pNext;
         }
-        /*
-        printf("OMXPlayerVideo::GetText %s iPTSStartTime %f iPTSStopTime %f now %f\n", strSubtitle.c_str(),
-          iPTSStartTime / DVD_TIME_BASE, iPTSStopTime / DVD_TIME_BASE, now / DVD_TIME_BASE);
-        */
       }
       else if(iPTSStopTime < now)
       {
@@ -652,4 +622,3 @@ CStdString OMXPlayerVideo::GetText()
 
   return strSubtitle;
 }
-

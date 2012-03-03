@@ -107,8 +107,8 @@ public:
   void Output(double pts);
   bool Decode(OMXPacket *pkt);
   void Process();
-  void Flush();
   void FlushSubtitles();
+  void Flush();
   bool AddPacket(OMXPacket *pkt);
   bool OpenDecoder();
   bool CloseDecoder();

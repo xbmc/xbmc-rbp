@@ -68,9 +68,12 @@ protected:
   pthread_mutex_t           m_lock;
   pthread_mutex_t           m_lock_decoder;
   OMXClock                  *m_av_clock;
+  OMXReader                 *m_omx_reader;
   COMXAudio                 *m_decoder;
   CStdString                m_codec_name;
   CStdString                m_device;
+  bool                      m_use_passthrough;
+  bool                      m_use_hw_decode;
   IAudioRenderer::EEncoded  m_passthrough;
   bool                      m_hw_decode;
   bool                      m_bMpeg;
@@ -91,6 +94,8 @@ protected:
   int    m_errorcount;//number of errors stored
   bool   m_syncclock;
 
+  bool   m_player_error;
+
   double m_integral; //integral correction for resampler
   int    m_skipdupcount; //counter for skip/duplicate synctype
   bool   m_prevskipped;
@@ -103,8 +108,8 @@ private:
 public:
   OMXPlayerAudio();
   ~OMXPlayerAudio();
-  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, CStdString codec_name, CStdString device,
-            IAudioRenderer::EEncoded passthrough, bool hw_decode, bool mpeg, bool use_thread);
+  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, OMXReader *omx_reader, CStdString device,
+            bool passthrough, bool hw_decode, bool use_thread);
   bool Close();
   bool Decode(OMXPacket *pkt);
   void Process();
@@ -112,6 +117,7 @@ public:
   bool AddPacket(OMXPacket *pkt);
   bool OpenAudioCodec();
   void CloseAudioCodec();      
+  IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo hints);
   bool OpenDecoder();
   bool CloseDecoder();
   double GetDelay();
@@ -124,5 +130,6 @@ public:
   void  DoAudioWork();
   void SetCurrentVolume(long nVolume);
   void SetSpeed(int iSpeed);
+  bool Error() { return !m_player_error; };
 };
 #endif

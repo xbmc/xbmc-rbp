@@ -129,20 +129,16 @@ OMXReader::OMXReader()
   m_pFile       = NULL;
   m_ioContext   = NULL;
   m_pFormatContext = NULL;
-  m_video_count   = 0;
-  m_audio_count   = 0;
-  m_subtitle_count = 0;
-  m_audio_index   = -1;
-  m_video_index   = -1;
-  m_subtitle_index  = -1;
   m_eof           = false;
   m_chapter_count = 0;
   m_iCurrentPts   = DVD_NOPTS_VALUE;
-  m_pVideoStream  = NULL;
-  m_pAudioStream  = NULL;
-  m_pSubtitleStream  = NULL;
   m_seek_ms       = 0;
   m_seek_req      = false;
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+    m_streams[i].extradata = NULL;
+
+  ClearStreams();
 
   pthread_mutex_init(&m_lock, NULL);
 }
@@ -200,6 +196,8 @@ bool OMXReader::Open(CStdString filename, bool dump_format)
   m_iCurrentPts = DVD_NOPTS_VALUE;
   m_filename    = filename; 
   m_speed       = DVD_PLAYSPEED_NORMAL;
+
+  ClearStreams();
 
   m_dllAvFormat.av_register_all();
   m_dllAvFormat.url_set_interrupt_cb(interrupt_cb);
@@ -324,12 +322,35 @@ bool OMXReader::Open(CStdString filename, bool dump_format)
   return true;
 }
 
+void OMXReader::ClearStreams()
+{
+  m_audio_index     = -1;
+  m_video_index     = -1;
+  m_subtitle_index  = -1;
+
+  m_audio_count     = 0;
+  m_video_count     = 0;
+  m_subtitle_count  = 0;
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].extradata)
+      free(m_streams[i].extradata);
+
+    memset(m_streams[i].language, 0, sizeof(m_streams[i].language));
+    m_streams[i].codec_name = "";
+    m_streams[i].name       = "";
+    m_streams[i].type       = OMXSTREAM_NONE;
+    m_streams[i].stream     = NULL;
+    m_streams[i].extradata  = NULL;
+    m_streams[i].extrasize  = 0;
+    m_streams[i].index      = 0;
+    m_streams[i].id         = 0;
+  }
+}
+
 bool OMXReader::Close()
 {
-  m_video_streams.clear();
-  m_audio_streams.clear();
-  m_subtitle_streams.clear();
-
   if (m_pFormatContext)
   {
     if (m_ioContext)
@@ -347,8 +368,6 @@ bool OMXReader::Close()
     else
       m_dllAvFormat.av_close_input_file(m_pFormatContext);
   }
-  m_ioContext       = NULL;
-  m_pFormatContext  = NULL;
 
   if(m_pFile)
   {
@@ -361,26 +380,27 @@ bool OMXReader::Close()
   m_dllAvCodec.Unload();
   m_dllAvFormat.Unload();
 
-  m_open        = false;
-  m_filename    = "";
-  m_bMatroska   = false;
-  m_bAVI        = false;
-  m_bMpeg       = false;
-  m_video_count = 0;
-  m_audio_count = 0;
-  m_subtitle_count = 0;
-  m_audio_index = -1;
-  m_video_index = -1;
-  m_subtitle_index = -1;
-  m_eof         = false;
-  m_chapter_count = 0;
-  m_iCurrentPts   = DVD_NOPTS_VALUE;
-  m_pVideoStream = NULL;
-  m_pAudioStream = NULL;
-  m_pSubtitleStream = NULL;
-  m_seek_ms       = 0;
-  m_seek_req      = false;
-  m_speed         = DVD_PLAYSPEED_NORMAL;
+  m_ioContext       = NULL;
+  m_pFormatContext  = NULL;
+  m_open            = false;
+  m_filename        = "";
+  m_bMatroska       = false;
+  m_bAVI            = false;
+  m_bMpeg           = false;
+  m_video_count     = 0;
+  m_audio_count     = 0;
+  m_subtitle_count  = 0;
+  m_audio_index     = -1;
+  m_video_index     = -1;
+  m_subtitle_index  = -1;
+  m_eof             = false;
+  m_chapter_count   = 0;
+  m_iCurrentPts     = DVD_NOPTS_VALUE;
+  m_seek_ms         = 0;
+  m_seek_req        = false;
+  m_speed           = DVD_PLAYSPEED_NORMAL;
+
+  ClearStreams();
 
   return true;
 }
@@ -418,13 +438,14 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
 
     FlushRead();
 
+    /*
     int stream_index = -1;
     int64_t seek_target = pos;
 
-    if(m_pVideoStream)
-      stream_index = m_pVideoStream->index;
-    else if(m_pAudioStream)
-      stream_index = m_pAudioStream->index;
+    if((m_video_index != -1) && m_streams[m_video_index].stream)
+      stream_index = m_streams[m_video_index].stream->index;
+    else if((m_audio_index != -1) && m_streams[m_audio_index].stream)
+      stream_index = m_streams[m_audio_index].stream->index;
 
     if(stream_index >= 0)
     {
@@ -437,14 +458,13 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     }
 
     int ret = m_dllAvFormat.av_seek_frame(m_pFormatContext, stream_index, seek_target, m_seek_flags);
+    */
 
-    /*
     int64_t seek_pts = (int64_t)seek_ms * 1000;
     if (m_pFormatContext->start_time != (int64_t)AV_NOPTS_VALUE)
       seek_pts += m_pFormatContext->start_time;
 
     int ret = m_dllAvFormat.av_seek_frame(m_pFormatContext, -1, seek_pts, m_seek_flags);
-    */
 
     if(ret < 0)
     {
@@ -525,23 +545,12 @@ OMXPacket *OMXReader::Read()
   AVStream *pStream = m_pFormatContext->streams[pkt.stream_index];
 
   /* only read packets for active streams */
-  if(pStream != m_pAudioStream && pStream != m_pVideoStream && pStream != m_pSubtitleStream)
+  /*
+  if(!IsActive(pkt.stream_index))
   {
     m_dllAvCodec.av_free_packet(&pkt);
     UnLock();
     return NULL;
-  }
-  /* only accept streams we take care off */
-  /*
-  switch(m_pFormatContext->streams[pkt.stream_index]->codec->codec_type)
-  {
-    case AVMEDIA_TYPE_VIDEO:
-    case AVMEDIA_TYPE_AUDIO:
-      break;
-    default:
-      m_dllAvCodec.av_free_packet(&pkt);
-      UnLock();
-      return NULL;
   }
   */
 
@@ -586,6 +595,8 @@ OMXPacket *OMXReader::Read()
     return NULL;
   }
 
+  m_omx_pkt->codec_type = pStream->codec->codec_type;
+
   /* copy content into our own packet */
   m_omx_pkt->size = pkt.size;
 
@@ -593,8 +604,7 @@ OMXPacket *OMXReader::Read()
     memcpy(m_omx_pkt->data, pkt.data, m_omx_pkt->size);
 
   m_omx_pkt->stream_index = pkt.stream_index;
-  m_omx_pkt->pStream = m_pFormatContext->streams[pkt.stream_index];
-  GetHints(m_omx_pkt->pStream, &m_omx_pkt->hints);
+  GetHints(pStream, &m_omx_pkt->hints);
 
   m_omx_pkt->dts = ConvertTimestamp(pkt.dts, pStream->time_base.den, pStream->time_base.num);
   m_omx_pkt->pts = ConvertTimestamp(pkt.pts, pStream->time_base.den, pStream->time_base.num);
@@ -645,6 +655,8 @@ bool OMXReader::GetStreams()
 
   unsigned int    m_program         = UINT_MAX;
 
+  ClearStreams();
+
   if (m_pFormatContext->nb_programs)
   {
     // look for first non empty stream and discard nonselected programs
@@ -659,21 +671,7 @@ bool OMXReader::GetStreams()
         // TODO: build stream array
         // add streams from selected program
         for (unsigned int i = 0; i < m_pFormatContext->programs[m_program]->nb_stream_indexes; i++)
-        {
-          int index = m_pFormatContext->programs[m_program]->stream_index[i];
-          if(m_pFormatContext->streams[index]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
-          {
-            m_video_streams.push_back(m_pFormatContext->streams[index]);
-          }
-          if(m_pFormatContext->streams[index]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
-          {
-            m_audio_streams.push_back(m_pFormatContext->streams[index]);
-          }
-          if(m_pFormatContext->streams[index]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
-          {
-            m_subtitle_streams.push_back(m_pFormatContext->streams[index]);
-          }
-        }
+          AddStream(m_pFormatContext->programs[m_program]->stream_index[i]);
       }
     }
   }
@@ -684,47 +682,17 @@ bool OMXReader::GetStreams()
   {
     // TODO: build stream array
     for (unsigned int i = 0; i < m_pFormatContext->nb_streams; i++)
-    {
-      if(m_pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
-      {
-        m_video_streams.push_back(m_pFormatContext->streams[i]);
-      }
-      if(m_pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
-      {
-        m_audio_streams.push_back(m_pFormatContext->streams[i]);
-      }
-      if(m_pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_SUBTITLE)
-      {
-        m_subtitle_streams.push_back(m_pFormatContext->streams[i]);
-      }
-    }
+      AddStream(i);
   }
-
-  m_video_count = m_video_streams.size();
-  m_audio_count = m_audio_streams.size();
-  m_subtitle_count = m_subtitle_streams.size();
 
   if(m_video_count)
-  {
-    m_pVideoStream = m_video_streams[0];
-    m_video_index = 0;
-  }
+    SetActiveStreamInternal(OMXSTREAM_VIDEO, 0);
 
   if(m_audio_count)
-  {
-    m_pAudioStream = m_audio_streams[0];
-    m_audio_index = 0;
-  }
+    SetActiveStreamInternal(OMXSTREAM_AUDIO, 0);
 
   if(m_subtitle_count)
-  {
-    m_pSubtitleStream = m_subtitle_streams[0];
-    m_subtitle_index = 0;
-  }
-
-  GetHints(m_pVideoStream, &m_hints_video);
-  GetHints(m_pAudioStream, &m_hints_audio);
-  GetHints(m_pSubtitleStream, &m_hints_subtitle);
+    SetActiveStreamInternal(OMXSTREAM_SUBTITLE, 0);
 
   int i = 0;
   for(i = 0; i < MAX_OMX_CHAPTERS; i++)
@@ -736,7 +704,7 @@ bool OMXReader::GetStreams()
 
   m_chapter_count = 0;
 
-  if(m_pVideoStream)
+  if(m_video_index != -1)
   {
     //m_current_chapter = 0;
 #if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,14,0)
@@ -768,6 +736,161 @@ bool OMXReader::GetStreams()
 #endif
 
   return true;
+}
+
+void OMXReader::AddStream(int id)
+{
+  if(id > MAX_STREAMS || !m_pFormatContext)
+    return;
+
+  AVStream *pStream = m_pFormatContext->streams[id];
+
+  switch (pStream->codec->codec_type)
+  {
+    case AVMEDIA_TYPE_AUDIO:
+      m_streams[id].stream      = pStream;
+      m_streams[id].type        = OMXSTREAM_AUDIO;
+      m_streams[id].index       = m_audio_count;
+      m_streams[id].codec_name  = GetStreamCodecName(pStream);
+      m_streams[id].id          = id;
+      m_audio_count++;
+      GetHints(pStream, &m_streams[id].hints);
+      break;
+    case AVMEDIA_TYPE_VIDEO:
+      m_streams[id].stream      = pStream;
+      m_streams[id].type        = OMXSTREAM_VIDEO;
+      m_streams[id].index       = m_video_count;
+      m_streams[id].codec_name  = GetStreamCodecName(pStream);
+      m_streams[id].id          = id;
+      m_video_count++;
+      GetHints(pStream, &m_streams[id].hints);
+      break;
+    case AVMEDIA_TYPE_SUBTITLE:
+      m_streams[id].stream      = pStream;
+      m_streams[id].type        = OMXSTREAM_SUBTITLE;
+      m_streams[id].index       = m_subtitle_count;
+      m_streams[id].codec_name  = GetStreamCodecName(pStream);
+      m_streams[id].id          = id;
+      m_subtitle_count++;
+      GetHints(pStream, &m_streams[id].hints);
+      break;
+    default:
+      return;
+  }
+
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
+  AVMetadataTag *langTag = m_dllAvFormat.av_metadata_get(pStream->metadata, "language", NULL, 0);
+  if (langTag)
+    strncpy(m_streams[id].language, langTag->value, 3);
+#else
+  strcpy( m_streams[id].language, pStream->language );
+#endif
+
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
+  AVMetadataTag *titleTag = m_dllAvFormat.av_metadata_get(pStream->metadata,"title", NULL, 0);
+  if (titleTag)
+    m_streams[id].name = titleTag->value;
+#else
+  m_streams[id].name = pStream->title;
+#endif
+
+  if( pStream->codec->extradata && pStream->codec->extradata_size > 0 )
+  {
+    m_streams[id].extrasize = pStream->codec->extradata_size;
+    m_streams[id].extradata = malloc(pStream->codec->extradata_size);
+    memcpy(m_streams[id].extradata, pStream->codec->extradata, pStream->codec->extradata_size);
+  }
+}
+
+bool OMXReader::SetActiveStreamInternal(OMXStreamType type, unsigned int index)
+{
+  bool ret = false;
+
+  switch(type)
+  {
+    case OMXSTREAM_AUDIO:
+      if(index > (m_audio_count - 1))
+        index = (m_audio_count - 1);
+      break;
+    case OMXSTREAM_VIDEO:
+      if(index > (m_video_count - 1))
+        index = (m_video_count - 1);
+      break;
+    case OMXSTREAM_SUBTITLE:
+      if(index > (m_subtitle_count - 1))
+        index = (m_subtitle_count - 1);
+      break;
+    default:
+      break;
+  }
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].type == type &&  m_streams[i].index == index)
+    {
+      switch(m_streams[i].type)
+      {
+        case OMXSTREAM_AUDIO:
+          m_audio_index = i;
+          ret = true;
+          break;
+        case OMXSTREAM_VIDEO:
+          m_video_index = i;
+          ret = true;
+          break;
+        case OMXSTREAM_SUBTITLE:
+          m_subtitle_index = i;
+          ret = true;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  if(!ret)
+  {
+    switch(type)
+    {
+      case OMXSTREAM_AUDIO:
+        m_audio_index = -1;
+        break;
+      case OMXSTREAM_VIDEO:
+        m_video_index = -1;
+        break;
+      case OMXSTREAM_SUBTITLE:
+        m_subtitle_index = -1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return ret;
+}
+
+bool OMXReader::IsActive(int stream_index)
+{
+  if((m_audio_index != -1)    && m_streams[m_audio_index].id      == stream_index)
+    return true;
+  if((m_video_index != 1)     && m_streams[m_video_index].id      == stream_index)
+    return true;
+  if((m_subtitle_index != 1)  && m_streams[m_subtitle_index].id   == stream_index)
+    return true;
+
+  return false;
+}
+
+bool OMXReader::IsActive(OMXStreamType type, int stream_index)
+{
+  if((m_audio_index != -1)    && m_streams[m_audio_index].id      == stream_index && m_streams[m_audio_index].type == type)
+    return true;
+  if((m_video_index != 1)     && m_streams[m_video_index].id      == stream_index && m_streams[m_video_index].type == type)
+    return true;
+  if((m_subtitle_index != 1)  && m_streams[m_subtitle_index].id   == stream_index && m_streams[m_subtitle_index].type == type)
+    return true;
+
+  return false;
 }
 
 bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
@@ -823,6 +946,54 @@ bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
   return true;
 }
 
+bool OMXReader::GetHints(OMXStreamType type, unsigned int index, COMXStreamInfo &hints)
+{
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].type == type && m_streams[i].index == i)
+    {
+      hints = m_streams[i].hints;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool OMXReader::GetHints(OMXStreamType type, COMXStreamInfo &hints)
+{
+  bool ret = false;
+
+  switch (type)
+  {
+    case OMXSTREAM_AUDIO:
+      if(m_audio_index != -1)
+      {
+        ret = true;
+        hints = m_streams[m_audio_index].hints;
+      }
+      break;
+    case OMXSTREAM_VIDEO:
+      if(m_video_index != -1)
+      {
+        ret = true;
+        hints = m_streams[m_video_index].hints;
+      }
+      break;
+    case OMXSTREAM_SUBTITLE:
+      if(m_subtitle_index != -1)
+      {
+        ret = true;
+        hints = m_streams[m_subtitle_index].hints;
+      }
+      break;
+    default:
+      break;
+  }
+
+  return ret;
+}
+
 bool OMXReader::IsEof()
 {
   return m_eof;
@@ -864,56 +1035,13 @@ OMXPacket *OMXReader::AllocPacket(int size)
   return pkt;
 }
 
-bool OMXReader::SetAudioStream(unsigned int index)
+bool OMXReader::SetActiveStream(OMXStreamType type, unsigned int index)
 {
-  if(m_pFormatContext == NULL)
-    return false;
-
-  if(m_audio_count < 1)
-    return false;
-
+  bool ret = false;
   Lock();
-
-  if(index > (m_audio_count - 1))
-  {
-    m_audio_index = (m_audio_count - 1);
-  }
-  else
-  {
-    m_audio_index = index;
-  }
-
-  m_pAudioStream = m_audio_streams[m_audio_index];
-  //FlushRead();
-  //UpdateCurrentPTS();
-  GetHints(m_pAudioStream, &m_hints_audio);
+  ret = SetActiveStreamInternal(type, index);
   UnLock();
-  return true;
-}
-
-bool OMXReader::SetSubtitleStream(unsigned int index)
-{
-  if(m_pFormatContext == NULL)
-    return false;
-
-  if(m_subtitle_count < 1)
-    return false;
-
-  Lock();
-
-  if(index > (m_subtitle_count - 1))
-  {
-    m_subtitle_index = (m_subtitle_count - 1);
-  }
-  else
-  {
-    m_subtitle_index = index;
-  }
-
-  m_pSubtitleStream = m_subtitle_streams[m_subtitle_index];
-  GetHints(m_pSubtitleStream, &m_hints_subtitle);
-  UnLock();
-  return true;
+  return ret;
 }
 
 bool OMXReader::SeekChapter(int chapter, double* startpts)
@@ -1116,12 +1244,12 @@ double OMXReader::NormalizeFrameduration(double frameduration)
     return frameduration;
 }
 
-void OMXReader::GetStreamCodecName(AVStream *stream, CStdString &strStreamName)
+CStdString OMXReader::GetStreamCodecName(AVStream *stream)
 {
-  strStreamName = "";
+  CStdString strStreamName = "";
 
   if(!stream)
-    return;
+    return strStreamName;
 
   unsigned int in = stream->codec->codec_tag;
   // FourCC codes are only valid on video streams, audio codecs in AVI/WAV
@@ -1137,7 +1265,7 @@ void OMXReader::GetStreamCodecName(AVStream *stream, CStdString &strStreamName)
     {
       strStreamName = fourcc;
       strStreamName.MakeLower();
-      return;
+      return strStreamName;
     }
   }
 
@@ -1151,7 +1279,7 @@ void OMXReader::GetStreamCodecName(AVStream *stream, CStdString &strStreamName)
       strStreamName = "dtshd_hra";
     else
       strStreamName = "dca";
-    return;
+    return strStreamName;
   }
 #endif
 
@@ -1159,87 +1287,124 @@ void OMXReader::GetStreamCodecName(AVStream *stream, CStdString &strStreamName)
 
   if (codec)
     strStreamName = codec->name;
-}
-
-CStdString OMXReader::GetVideoCodecName()
-{
-  CStdString strStreamName;
-
-  Lock();
-  GetStreamCodecName(m_pVideoStream, strStreamName);
-  UnLock();
 
   return strStreamName;
 }
 
-CStdString OMXReader::GetAudioCodecName()
+CStdString OMXReader::GetCodecName(OMXStreamType type)
 {
   CStdString strStreamName;
 
   Lock();
-  GetStreamCodecName(m_pAudioStream, strStreamName);
-  UnLock();
-
-  return strStreamName;
-}
-
-CStdString OMXReader::GetVideoCodecName(int index)
-{
-  CStdString strStreamName;
-
-  if((index + 1) > m_video_streams.size())
-    return strStreamName;
-
-  Lock();
-  GetStreamCodecName(m_video_streams[index], strStreamName);
-  UnLock();
-
-  return strStreamName;
-}
-
-CStdString OMXReader::GetAudioCodecName(int index)
-{
-  CStdString strStreamName;
-
-  if((index + 1) > m_audio_streams.size())
-    return strStreamName;
-
-  Lock();
-  GetStreamCodecName(m_audio_streams[index], strStreamName);
-  UnLock();
-
-  return strStreamName;
-}
-
-bool OMXReader::GetAudioStreamLanguage(int iStream, CStdString &strLanguage)
-{
-  char language[4];
-  memset(language, 0, sizeof(language));
-
-  Lock();
-  if((unsigned int)iStream > m_audio_streams.size())
+  switch (type)
   {
-    UnLock();
-    return false;
+    case OMXSTREAM_AUDIO:
+      if(m_audio_index != -1)
+        strStreamName = m_streams[m_audio_index].codec_name;
+      break;
+    case OMXSTREAM_VIDEO:
+      if(m_video_index != -1)
+        strStreamName = m_streams[m_video_index].codec_name;
+      break;
+    case OMXSTREAM_SUBTITLE:
+      if(m_subtitle_index != -1)
+        strStreamName = m_streams[m_subtitle_index].codec_name;
+      break;
+    default:
+      break;
+  }
+  UnLock();
+
+  return strStreamName;
+}
+
+CStdString OMXReader::GetCodecName(OMXStreamType type, unsigned int index)
+{
+  CStdString strStreamName = "";
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].type == type &&  m_streams[i].index == index)
+    {
+      strStreamName = m_streams[i].codec_name;
+      break;
+    }
   }
 
-  AVStream *stream = m_audio_streams[iStream];
-#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
-    // API added on: 2010-10-15
-    // (Note that while the function was available earlier, the generic
-    // metadata tags were not populated by default)
-  AVMetadataTag *langTag = m_dllAvFormat.av_metadata_get(stream->metadata, "language", NULL, 0);
-  if (langTag)
-    strncpy(language, langTag->value, 3);
-#else
-  strcpy(language, stream->language );
+  return strStreamName;
+}
+
+CStdString OMXReader::GetStreamLanguage(OMXStreamType type, unsigned int index)
+{
+  CStdString language = "";
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].type == type &&  m_streams[i].index == index)
+    {
+      language = m_streams[i].language;
+      break;
+    }
+  }
+
+  return language;
+}
+
+CStdString OMXReader::GetStreamName(OMXStreamType type, unsigned int index)
+{
+  CStdString name = "";
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].type == type &&  m_streams[i].index == index)
+    {
+      name = m_streams[i].name;
+      break;
+    }
+  }
+
+  return name;
+}
+
+CStdString OMXReader::GetStreamType(OMXStreamType type, unsigned int index)
+{
+  CStdString strInfo;
+  char sInfo[64];
+
+  for(int i = 0; i < MAX_STREAMS; i++)
+  {
+    if(m_streams[i].type == type &&  m_streams[i].index == index)
+    {
+      if (m_streams[i].hints.codec == CODEC_ID_AC3) strcpy(sInfo, "AC3 ");
+      else if (m_streams[i].hints.codec == CODEC_ID_DTS)
+      {
+#ifdef FF_PROFILE_DTS_HD_MA
+        if (m_streams[i].hints.profile == FF_PROFILE_DTS_HD_MA)
+          strcpy(sInfo, "DTS-HD MA ");
+        else if (m_streams[i].hints.profile == FF_PROFILE_DTS_HD_HRA)
+          strcpy(sInfo, "DTS-HD HRA ");
+        else
 #endif
+          strcpy(sInfo, "DTS ");
+      }
+      else if (m_streams[i].hints.codec == CODEC_ID_MP2) strcpy(sInfo, "MP2 ");
+      else strcpy(sInfo, "");
 
-  if(language[0] != 0)
-    strLanguage = language;
-  UnLock();
+      if (m_streams[i].hints.channels == 1) strcat(sInfo, "Mono");
+        else if (m_streams[i].hints.channels == 2) strcat(sInfo, "Stereo");
+      else if (m_streams[i].hints.channels == 6) strcat(sInfo, "5.1");
+      else if (m_streams[i].hints.channels != 0)
+      {
+        char temp[32];
+        sprintf(temp, " %d %s", m_streams[i].hints.channels, "Channels");
+        strcat(sInfo, temp);
+      }
+      break;
+    }
+  }
 
-  return true;
+  strInfo = sInfo;
+  return strInfo;
 }
 
 #ifndef STANDALONE
@@ -1259,119 +1424,3 @@ int OMXReader::GetSourceBitrate()
   return ret;
 }
 #endif
-
-COMXStreamInfo OMXReader::GetVideoHints(int index)
-{
-  COMXStreamInfo hints;
-
-  if((index + 1) > m_video_streams.size())
-    return hints;
-
-  GetHints(m_video_streams[index], &hints);
-
-  return hints;  
-}
-
-COMXStreamInfo OMXReader::GetAudioHints(int index)
-{
-  COMXStreamInfo hints;
-
-  if((index + 1) > m_audio_streams.size())
-    return hints;
-
-  GetHints(m_audio_streams[index], &hints);
-
-  return hints;
-}
-
-COMXStreamInfo OMXReader::GetSubtitleHints(int index)
-{
-  COMXStreamInfo hints;
-
-  if((index + 1) > m_subtitle_streams.size())
-    return hints;
-
-  GetHints(m_subtitle_streams[index], &hints);
-
-  return hints;
-}
-
-std::string OMXReader::GetSubtitleName(int index)
-{
-  std::string description = "";
-  int subtitle_index = 0;
-  AVStream *pSubtitleStream = NULL;
-
-  if (!m_pFormatContext || !m_subtitle_count)
-    return description;
-
-  Lock();
-  if(index > (m_subtitle_count - 1))
-  {
-    subtitle_index = (m_subtitle_count - 1);
-  }
-  else
-  {
-    subtitle_index = index;
-  }
-
-  pSubtitleStream = m_subtitle_streams[subtitle_index];
-
-  if(pSubtitleStream)
-  {
-    if(m_dllAvFormat.av_metadata_get(pSubtitleStream->metadata, "title", NULL, 0))
-      description = m_dllAvFormat.av_metadata_get(pSubtitleStream->metadata, "title", NULL, 0)->value;
-  }
-
-  UnLock();
-
-  return description;
-}
-
-bool OMXReader::GetSubtitleLanguage(int index, CStdString &strStreamLang)
-{
-  bool ret = false;
-  int subtitle_index = 0;
-  AVStream *pSubtitleStream = NULL;
-
-  char language[4];
-  memset(language, 0, sizeof(language));
-
-  if (!m_pFormatContext || !m_subtitle_count)
-    return ret;
-
-  Lock();
-  if(index > (m_subtitle_count - 1))
-  {
-    subtitle_index = (m_subtitle_count - 1);
-  }
-  else
-  {
-    subtitle_index = index;
-  }
-
-  pSubtitleStream = m_subtitle_streams[subtitle_index];
-
-  if(pSubtitleStream)
-  {
-#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52,83,0)
-    // API added on: 2010-10-15
-    // (Note that while the function was available earlier, the generic
-    // metadata tags were not populated by default)
-    AVMetadataTag *langTag = m_dllAvFormat.av_metadata_get(pSubtitleStream->metadata, "language", NULL, 0);
-    if (langTag)
-      strncpy(language, langTag->value, 3);
-#else
-    strcpy( language, pSubtitleStream->language );
-#endif
-    strStreamLang = language;
-    ret = true;
-  }
-
-  UnLock();
-
-  return ret;
-}
-
-
-
