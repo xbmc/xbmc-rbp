@@ -77,7 +77,9 @@ void CGUIDialogVideoSettings::CreateSettings()
   {
     vector<pair<int, int> > entries;
     entries.push_back(make_pair(VS_DEINTERLACEMODE_OFF    , 16039));
+#ifndef HAVE_PLATFORM_RASPBERRY_PI
     entries.push_back(make_pair(VS_DEINTERLACEMODE_AUTO   , 16040));
+#endif
     entries.push_back(make_pair(VS_DEINTERLACEMODE_FORCE  , 16041));
 
     /* remove unsupported methods */
@@ -91,6 +93,7 @@ void CGUIDialogVideoSettings::CreateSettings()
 
     AddSpin(VIDEO_SETTINGS_DEINTERLACEMODE, 16037, (int*)&g_settings.m_currentVideoSettings.m_DeinterlaceMode, entries);
   }
+#ifndef HAVE_PLATFORM_RASPBERRY_PI
   {
     vector<pair<int, int> > entries;
     entries.push_back(make_pair(VS_INTERLACEMETHOD_AUTO                 , 16019));
@@ -155,6 +158,7 @@ void CGUIDialogVideoSettings::CreateSettings()
 
     AddSpin(VIDEO_SETTINGS_SCALINGMETHOD, 16300, (int*)&g_settings.m_currentVideoSettings.m_ScalingMethod, entries);
   }
+#endif
   AddBool(VIDEO_SETTINGS_CROP, 644, &g_settings.m_currentVideoSettings.m_Crop);
   {
     const int entries[] = {630, 631, 632, 633, 634, 635, 636 };

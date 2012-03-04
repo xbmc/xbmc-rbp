@@ -947,7 +947,9 @@ void COMXPlayer::Process()
     if(m_hdmi_clock_sync && !m_av_clock->HDMIClockSync())
       goto do_exit;
 
-    if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, true,
+    bool deinterlace = ( g_settings.m_currentVideoSettings.m_DeinterlaceMode == VS_DEINTERLACEMODE_OFF ) ? false : true;
+
+    if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, deinterlace,
                                              m_bMpeg, m_audio_count, m_hdmi_clock_sync, m_thread_player))
       goto do_exit;
 
