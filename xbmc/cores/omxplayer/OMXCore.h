@@ -52,6 +52,8 @@
 
 #include "DllAvFormat.h"
 
+#define OMX_MAX_PORTS 10
+
 typedef struct omx_event {
   OMX_EVENTTYPE eEvent;
   OMX_U32 nData1;
@@ -108,6 +110,8 @@ public:
   OMX_ERRORTYPE SetConfig(OMX_INDEXTYPE configIndex, OMX_PTR configStruct);
   OMX_ERRORTYPE GetConfig(OMX_INDEXTYPE configIndex, OMX_PTR configStruct);
   OMX_ERRORTYPE SendCommand(OMX_COMMANDTYPE cmd, OMX_U32 cmdParam, OMX_PTR cmdParamData);
+  OMX_ERRORTYPE EnablePort(unsigned int port, bool wait = true);
+  OMX_ERRORTYPE DisablePort(unsigned int port, bool wait = true);
   OMX_ERRORTYPE UseEGLImage(OMX_BUFFERHEADERTYPE** ppBufferHdr, OMX_U32 nPortIndex, OMX_PTR pAppPrivate, void* eglImage);
 
   bool          Initialize( const CStdString &component_name, OMX_INDEXTYPE index);
@@ -158,6 +162,7 @@ private:
   OMX_HANDLETYPE m_handle;
   unsigned int   m_input_port;
   unsigned int   m_output_port;
+  int            m_ports_enabled[OMX_MAX_PORTS];
   CStdString     m_componentName;
   pthread_mutex_t   m_omx_event_mutex;
   std::vector<omx_event> m_omx_events;

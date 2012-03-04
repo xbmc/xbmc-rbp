@@ -306,9 +306,12 @@ bool OMXPlayerAudio::Decode(OMXPacket *pkt)
 
   int channels = pkt->hints.channels;
 
-  /* 6 channel have to be mapped to 8 in omx */
-  if(channels == 6)
-    channels = 8;
+  /* 6 channel have to be mapped to 8 for PCM */
+  if(!m_passthrough && !m_hw_decode)
+  {
+    if(channels == 6)
+      channels = 8;
+  }
 
   /* audio codec changed. reinit device and decoder */
   if(m_hints.codec         != pkt->hints.codec ||
@@ -580,35 +583,28 @@ bool OMXPlayerAudio::OpenDecoder()
   m_decoder = new COMXAudio();
   m_decoder->SetClock(m_av_clock);
 
-  /* omx needs 6 channels packed into 8 */
-  if(m_hints.channels == 6)
-    m_hints.channels = 8;
-
   if(m_use_passthrough)
     m_passthrough = IsPassthrough(m_hints);
 
   if(!m_passthrough && m_use_hw_decode)
     m_hw_decode = COMXAudio::HWDecode(m_hints.codec);
 
-  if(m_passthrough)
+  if(m_passthrough || m_use_hw_decode)
   {
-    m_hw_decode = false;
+    if(m_passthrough)
+      m_hw_decode = false;
     bAudioRenderOpen = m_decoder->Initialize(NULL, m_device.substr(4), m_pChannelMap,
-                                                   m_hints, m_av_clock, m_passthrough, m_hw_decode);
+                                             m_hints, m_av_clock, m_passthrough, m_hw_decode);
   }
   else
   {
-    if(m_hw_decode)
-    {
-      bAudioRenderOpen = m_decoder->Initialize(NULL, m_device.substr(4), m_pChannelMap,
-                                                     m_hints, m_av_clock, m_passthrough, m_hw_decode);
-    }
-    else
-    {
-      bAudioRenderOpen = m_decoder->Initialize(NULL, m_device.substr(4), m_hints.channels, m_pChannelMap,
-                                                     m_hints.samplerate, m_hints.bitspersample, 
-                                                     false, false, m_passthrough);
-    }
+    /* omx needs 6 channels packed into 8 for PCM */
+    if(m_hints.channels == 6)
+      m_hints.channels = 8;
+
+    bAudioRenderOpen = m_decoder->Initialize(NULL, m_device.substr(4), m_hints.channels, m_pChannelMap,
+                                             m_hints.samplerate, m_hints.bitspersample, 
+                                             false, false, m_passthrough);
   }
 
   m_codec_name = m_omx_reader->GetCodecName(OMXSTREAM_AUDIO);

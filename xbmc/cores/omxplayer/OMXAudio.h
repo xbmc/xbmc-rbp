@@ -107,8 +107,8 @@ private:
   unsigned int  m_BytesPerSec;
   unsigned int  m_BufferLen;
   unsigned int  m_ChunkLen;
-  unsigned int  m_DataChannels;
-  unsigned int  m_Channels;
+  unsigned int  m_InputChannels;
+  unsigned int  m_OutputChannels;
   unsigned int  m_BitsPerSample;
   COMXCoreComponent *m_omx_clock;
   OMXClock       *m_av_clock;

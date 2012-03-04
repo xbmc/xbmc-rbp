@@ -56,8 +56,7 @@ public:
   OMXPacket *GetText();
   int  DecodeText(uint8_t *pData, int iSize, double dts, double pts);
   int  Decode(uint8_t *pData, int iSize, double dts, double pts);
-  void Reset();
-  void ResetText();
+  void Reset(void);
   void SetDropState(bool bDrop);
   bool Pause();
   bool Resume();
