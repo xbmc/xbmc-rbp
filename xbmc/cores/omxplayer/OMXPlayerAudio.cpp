@@ -312,14 +312,26 @@ bool OMXPlayerAudio::Decode(OMXPacket *pkt)
     if(channels == 6)
       channels = 8;
   }
+ 
+  unsigned int old_bitrate = m_hints.bitrate;
+  unsigned int new_bitrate = pkt->hints.bitrate;
+
+  /* only check bitrate changes on CODEC_ID_DTS, CODEC_ID_AC3, CODEC_ID_EAC3 */
+  if(m_hints.codec != CODEC_ID_DTS && m_hints.codec != CODEC_ID_AC3 && m_hints.codec != CODEC_ID_EAC3)
+  {
+    new_bitrate = old_bitrate = 0;
+  }
 
   /* audio codec changed. reinit device and decoder */
   if(m_hints.codec         != pkt->hints.codec ||
      m_hints.channels      != channels ||
      m_hints.samplerate    != pkt->hints.samplerate ||
-     m_hints.bitrate       != pkt->hints.bitrate ||
+     old_bitrate           != new_bitrate ||
      m_hints.bitspersample != pkt->hints.bitspersample)
   {
+    printf("C : %d %d %d %d %d\n", m_hints.codec, m_hints.channels, m_hints.samplerate, m_hints.bitrate, m_hints.bitspersample);
+    printf("N : %d %d %d %d %d\n", pkt->hints.codec, channels, pkt->hints.samplerate, pkt->hints.bitrate, pkt->hints.bitspersample);
+
     m_av_clock->OMXPause();
 
     CloseDecoder();
