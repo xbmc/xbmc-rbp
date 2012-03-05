@@ -537,10 +537,6 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
       memcpy((unsigned char *)omx_buffer->pBuffer, m_extradata, omx_buffer->nFilledLen);
       omx_buffer->nFlags = OMX_BUFFERFLAG_CODECCONFIG | OMX_BUFFERFLAG_ENDOFFRAME;
   
-      for(unsigned int i = 0; i < omx_buffer->nFilledLen; i++)
-        printf("0x%02x ", (uint8_t)omx_buffer->pBuffer[i]);
-      printf("\n");
-
       omx_err = m_omx_decoder.EmptyThisBuffer(omx_buffer);
       if (omx_err != OMX_ErrorNone)
       {
