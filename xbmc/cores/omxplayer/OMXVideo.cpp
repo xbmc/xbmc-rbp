@@ -208,27 +208,6 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
       }
     }
     break;
-    case CODEC_ID_MSMPEG4V1:
-      // (role name) video_decoder.mpeg4
-      // MPEG-4, DivX 4/5 and Xvid compatible
-      decoder_name = OMX_MSMPEG4V1_DECODER;
-      m_codingType = OMX_VIDEO_CodingMPEG4;
-      m_video_codec_name = "omx-mpeg4";
-    break;
-    case CODEC_ID_MSMPEG4V2:
-      // (role name) video_decoder.mpeg4
-      // MPEG-4, DivX 4/5 and Xvid compatible
-      decoder_name = OMX_MSMPEG4V2_DECODER;
-      m_codingType = OMX_VIDEO_CodingMPEG4;
-      m_video_codec_name = "omx-mpeg4";
-      break;
-    case CODEC_ID_MSMPEG4V3:
-      // (role name) video_decoder.mpeg4
-      // MPEG-4, DivX 4/5 and Xvid compatible
-      decoder_name = OMX_MSMPEG4V3_DECODER;
-      m_codingType = OMX_VIDEO_CodingMPEG4;
-      m_video_codec_name = "omx-mpeg4";
-      break;
     case CODEC_ID_MPEG4:
       // (role name) video_decoder.mpeg4
       // MPEG-4, DivX 4/5 and Xvid compatible
