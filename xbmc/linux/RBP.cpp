@@ -24,17 +24,18 @@
 
 #include "utils/log.h"
 
-#define CLASSNAME "CRBP"
-
 CRBP::CRBP()
 {
-  m_initialized = false;
-  m_DllBcmHost = new DllBcmHost();
+  m_initialized     = false;
+  m_omx_initialized = false;
+  m_DllBcmHost      = new DllBcmHost();
+  m_OMX             = new COMXCore();
 }
 
 CRBP::~CRBP()
 {
   Deinitialize();
+  delete m_OMX;
   delete m_DllBcmHost;
 }
 
@@ -46,6 +47,10 @@ bool CRBP::Initialize()
 
   m_DllBcmHost->bcm_host_init();
 
+  m_omx_initialized = m_OMX->Initialize();
+  if(!m_omx_initialized)
+    return false;
+
   return true;
 }
 
@@ -53,9 +58,13 @@ void CRBP::Deinitialize()
 {
   m_DllBcmHost->bcm_host_deinit();
 
+  if(m_omx_initialized)
+    m_OMX->Deinitialize();
+
   if(m_initialized)
     m_DllBcmHost->Unload();
 
-  m_initialized = false;
+  m_initialized     = false;
+  m_omx_initialized = false;
 }
 #endif

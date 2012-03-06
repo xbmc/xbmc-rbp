@@ -293,10 +293,6 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   PrintPCM(&m_pcm_input);
   PrintPCM(&m_pcm_output);
 
-  /* no external clock. we got initialized outside omxplayer */
-  if(m_av_clock == NULL)
-    m_OMX.Initialize();
-
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   CStdString componentName = "";
 
@@ -596,9 +592,6 @@ bool COMXAudio::Deinitialize()
     delete m_av_clock;
     m_av_clock  = NULL;
     m_external_clock = false;
-
-    /* not initialized in omxplayer */
-    m_OMX.Deinitialize();
   }
 
   m_omx_clock = NULL;

@@ -52,7 +52,6 @@ typedef struct {
 
 COMXTexture::COMXTexture()
 {
-  m_OMX.Initialize();
   m_is_open       = false;
 }
 
@@ -60,8 +59,6 @@ COMXTexture::~COMXTexture()
 {
   if (m_is_open)
     Close();
-
-  m_OMX.Deinitialize();
 }
 
 bool COMXTexture::Open(void)

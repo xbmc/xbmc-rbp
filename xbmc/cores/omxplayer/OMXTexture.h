@@ -63,7 +63,6 @@ protected:
 
   OMX_BUFFERHEADERTYPE *m_egl_buffer;
   bool              m_is_open;
-  COMXCore          m_OMX;
 };
 
 #endif

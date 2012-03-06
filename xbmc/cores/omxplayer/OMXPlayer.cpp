@@ -69,15 +69,11 @@ COMXPlayer::COMXPlayer(IPlayerCallback &callback)
   m_mode3d_sbs      = false;
   m_hdmi_clock_sync = false;
   m_av_clock        = NULL;
-
-  m_OMX.Initialize();
 }
 
 COMXPlayer::~COMXPlayer()
 {
   CloseFile();
-
-  m_OMX.Deinitialize();
 }
 
 bool COMXPlayer::Initialize(TiXmlElement* pConfig)

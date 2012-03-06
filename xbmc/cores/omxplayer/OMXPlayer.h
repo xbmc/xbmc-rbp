@@ -215,8 +215,6 @@ private:
 
   double                  m_startpts;
 
-  COMXCore                m_OMX;
-
   bool                    m_bMpeg;
 
   bool                    m_use_passthrough;

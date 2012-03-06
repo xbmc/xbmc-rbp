@@ -20,7 +20,6 @@
  *
  */
 
-//#define OMX_SKIP64BIT 
 #ifndef USE_VCHIQ_ARM
 #define USE_VCHIQ_ARM
 #endif
@@ -38,6 +37,7 @@
 
 #if defined(HAVE_PLATFORM_RASPBERRY_PI)
 #include "DllBCM.h"
+#include "cores/omxplayer/OMXCore.h"
 
 class CRBP
 {
@@ -51,6 +51,8 @@ public:
 private:
   DllBcmHost *m_DllBcmHost;
   bool       m_initialized;
+  bool       m_omx_initialized;
+  COMXCore   *m_OMX;
 };
 
 extern CRBP g_RBP;
