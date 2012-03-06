@@ -192,6 +192,8 @@ private:
   pthread_cond_t    m_output_buffer_cond;
   pthread_cond_t    m_omx_event_cond;
   bool          m_eos;
+  bool          m_flush_input;
+  bool          m_flush_output;
 };
 
 class COMXCore

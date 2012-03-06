@@ -117,10 +117,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     if(ThreadHandle())
       CloseFile();
 
-    unsigned char *buffer = NULL;
-    int           result  = -1;
-    AVInputFormat       *iformat          = NULL;
-
     std::string url;
 
     m_item        = file;
@@ -769,7 +765,7 @@ bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
   bool retVal = false;
   details.Reset();
   
-  for(i = 0; i < m_video_count; i++)
+  for(i = 0; i < (unsigned int)m_video_count; i++)
   {
     CStreamDetailVideo *p = new CStreamDetailVideo();
     COMXStreamInfo hints;
@@ -790,7 +786,7 @@ bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
     retVal = true;
   }
 
-  for(i = 0; i < m_audio_count; i++)
+  for(i = 0; i < (unsigned int)m_audio_count; i++)
   {
     CStreamDetailAudio *p = new CStreamDetailAudio();
     COMXStreamInfo hints;
@@ -804,7 +800,7 @@ bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
     retVal = true;
   }
 
-  for(i = 0; i < m_subtitle_count; i++)
+  for(i = 0; i < (unsigned int)m_subtitle_count; i++)
   {
     CStreamDetailSubtitle *p = new CStreamDetailSubtitle();
 
@@ -910,7 +906,6 @@ void COMXPlayer::Process()
   if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
     CLog::Log(LOGDEBUG, "COMXPlayer: SetThreadPriority failed");
 
-  int     result = -1;
   struct  timespec starttime, endtime;
   bool    got_eof = false;
   OMXPacket *omx_pkt = NULL;
@@ -1118,8 +1113,8 @@ void COMXPlayer::Process()
       }
       else if(omx_pkt && m_omx_reader.IsActive(OMXSTREAM_SUBTITLE, omx_pkt->stream_index))
       {
-        if(omx_pkt->size && omx_pkt->hints.codec == CODEC_ID_TEXT ||
-           omx_pkt->size && omx_pkt->hints.codec == CODEC_ID_SSA )
+        if((omx_pkt->size && omx_pkt->hints.codec == CODEC_ID_TEXT) ||
+           (omx_pkt->size && omx_pkt->hints.codec == CODEC_ID_SSA) )
         {
           if(m_player_video.AddPacket(omx_pkt))
             omx_pkt = NULL;
@@ -1182,6 +1177,7 @@ do_exit:
     }
 
     m_av_clock->OMXStop();
+    m_av_clock->OMXStateIdle();
   
     m_player_video.Close();
     m_player_audio.Close();

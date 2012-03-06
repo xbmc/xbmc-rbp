@@ -439,7 +439,13 @@ void OMXPlayerAudio::Process()
       break;
 
     Lock();
-    if(!omx_pkt && !m_packets.empty())
+    if(m_flush && omx_pkt)
+    {
+      OMXReader::FreePacket(omx_pkt);
+      omx_pkt = NULL;
+      m_flush = false;
+    }
+    else if(!omx_pkt && !m_packets.empty())
     {
       omx_pkt = m_packets.front();
       m_cached_size -= omx_pkt->size;

@@ -335,6 +335,8 @@ COMXCoreComponent::COMXCoreComponent()
   m_output_alignment    = 0;
   m_output_buffer_size  = 0;
   m_output_buffer_count = 0;
+  m_flush_input         = false;
+  m_flush_output        = false;
 
   m_eos                 = false;
 
@@ -485,7 +487,7 @@ OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetInputBuffer(long timeout)
   struct timespec endtime;
   clock_gettime(CLOCK_REALTIME, &endtime);
   add_timespecs(endtime, timeout);
-  while (1)
+  while (1 && !m_flush_input)
   {
     if(!m_omx_input_avaliable.empty())
     {
@@ -516,7 +518,7 @@ OMX_BUFFERHEADERTYPE *COMXCoreComponent::GetOutputBuffer(long timeout)
   struct timespec endtime;
   clock_gettime(CLOCK_REALTIME, &endtime);
   add_timespecs(endtime, timeout);
-  //while (1)
+  //while (1 && !m_flush_output)
   //{
     if(!m_omx_output_avaliable.empty())
     {
@@ -601,6 +603,8 @@ OMX_ERRORTYPE COMXCoreComponent::AllocInputBuffers(void)
 
   omx_err = WaitForCommand(OMX_CommandPortEnable, m_input_port);
 
+  m_flush_input = false;
+
   return omx_err;
 }
 
@@ -670,6 +674,8 @@ OMX_ERRORTYPE COMXCoreComponent::AllocOutputBuffers(void)
 
   omx_err = WaitForCommand(OMX_CommandPortEnable, m_output_port);
 
+  m_flush_output = false;
+
   return omx_err;
 }
 
@@ -682,6 +688,8 @@ OMX_ERRORTYPE COMXCoreComponent::FreeInputBuffers(bool wait)
 
   if(m_omx_input_buffers.empty())
     return OMX_ErrorNone;
+
+  m_flush_input = true;
 
   pthread_mutex_lock(&m_omx_input_mutex);
   pthread_cond_broadcast(&m_input_buffer_cond);
@@ -730,6 +738,8 @@ OMX_ERRORTYPE COMXCoreComponent::FreeOutputBuffers(bool wait)
 
   if(m_omx_output_buffers.empty())
     return OMX_ErrorNone;
+
+  m_flush_output = true;
 
   pthread_mutex_lock(&m_omx_output_mutex);
   pthread_cond_broadcast(&m_output_buffer_cond);
@@ -1293,6 +1303,8 @@ bool COMXCoreComponent::Initialize( const CStdString &component_name, OMX_INDEXT
       m_componentName.c_str(), m_input_port, m_output_port);
 
   m_exit = false;
+  m_flush_input   = false;
+  m_flush_output  = false;
 
   return true;
 }
@@ -1305,6 +1317,9 @@ bool COMXCoreComponent::Deinitialize()
     return false;
 
   m_exit = true;
+
+  m_flush_input   = true;
+  m_flush_output  = true;
 
   if(m_handle) 
   {

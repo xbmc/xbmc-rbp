@@ -133,6 +133,7 @@ public:
   COMXCoreComponent *GetOMXClock();
   bool OMXStatePause();
   bool OMXStateExecute();
+  void OMXStateIdle();
   double GetPTS();
   void   SetPTS(double pts);
   static void AddTimespecs(struct timespec &time, long millisecs);

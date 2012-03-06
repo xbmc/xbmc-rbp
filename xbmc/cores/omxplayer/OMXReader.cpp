@@ -948,7 +948,7 @@ bool OMXReader::GetHints(AVStream *stream, COMXStreamInfo *hints)
 
 bool OMXReader::GetHints(OMXStreamType type, unsigned int index, COMXStreamInfo &hints)
 {
-  for(int i = 0; i < MAX_STREAMS; i++)
+  for(unsigned int i = 0; i < MAX_STREAMS; i++)
   {
     if(m_streams[i].type == type && m_streams[i].index == i)
     {

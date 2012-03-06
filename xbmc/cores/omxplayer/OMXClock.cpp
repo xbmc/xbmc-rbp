@@ -403,6 +403,18 @@ bool OMXClock::OMXStateExecute()
   return true;
 }
 
+void OMXClock::OMXStateIdle()
+{
+  if(m_omx_clock.GetComponent() == NULL)
+    return;
+
+  if(m_omx_clock.GetState() == OMX_StateExecuting)
+    m_omx_clock.SetStateForComponent(OMX_StatePause);
+
+  if(m_omx_clock.GetState() != OMX_StateIdle)
+    m_omx_clock.SetStateForComponent(OMX_StateIdle);
+}
+
 COMXCoreComponent *OMXClock::GetOMXClock()
 {
   if(!m_omx_clock.GetComponent())
