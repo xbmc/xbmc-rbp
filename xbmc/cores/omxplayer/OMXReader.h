@@ -137,6 +137,7 @@ protected:
   int                       m_seek_flags;
   int                       m_speed;
   int64_t                   m_duration_ms;
+  unsigned int              m_program;
   void AddTimespecs(struct timespec &time, long millisecs);
 #ifdef STANDALONE
   void flush_packet_queue(AVFormatContext *s);

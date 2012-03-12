@@ -196,6 +196,7 @@ bool OMXReader::Open(CStdString filename, bool dump_format)
   m_iCurrentPts = DVD_NOPTS_VALUE;
   m_filename    = filename; 
   m_speed       = DVD_PLAYSPEED_NORMAL;
+  m_program     = UINT_MAX;
 
   ClearStreams();
 
@@ -347,6 +348,8 @@ void OMXReader::ClearStreams()
     m_streams[i].index      = 0;
     m_streams[i].id         = 0;
   }
+
+  m_program     = UINT_MAX;
 }
 
 bool OMXReader::Close()
@@ -873,9 +876,9 @@ bool OMXReader::IsActive(int stream_index)
 {
   if((m_audio_index != -1)    && m_streams[m_audio_index].id      == stream_index)
     return true;
-  if((m_video_index != 1)     && m_streams[m_video_index].id      == stream_index)
+  if((m_video_index != -1)    && m_streams[m_video_index].id      == stream_index)
     return true;
-  if((m_subtitle_index != 1)  && m_streams[m_subtitle_index].id   == stream_index)
+  if((m_subtitle_index != -1) && m_streams[m_subtitle_index].id   == stream_index)
     return true;
 
   return false;
@@ -885,9 +888,9 @@ bool OMXReader::IsActive(OMXStreamType type, int stream_index)
 {
   if((m_audio_index != -1)    && m_streams[m_audio_index].id      == stream_index && m_streams[m_audio_index].type == type)
     return true;
-  if((m_video_index != 1)     && m_streams[m_video_index].id      == stream_index && m_streams[m_video_index].type == type)
+  if((m_video_index != -1)    && m_streams[m_video_index].id      == stream_index && m_streams[m_video_index].type == type)
     return true;
-  if((m_subtitle_index != 1)  && m_streams[m_subtitle_index].id   == stream_index && m_streams[m_subtitle_index].type == type)
+  if((m_subtitle_index != -1) && m_streams[m_subtitle_index].id   == stream_index && m_streams[m_subtitle_index].type == type)
     return true;
 
   return false;
