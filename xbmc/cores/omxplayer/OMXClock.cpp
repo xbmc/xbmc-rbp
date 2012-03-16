@@ -671,28 +671,11 @@ void OMXClock::AddTimeSpecNano(struct timespec &time, uint64_t nanoseconds)
 
 void OMXClock::OMXSleep(unsigned int dwMilliSeconds)
 {
-  struct timespec stopTime;
-  int res = 0;
-
-  if (dwMilliSeconds < 3)
-    dwMilliSeconds = 3;
-
-  clock_gettime(CLOCK_MONOTONIC, &stopTime);
-  OMXClock::AddTimeSpecNano(stopTime, (uint64_t)(dwMilliSeconds * 1000000));
-
-  do
-  {
-    res = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &stopTime, &stopTime);
-    sched_yield();
-  } while (res == EINTR);
-
-  /*
   struct timespec req;
   req.tv_sec = dwMilliSeconds / 1000;
   req.tv_nsec = (dwMilliSeconds % 1000) * 1000000;
 
   while ( nanosleep(&req, &req) == -1 && errno == EINTR && (req.tv_nsec > 0 || req.tv_sec > 0));
-  */
 }
 
 int OMXClock::GetRefreshRate(double* interval)

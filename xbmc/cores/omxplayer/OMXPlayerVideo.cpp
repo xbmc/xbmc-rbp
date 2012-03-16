@@ -250,7 +250,7 @@ void OMXPlayerVideo::Output(double pts)
 
   while(m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
   {
-    OMXClock::OMXSleep(5);
+    OMXClock::OMXSleep(10);
   }
 
   /*
@@ -278,7 +278,7 @@ bool OMXPlayerVideo::Decode(OMXPacket *pkt)
   bool ret = false;
 
   if(!((unsigned long)m_decoder->GetFreeSpace() > pkt->size))
-    OMXClock::OMXSleep(5);
+    OMXClock::OMXSleep(10);
 
   if (pkt->dts == DVD_NOPTS_VALUE && pkt->pts == DVD_NOPTS_VALUE)
     pkt->pts = m_pts;

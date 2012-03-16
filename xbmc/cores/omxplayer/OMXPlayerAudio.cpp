@@ -354,7 +354,7 @@ bool OMXPlayerAudio::Decode(OMXPacket *pkt)
   }
 
   if(!((unsigned long)m_decoder->GetSpace() > pkt->size))
-    OMXClock::OMXSleep(5);
+    OMXClock::OMXSleep(10);
 
   if((unsigned long)m_decoder->GetSpace() > pkt->size)
   {
