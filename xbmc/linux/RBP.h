@@ -35,7 +35,7 @@
 #define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
 #endif
 
-#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if defined(TARGET_RASPBERRY_PI)
 #include "DllBCM.h"
 #include "cores/omxplayer/OMXCore.h"
 

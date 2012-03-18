@@ -135,7 +135,7 @@ bool CRenderSystemGLES::ResetRenderSystem(int width, int height, bool fullScreen
   g_matrices.MatrixMode(MM_PROJECTION);
   g_matrices.LoadIdentity();
 
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
   g_matrices.Ortho(0.0f, width-1, height-1, 0.0f, +1.0f, 1.0f);
 #else
   g_matrices.Ortho(0.0f, width-1, height-1, 0.0f, -1.0f, 1.0f);

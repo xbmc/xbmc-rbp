@@ -46,7 +46,7 @@ void CGLTexture::CreateTextureObject()
 {
   glGenTextures(1, (GLuint*) &m_texture);
 
-#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if defined(TARGET_RASPBERRY_PI)
   if (m_accelerated && !m_egl_image && m_texture)
   {
     EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
@@ -68,7 +68,7 @@ void CGLTexture::CreateTextureObject()
 
 void CGLTexture::DestroyTextureObject()
 {
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
   if (m_accelerated)
   {
     if (m_egl_image)
@@ -91,7 +91,7 @@ void CGLTexture::DestroyTextureObject()
 
 void CGLTexture::LoadToGPU()
 {
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
   if (m_accelerated && m_omx_image)
   {
     if (m_loadedToGPU)

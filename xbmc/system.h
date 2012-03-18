@@ -236,7 +236,7 @@
 #ifdef _ARMEL
 #undef HAS_AVAHI
 #undef HAS_ZEROCONF
-#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if defined(TARGET_RASPBERRY_PI)
 #undef HAS_AIRPLAY
 #else
 #undef HAS_VISUALISATION

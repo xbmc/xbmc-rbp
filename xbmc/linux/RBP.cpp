@@ -20,7 +20,7 @@
  */
 
 #include "RBP.h"
-#if defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if defined(TARGET_RASPBERRY_PI)
 
 #include "utils/log.h"
 

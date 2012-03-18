@@ -34,7 +34,7 @@
 
 #include "Texture.h"
 
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
 #include "xbmc/cores/omxplayer/OMXTexture.h"
 #endif
 

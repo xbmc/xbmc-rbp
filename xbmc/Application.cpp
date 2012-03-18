@@ -307,7 +307,7 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
 #include "linux/RBP.h"
 #endif
 
@@ -511,7 +511,7 @@ void CApplication::Preflight()
 
 bool CApplication::Create()
 {
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
   if(!g_RBP.Initialize())
     return false;
 #endif
@@ -2027,7 +2027,7 @@ void CApplication::Render()
     bool extPlayerActive = m_eCurrentPlayer >= EPC_EXTPLAYER && IsPlaying() && !m_AppFocused;
 
     m_bPresentFrame = false;
-#ifndef HAVE_PLATFORM_RASPBERRY_PI
+#ifndef TARGET_RASPBERRY_PI
     if (!extPlayerActive && g_graphicsContext.IsFullScreenVideo() && !IsPaused())
     {
       CSingleLock lock(m_frameMutex);
@@ -2074,7 +2074,7 @@ void CApplication::Render()
   CSingleLock lock(g_graphicsContext);
   g_infoManager.UpdateFPS();
 
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
   if (g_graphicsContext.IsFullScreenVideo() && IsPlaying() && vsync_mode == VSYNC_VIDEO)
     g_Windowing.SetVSync(true);
   else if (vsync_mode == VSYNC_ALWAYS)
@@ -3440,7 +3440,7 @@ void CApplication::Stop(int exitCode)
     CLog::Log(LOGERROR, "Exception in CApplication::Stop()");
   }
 
-#ifdef HAVE_PLATFORM_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI
   g_RBP.Initialize();
 #endif
 

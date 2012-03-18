@@ -11,7 +11,7 @@ CONFIGURE=./configure --prefix=$(PREFIX) --build=$(BUILD) --host=$(HOST) \
 	--enable-gles --enable-external-python --disable-sdl --disable-x11 --disable-xrandr \
 	--disable-optical-drive --disable-dvdcss --disable-joystick --disable-debug \
 	--disable-crystalhd --disable-vda --disable-vtbdecoder --disable-vaapi --disable-vdpau \
-	--enable-platform-raspberry-pi --disable-openmax --disable-pulse --disable-projectm
+	--disable-openmax --disable-pulse --disable-projectm --with-platform=raspberry-pi
 
 all: configure
 

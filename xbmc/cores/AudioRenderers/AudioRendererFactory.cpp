@@ -119,7 +119,7 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
   {
 #if defined(_LINUX) && !defined(__APPLE__)
     deviceString = g_guiSettings.GetString("audiooutput.passthroughdevice");
-#if !defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if !defined(TARGET_RASPBERRY_PI)
     if (deviceString.Equals("custom"))
       deviceString = g_guiSettings.GetString("audiooutput.custompassthrough");
 #endif
@@ -131,7 +131,7 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
   else
   {
     deviceString = g_guiSettings.GetString("audiooutput.audiodevice");
-#if !defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if !defined(TARGET_RASPBERRY_PI)
     if (deviceString.Equals("custom"))
       deviceString = g_guiSettings.GetString("audiooutput.customdevice");
 #endif

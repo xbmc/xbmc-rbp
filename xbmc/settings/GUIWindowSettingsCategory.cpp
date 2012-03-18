@@ -937,7 +937,7 @@ void CGUIWindowSettingsCategory::UpdateSettings()
       if (pControl)
         pControl->SetEnabled(g_peripherals.GetNumberOfPeripherals() > 0);
     }
-#if defined(_LINUX) && !defined(__APPLE__) && !defined(HAVE_PLATFORM_RASPBERRY_PI)
+#if defined(_LINUX) && !defined(__APPLE__) && !defined(TARGET_RASPBERRY_PI)
     else if (strSetting.Equals("audiooutput.custompassthrough"))
     {
       CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
