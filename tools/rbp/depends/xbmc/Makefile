@@ -8,10 +8,10 @@ ifeq ($(USE_BUILDROOT),1)
 endif
 
 CONFIGURE=./configure --prefix=$(PREFIX) --build=$(BUILD) --host=$(HOST) \
-	--enable-gles --enable-external-python --disable-sdl --disable-x11 --disable-xrandr \
+	--enable-gles --disable-sdl --disable-x11 --disable-xrandr --disable-openmax \
 	--disable-optical-drive --disable-dvdcss --disable-joystick --disable-debug \
-	--disable-crystalhd --disable-vda --disable-vtbdecoder --disable-vaapi --disable-vdpau \
-	--disable-openmax --disable-pulse --disable-projectm --with-platform=raspberry-pi
+	--disable-crystalhd --disable-vtbdecoder --disable-vaapi --disable-vdpau \
+	--disable-pulse --disable-projectm --with-platform=raspberry-pi 
 
 all: configure
 

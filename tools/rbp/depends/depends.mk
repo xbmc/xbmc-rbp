@@ -19,7 +19,7 @@ ifeq ($(USE_BUILDROOT),1)
 	export PKG_CONFIG_PATH=$(PREFIX)/lib/pkgconfig
 	export PYTHON_VERSION=2.7
 	export PATH:=$(PREFIX)/bin:$(BUILDROOT)/output/host/usr/bin:$(PATH)
-	export USE_TEXTUREPACKER_NATIVE_ROOT=$(BUILDROOT)/output/host
+	export TEXTUREPACKER_NATIVE_ROOT=/usr
 	export PYTHON_LDFLAGS=-L$(SDKSTAGE)/usr/lib -lpython$(PYTHON_VERSION) -lpthread -ldl -lutil -lm
 else
 	export HOST=arm-bcm2708-linux-gnueabi
@@ -46,7 +46,7 @@ else
 	export PKG_CONFIG_PATH=$(PREFIX)/bin/pkg-config
 	export PYTHON_VERSION=2.6
 	export PATH:=${PREFIX}/bin:$(PATH):${TOOLCHAIN}/bin
-	export USE_TEXTUREPACKER_NATIVE_ROOT=/usr
+	export TEXTUREPACKER_NATIVE_ROOT=/usr
 	export PYTHON_LDFLAGS=-L$(SDKSTAGE)/usr/lib -lpython$(PYTHON_VERSION)
 endif
 export PYTHON_CPPFLAGS=-I$(SDKSTAGE)/usr/include/python$(PYTHON_VERSION)
