@@ -273,9 +273,9 @@ bool CWinSystemGLES::InformVideoInfo(int width, int height, int frame_rate, bool
   CLog::Log(LOGDEBUG, "CWinSystemGLES::InformVideoInfo(%dx%d@%d) 3d=%d\n", width, height, frame_rate, mode3d_sbs);
   if (width > 1280)
     m_videoWidth = 1920, m_videoHeight = 1080;
-  if (width > 720)
+  else if (width > 720)
     m_videoWidth = 1280, m_videoHeight = 720;
-  if (width > 640)
+  else if (width > 640)
     m_videoWidth = 720, m_videoHeight = 480;
   else
     m_videoWidth = 640, m_videoHeight = 480;
