@@ -203,8 +203,6 @@ RESOLUTION CBaseRenderer::FindClosestResolution(float fps, float multiplier, RES
     fRefreshRate *= 2;
   }
 
-  printf("S: width %d height %d fps %f\n", iWidth, iHeight, fRefreshRate);
-
   float last_diff = fRefreshRate;
 
   // Find closest refresh rate
