@@ -69,6 +69,10 @@
 #define CONF_FLAGS_TRC_GAMMA22    0x0800
 #define CONF_FLAGS_TRC_GAMMA28    0x0c00
 
+/* defines 3d modes */
+#define CONF_FLAGS_FORMAT_SBS     0x0A00
+#define CONF_FLAGS_FORMAT_TB      0x0B00
+
 #define CONF_FLAGS_FORMAT_MASK(a) ((a) & 0x00fff000)
 #define CONF_FLAGS_FORMAT_YV12   0x001000
 #define CONF_FLAGS_FORMAT_NV12   0x002000

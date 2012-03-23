@@ -252,7 +252,6 @@ protected:
 
   // clear colour for "black" bars
   DWORD                m_clearColour;
-  unsigned int         m_flags;
   unsigned int         m_format;
   bool                 m_dxvaDecoding;
 

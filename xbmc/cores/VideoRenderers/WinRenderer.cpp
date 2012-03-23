@@ -132,10 +132,10 @@ void CWinRenderer::ManageTextures()
 void CWinRenderer::SelectRenderMethod()
 {
   // Force dxva renderer after dxva decoding: PS and SW renderers have performance issues after dxva decode.
-  if (g_advancedSettings.m_DXVAForceProcessorRenderer && CONF_FLAGS_FORMAT_MASK(m_flags) == CONF_FLAGS_FORMAT_DXVA)
+  if (g_advancedSettings.m_DXVAForceProcessorRenderer && CONF_FLAGS_FORMAT_MASK(m_iFlags) == CONF_FLAGS_FORMAT_DXVA)
   {
     CLog::Log(LOGNOTICE, "D3D: rendering method forced to DXVA2 processor");
-    if (m_processor.Open(m_sourceWidth, m_sourceHeight, m_flags, m_format))
+    if (m_processor.Open(m_sourceWidth, m_sourceHeight, m_iFlags, m_format))
         m_renderMethod = RENDER_DXVA;
     else
     {
@@ -151,7 +151,7 @@ void CWinRenderer::SelectRenderMethod()
     switch(m_iRequestedMethod)
     {
       case RENDER_METHOD_DXVA:
-        if (m_processor.Open(m_sourceWidth, m_sourceHeight, m_flags, m_format))
+        if (m_processor.Open(m_sourceWidth, m_sourceHeight, m_iFlags, m_format))
         {
             m_renderMethod = RENDER_DXVA;
             break;
@@ -194,22 +194,22 @@ void CWinRenderer::SelectRenderMethod()
   }
 
   // Update flags for DXVA2 pictures
-  if (CONF_FLAGS_FORMAT_MASK(m_flags) == CONF_FLAGS_FORMAT_DXVA)
+  if (CONF_FLAGS_FORMAT_MASK(m_iFlags) == CONF_FLAGS_FORMAT_DXVA)
   {
-    m_flags &= ~CONF_FLAGS_FORMAT_DXVA;
+    m_iFlags &= ~CONF_FLAGS_FORMAT_DXVA;
     switch (m_format)
     {
       case MAKEFOURCC('Y','V','1','2'):
-        m_flags |= CONF_FLAGS_FORMAT_YV12;
+        m_iFlags |= CONF_FLAGS_FORMAT_YV12;
         break;
       case MAKEFOURCC('N','V','1','2'):
-        m_flags |= CONF_FLAGS_FORMAT_NV12;
+        m_iFlags |= CONF_FLAGS_FORMAT_NV12;
         break;
       case MAKEFOURCC('U','Y','V','Y'):
-        m_flags |= CONF_FLAGS_FORMAT_UYVY;
+        m_iFlags |= CONF_FLAGS_FORMAT_UYVY;
         break;
       case MAKEFOURCC('Y','U','Y','2'):
-        m_flags |= CONF_FLAGS_FORMAT_YUY2;
+        m_iFlags |= CONF_FLAGS_FORMAT_YUY2;
         break;
     }
   }
@@ -259,7 +259,7 @@ bool CWinRenderer::Configure(unsigned int width, unsigned int height, unsigned i
     m_dxvaDecoding = false;
 
   m_fps = fps;
-  m_flags = flags;
+  m_iFlags = flags;
   m_format = format;
 
   // calculate the input frame aspect ratio
@@ -575,7 +575,7 @@ void CWinRenderer::UpdatePSVideoFilter()
 
   SAFE_DELETE(m_colorShader);
 
-  BufferFormat format = BufferFormatFromFlags(m_flags);
+  BufferFormat format = BufferFormatFromFlags(m_iFlags);
 
   if (m_bUseHQScaler)
   {
@@ -671,7 +671,7 @@ void CWinRenderer::Render(DWORD flags)
 
 void CWinRenderer::RenderSW()
 {
-  enum PixelFormat format = PixelFormatFromFlags(m_flags);
+  enum PixelFormat format = PixelFormatFromFlags(m_iFlags);
 
   // 1. convert yuv to rgb
   m_sw_scale_ctx = m_dllSwScale->sws_getCachedContext(m_sw_scale_ctx,
@@ -882,7 +882,7 @@ void CWinRenderer::Stage1()
       m_colorShader->Render(m_sourceRect, m_destRect,
                             g_settings.m_currentVideoSettings.m_Contrast,
                             g_settings.m_currentVideoSettings.m_Brightness,
-                            m_flags,
+                            m_iFlags,
                             (YUVBuffer*)m_VideoBuffers[m_iYV12RenderBuffer]);
   }
   else
@@ -900,7 +900,7 @@ void CWinRenderer::Stage1()
     m_colorShader->Render(srcRect, rtRect,
                           g_settings.m_currentVideoSettings.m_Contrast,
                           g_settings.m_currentVideoSettings.m_Brightness,
-                          m_flags,
+                          m_iFlags,
                           (YUVBuffer*)m_VideoBuffers[m_iYV12RenderBuffer]);
 
     // Restore the render target
@@ -992,7 +992,7 @@ bool CWinRenderer::CreateYV12Texture(int index)
   {
     YUVBuffer *buf = new YUVBuffer();
 
-    BufferFormat format = BufferFormatFromFlags(m_flags);
+    BufferFormat format = BufferFormatFromFlags(m_iFlags);
 
     if (!buf->Create(format, m_sourceWidth, m_sourceHeight))
     {

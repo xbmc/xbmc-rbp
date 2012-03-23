@@ -86,4 +86,7 @@ protected:
 
   CRect m_destRect;
   CRect m_sourceRect;
+
+  // rendering flags
+  unsigned m_iFlags;
 };

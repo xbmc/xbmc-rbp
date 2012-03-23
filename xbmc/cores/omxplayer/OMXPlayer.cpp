@@ -999,6 +999,12 @@ void COMXPlayer::Process()
 
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
+
+      if(m_mode3d_sbs)
+      {
+        flags |= CONF_FLAGS_FORMAT_SBS;
+      }
+
       CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
         __FUNCTION__, width, height, fFrameRate);
 
