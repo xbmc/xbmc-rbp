@@ -24,23 +24,10 @@
  *
  */
 
-#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
-#include "config.h"
-#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
-#endif
-
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GlobalsHandling.h"
+#include "windowing/egl/WinEGLPlatform.h"
 #include "windowing/WinSystem.h"
-
-#include <EGL/eglplatform.h>
-#include <semaphore.h>
-
-#include "linux/DllBCM.h"
-
-typedef void *EGLDisplay;
-typedef void *EGLContext;
-class CWinBindingEGL;
 
 class CWinSystemGLES : public CWinSystemBase, public CRenderSystemGLES
 {
@@ -65,39 +52,16 @@ public:
   virtual bool  Restore() ;
   virtual bool  Hide();
   virtual bool  Show(bool raise = true);
-  virtual bool  InformVideoInfo(int width, int height, int frame_rate, bool mode3d_sbs = false);
-  virtual RESOLUTION GetResolution();
+  virtual EGLContext            GetEGLContext() const;
+  virtual EGLDisplay            GetEGLSurface() const;
+  virtual EGLDisplay            GetEGLDisplay() const;
 
-  EGLNativeWindowType   GetEGLGetNativeWindow() const;
-  EGLNativeDisplayType  GetEGLNativeDispla() const;
-  EGLContext            GetEGLContext() const;
-  EGLDisplay            GetEGLSurface() const;
-  EGLDisplay            GetEGLDisplay() const;
 protected:
   virtual bool  PresentRenderImpl(const CDirtyRegionList &dirty);
   virtual void  SetVSyncImpl(bool enable);
-  void AddResolution(const RESOLUTION_INFO &res);
   void                  *m_display;
-  EGL_DISPMANX_WINDOW_T *m_window;
-  CWinBindingEGL        *m_eglBinding;
-  int                   m_fb_width;
-  int                   m_fb_height;
-  int                   m_fb_bpp;
-  DllBcmHostDisplay     m_DllBcmHostDisplay;
-  DllBcmHost            m_DllBcmHost;
-  DISPMANX_ELEMENT_HANDLE_T m_dispman_element;
-  DISPMANX_ELEMENT_HANDLE_T m_dispman_element2;
-  DISPMANX_DISPLAY_HANDLE_T m_dispman_display;
-  sem_t                 m_tv_synced;
-  int                   m_videoWidth;
-  int                   m_videoHeight;
-  int                   m_videoFrameRate;
-  bool                  m_videoMode3dSbs;
-  bool                  m_found_preferred;
-  void GetSupportedModes(HDMI_RES_GROUP_T group);
-  void MapGpuToXbmcMode(TV_SUPPORTED_MODE_T *supported_modes, int num_modes, HDMI_RES_GROUP_T group, RESOLUTION xbmc_res, int want_mode);
-  void TvServiceCallback(uint32_t reason, uint32_t param1, uint32_t param2);
-  static void CallbackTvServiceCallback(void *userdata, uint32_t reason, uint32_t param1, uint32_t param2);
+  EGLNativeWindowType   m_window;
+  CWinEGLPlatform       *m_eglplatform;
 };
 
 XBMC_GLOBAL_REF(CWinSystemGLES,g_Windowing);

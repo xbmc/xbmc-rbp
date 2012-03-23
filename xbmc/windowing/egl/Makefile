@@ -1,8 +1,9 @@
 INCLUDES=-I. -I../.. -I../../linux
 
-SRCS=WinBindingEGL.cpp \
-     WinSystemGLES.cpp \
-     
+SRCS = WinSystemGLES.cpp
+SRCS+= WinEGLPlatformGeneric.cpp
+SRCS+= WinEGLPlatformRaspberryPI.cpp
+
 LIB=windowing_egl.a
 
 include ../../../Makefile.include

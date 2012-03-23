@@ -208,8 +208,6 @@ bool COMXPlayer::CloseFile()
   
   m_omx_reader.Close();
 
-  g_Windowing.InformVideoInfo(m_tv_state.width, m_tv_state.height, m_tv_state.frame_rate);
-
   m_BcmHostDisplay.Unload();
   m_BcmHost.Unload();
 
@@ -1003,8 +1001,6 @@ void COMXPlayer::Process()
       flags |= CONF_FLAGS_FULLSCREEN;
       CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
         __FUNCTION__, width, height, fFrameRate);
-
-      g_Windowing.InformVideoInfo(width, height, (int)(fFrameRate+0.5), m_mode3d_sbs);
 
       if(!g_renderManager.Configure(video_width, video_height,
         video_width, video_height, m_video_fps, flags, 0))
