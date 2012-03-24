@@ -1040,10 +1040,19 @@ void COMXPlayer::Process()
 
       m_csection.lock();
 
-      if(m_flush && omx_pkt)
+      if(m_flush)
       {
-        OMXReader::FreePacket(omx_pkt);
-        omx_pkt = NULL;
+        if(omx_pkt)
+        {
+          OMXReader::FreePacket(omx_pkt);
+          omx_pkt = NULL;
+        }
+
+        m_player_video.Close();
+        if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, deinterlace,
+                                             m_bMpeg, m_audio_count, m_hdmi_clock_sync, m_thread_player))
+          goto do_exit;
+
         m_flush = false;
       }
 
