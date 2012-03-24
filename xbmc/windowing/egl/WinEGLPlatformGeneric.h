@@ -53,6 +53,7 @@ public:
   virtual EGLContext            GetContext();
   virtual bool                  FixedDesktop() { return true; }
   virtual RESOLUTION_INFO       GetDesktopRes() { return m_desktopRes; }
+  virtual bool                  Support3D() { return false; }
 
 protected:
   virtual bool setConfiguration();

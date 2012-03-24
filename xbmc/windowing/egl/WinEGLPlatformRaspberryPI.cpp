@@ -118,13 +118,23 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
 
   RESOLUTION_INFO resSearch;
 
+  int best_score = 0;
+
   for (size_t i = 0; i < m_res.size(); i++)
   {
     if(m_res[i].iWidth == res.iWidth && m_res[i].iHeight == res.iHeight && m_res[i].fRefreshRate == res.fRefreshRate)
     {
-      resSearch = m_res[i];
-      bFound = true;
-      break;
+      int score = 0;
+
+      /* prefere progressive over interlaced */
+      if(!GETFLAGS_INTERLACE(m_res[i].dwFlags))
+        score = 1;
+
+      if(score >= best_score)
+      {
+        resSearch = m_res[i];
+        bFound = true;
+      }
     }
   }
 
@@ -166,17 +176,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
 
   VC_RECT_T dst_rect;
   VC_RECT_T src_rect;
-  /*
-  dst_rect.x = 0;
-  dst_rect.y = 0;
-  dst_rect.width = m_width;
-  dst_rect.height = m_height;
 
-  src_rect.x = 0;
-  src_rect.y = 0;
-  src_rect.width = m_fb_width << 16;
-  src_rect.height = m_fb_height << 16;
-  */
   dst_rect.x = overscan.left;
   dst_rect.y = overscan.top;
   dst_rect.width = overscan.right-overscan.left;
@@ -634,10 +634,11 @@ void CWinEGLPlatformRaspberryPI::GetSupportedModes(HDMI_RES_GROUP_T group, std::
     TV_SUPPORTED_MODE_T *tv = supported_modes;
     for (i=0; i < num_modes; i++, tv++)
     {
-
       /* filter out interlaced modes */
+      /*
       if(tv->scan_mode && group != HDMI_RES_GROUP_CEA_3D)
         continue;
+      */
 
       // treat 3D modes as half-width SBS
       int width = group==HDMI_RES_GROUP_CEA_3D ? tv->width>>1:tv->width;

@@ -55,6 +55,7 @@ public:
   virtual EGLContext            GetEGLContext() const;
   virtual EGLDisplay            GetEGLSurface() const;
   virtual EGLDisplay            GetEGLDisplay() const;
+  virtual bool                  Support3D(int width, int height, uint32_t mode)     const;
 
 protected:
   virtual bool  PresentRenderImpl(const CDirtyRegionList &dirty);

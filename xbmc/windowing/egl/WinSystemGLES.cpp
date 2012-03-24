@@ -251,4 +251,35 @@ EGLDisplay CWinSystemGLES::GetEGLDisplay() const
   return m_eglplatform->GetDisplay();
 }
 
+bool CWinSystemGLES::Support3D(int width, int height, uint32_t mode) const
+{
+  bool bFound = false;
+  int searchMode = 0;
+  int searchWidth = width;
+  int searchHeight = height;
+
+  if(mode & D3DPRESENTFLAG_MODE3DSBS)
+  {
+    searchWidth /= 2;
+    searchMode = D3DPRESENTFLAG_MODE3DSBS;
+  }
+  else if(mode & D3DPRESENTFLAG_MODE3DTB)
+  {
+    searchHeight /= 2;
+    searchMode = D3DPRESENTFLAG_MODE3DTB;
+  }
+
+  for(int i = 0; i < g_settings.m_ResInfo.size(); i++)
+  {
+    RESOLUTION_INFO res = g_settings.m_ResInfo[i];
+
+    if(res.iWidth == searchWidth && res.iHeight == searchHeight && (res.dwFlags & searchMode))
+    {
+      return true;
+    }
+  }
+
+  return bFound;
+}
+
 #endif

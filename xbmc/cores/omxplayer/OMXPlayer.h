@@ -223,7 +223,6 @@ private:
   BitstreamStats          m_videoStats;
   TV_GET_STATE_RESP_T     m_tv_state;
   bool                    m_buffer_empty;
-  bool                    m_mode3d_sbs;
   bool                    m_hdmi_clock_sync;
   long                    m_current_volume;
   bool                    m_change_volume;

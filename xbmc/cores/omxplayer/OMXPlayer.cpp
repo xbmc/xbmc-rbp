@@ -66,7 +66,6 @@ COMXPlayer::COMXPlayer(IPlayerCallback &callback)
   m_speed           = 1;
   m_paused          = false;
   m_StopPlaying     = false;
-  m_mode3d_sbs      = false;
   m_hdmi_clock_sync = false;
   m_av_clock        = NULL;
 }
@@ -907,11 +906,6 @@ void COMXPlayer::Process()
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
   try
   {
-    if(m_filename.find("3DSBS") != string::npos) {
-      CLog::Log(LOGNOTICE, "3DSBS movie found");
-      m_mode3d_sbs = true;
-    }
-
     m_hdmi_clock_sync   = g_guiSettings.GetBool("videoplayer.adjustrefreshrate");
     m_thread_player     = true;
     m_stats             = false;
@@ -1000,9 +994,13 @@ void COMXPlayer::Process()
       flags |= CONF_FLAGS_FORMAT_BYPASS;
       flags |= CONF_FLAGS_FULLSCREEN;
 
-      if(m_mode3d_sbs)
+      if(m_filename.find("3DSBS") != string::npos) 
       {
-        flags |= CONF_FLAGS_FORMAT_SBS;
+        if(g_Windowing.Support3D(video_width, video_height, D3DPRESENTFLAG_MODE3DSBS))
+        {
+          CLog::Log(LOGNOTICE, "3DSBS movie found");
+          flags |= CONF_FLAGS_FORMAT_SBS;
+        }
       }
 
       CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
