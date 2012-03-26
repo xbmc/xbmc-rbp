@@ -2243,13 +2243,15 @@ void CGUIWindowSettingsCategory::FillInResolutions(CStdString strSetting, Displa
     for (unsigned int idx = 0; idx < resolutions.size(); idx++)
     {
       CStdString strRes;
-      strRes.Format("%dx%d", resolutions[idx].width, resolutions[idx].height);
+      strRes.Format("%dx%d @%dHz", resolutions[idx].width, resolutions[idx].height, resolutions[idx].refresh);
       pControl->AddLabel(strRes, resolutions[idx].ResInfo_Index);
 
       RESOLUTION_INFO res1 = g_settings.m_ResInfo[res];
       RESOLUTION_INFO res2 = g_settings.m_ResInfo[resolutions[idx].ResInfo_Index];
-      if (res1.iScreen == res2.iScreen && 
-          res1.iScreenWidth == res2.iScreenWidth && res1.iScreenHeight == res2.iScreenHeight)
+      if (res1.iScreen == res2.iScreen &&
+          res1.iScreenWidth == res2.iScreenWidth &&
+          res1.iScreenHeight == res2.iScreenHeight &&
+          (int)res1.fRefreshRate == (int)res2.fRefreshRate)
         spinres = (RESOLUTION) resolutions[idx].ResInfo_Index;
     }
   }
