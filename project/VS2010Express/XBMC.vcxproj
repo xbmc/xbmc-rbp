@@ -304,6 +304,7 @@
     <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\CrystalHD.cpp" />
     <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDInputStreams\DVDInputStreamBluray.cpp" />
     <ClCompile Include="..\..\xbmc\cores\paplayer\BXAcodec.cpp" />
+    <ClCompile Include="..\..\xbmc\cores\paplayer\PCMCodec.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\RenderCapture.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\WinVideoFilter.cpp" />
     <ClCompile Include="..\..\xbmc\CueDocument.cpp" />
@@ -354,6 +355,8 @@
     <ClCompile Include="..\..\xbmc\FileSystem\udf25.cpp" />
     <ClCompile Include="..\..\xbmc\FileSystem\UDFDirectory.cpp" />
     <ClCompile Include="..\..\xbmc\FileSystem\VideoDatabaseDirectory\DirectoryNodeCountry.cpp" />
+    <ClCompile Include="..\..\xbmc\filesystem\windows\WINFileSMB.cpp" />
+    <ClCompile Include="..\..\xbmc\filesystem\windows\WINSMBDirectory.cpp" />
     <ClCompile Include="..\..\xbmc\filesystem\ZeroconfDirectory.cpp" />
     <ClCompile Include="..\..\xbmc\GUIInfoManager.cpp" />
     <ClCompile Include="..\..\xbmc\GUILargeTextureManager.cpp" />
@@ -364,7 +367,10 @@
     <ClCompile Include="..\..\xbmc\guilib\DirectXGraphics.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\DirtyRegionSolvers.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\DirtyRegionTracker.cpp" />
-    <ClCompile Include="..\..\xbmc\guilib\FrameBufferObject.cpp" />
+    <ClCompile Include="..\..\xbmc\guilib\FrameBufferObject.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\guilib\GraphicContext.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIAction.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIAudioManager.cpp" />
@@ -386,7 +392,10 @@
     <ClCompile Include="..\..\xbmc\guilib\GUIFontManager.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIFontTTF.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIFontTTFDX.cpp" />
-    <ClCompile Include="..\..\xbmc\guilib\GUIFontTTFGL.cpp" />
+    <ClCompile Include="..\..\xbmc\guilib\GUIFontTTFGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\guilib\GUIImage.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIIncludes.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIInfoTypes.cpp" />
@@ -421,8 +430,14 @@
     <ClCompile Include="..\..\xbmc\guilib\GUITextLayout.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUITexture.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUITextureD3D.cpp" />
-    <ClCompile Include="..\..\xbmc\guilib\GUITextureGL.cpp" />
-    <ClCompile Include="..\..\xbmc\guilib\GUITextureGLES.cpp" />
+    <ClCompile Include="..\..\xbmc\guilib\GUITextureGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\guilib\GUITextureGLES.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\guilib\GUIToggleButtonControl.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIVideoControl.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\GUIVisualisationControl.cpp" />
@@ -434,13 +449,19 @@
     <ClCompile Include="..\..\xbmc\guilib\Key.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\LocalizeStrings.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\MatrixGLES.cpp" />
-    <ClCompile Include="..\..\xbmc\guilib\Shader.cpp" />
+    <ClCompile Include="..\..\xbmc\guilib\Shader.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\guilib\Texture.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\TextureBundle.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\TextureBundleXBT.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\TextureBundleXPR.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\TextureDX.cpp" />
-    <ClCompile Include="..\..\xbmc\guilib\TextureGL.cpp" />
+    <ClCompile Include="..\..\xbmc\guilib\TextureGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\guilib\TextureManager.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\VisibleEffect.cpp" />
     <ClCompile Include="..\..\xbmc\guilib\XBTF.cpp" />
@@ -672,6 +693,10 @@
     <ClCompile Include="..\..\xbmc\network\UdpClient.cpp" />
     <ClCompile Include="..\..\xbmc\network\UPnP.cpp" />
     <ClCompile Include="..\..\xbmc\network\WebServer.cpp" />
+    <ClCompile Include="..\..\xbmc\network\websocket\WebSocket.cpp" />
+    <ClCompile Include="..\..\xbmc\network\websocket\WebSocketManager.cpp" />
+    <ClCompile Include="..\..\xbmc\network\websocket\WebSocketV13.cpp" />
+    <ClCompile Include="..\..\xbmc\network\websocket\WebSocketV8.cpp" />
     <ClCompile Include="..\..\xbmc\network\windows\NetworkWin32.cpp" />
     <ClCompile Include="..\..\xbmc\network\windows\ZeroconfWIN.cpp" />
     <ClCompile Include="..\..\xbmc\network\Zeroconf.cpp" />
@@ -720,8 +745,14 @@
     <ClCompile Include="..\..\xbmc\programs\Shortcut.cpp" />
     <ClCompile Include="..\..\xbmc\rendering\dx\GUIWindowTestPatternDX.cpp" />
     <ClCompile Include="..\..\xbmc\rendering\dx\RenderSystemDX.cpp" />
-    <ClCompile Include="..\..\xbmc\rendering\gl\GUIWindowTestPatternGL.cpp" />
-    <ClCompile Include="..\..\xbmc\rendering\gl\RenderSystemGL.cpp" />
+    <ClCompile Include="..\..\xbmc\rendering\gl\GUIWindowTestPatternGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\rendering\gl\RenderSystemGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\rendering\RenderSystem.cpp" />
     <ClCompile Include="..\..\xbmc\SectionLoader.cpp" />
     <ClCompile Include="..\..\xbmc\settings\AdvancedSettings.cpp" />
@@ -755,7 +786,15 @@
     <ClCompile Include="..\..\xbmc\threads\LockFree.cpp" />
     <ClCompile Include="..\..\xbmc\threads\platform\Implementation.cpp" />
     <ClInclude Include="..\..\xbmc\cores\AudioRenderers\IAudioRenderer.h" />
+    <ClInclude Include="..\..\xbmc\cores\paplayer\PCMCodec.h" />
     <ClInclude Include="..\..\xbmc\filesystem\FileUPnP.h" />
+    <ClInclude Include="..\..\xbmc\filesystem\windows\WINFileSMB.h" />
+    <ClInclude Include="..\..\xbmc\filesystem\windows\WINSMBDirectory.h" />
+    <ClInclude Include="..\..\xbmc\interfaces\python\xbmcmodule\pythreadstate.h" />
+    <ClInclude Include="..\..\xbmc\network\websocket\WebSocket.h" />
+    <ClInclude Include="..\..\xbmc\network\websocket\WebSocketManager.h" />
+    <ClInclude Include="..\..\xbmc\network\websocket\WebSocketV13.h" />
+    <ClInclude Include="..\..\xbmc\network\websocket\WebSocketV8.h" />
     <ClInclude Include="..\..\xbmc\threads\platform\win\Implementation.cpp" />
     <ClCompile Include="..\..\xbmc\threads\SystemClock.cpp" />
     <ClCompile Include="..\..\xbmc\threads\Thread.cpp" />
@@ -768,6 +807,7 @@
     <ClCompile Include="..\..\xbmc\utils\Archive.cpp" />
     <ClCompile Include="..\..\xbmc\utils\AsyncFileCopy.cpp" />
     <ClCompile Include="..\..\xbmc\utils\AutoPtrHandle.cpp" />
+    <ClCompile Include="..\..\xbmc\utils\Base64.cpp" />
     <ClCompile Include="..\..\xbmc\utils\BitstreamStats.cpp" />
     <ClCompile Include="..\..\xbmc\utils\CharsetConverter.cpp" />
     <ClCompile Include="..\..\xbmc\utils\CPUInfo.cpp" />
@@ -785,11 +825,15 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release (OpenGL)|Win32'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
-    <ClCompile Include="..\..\xbmc\utils\GLUtils.cpp" />
+    <ClCompile Include="..\..\xbmc\utils\GLUtils.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\utils\HTMLTable.cpp" />
     <ClCompile Include="..\..\xbmc\utils\HTMLUtil.cpp" />
     <ClCompile Include="..\..\xbmc\utils\HttpHeader.cpp" />
     <ClCompile Include="..\..\xbmc\utils\HttpParser.cpp" />
+    <ClCompile Include="..\..\xbmc\utils\HttpResponse.cpp" />
     <ClCompile Include="..\..\xbmc\utils\InfoLoader.cpp" />
     <ClCompile Include="..\..\xbmc\utils\JobManager.cpp" />
     <ClCompile Include="..\..\xbmc\utils\JSONVariantParser.cpp" />
@@ -860,8 +904,6 @@
     <ClCompile Include="..\..\xbmc\win32\WIN32Util.cpp" />
     <ClCompile Include="..\..\xbmc\win32\WINDirectSound.cpp" />
     <ClCompile Include="..\..\xbmc\win32\WindowHelper.cpp" />
-    <ClCompile Include="..\..\xbmc\win32\WINFileSMB.cpp" />
-    <ClCompile Include="..\..\xbmc\win32\WINSMBDirectory.cpp" />
     <ClCompile Include="..\..\xbmc\win32\XBMC_PC.cpp" />
     <ClCompile Include="..\..\xbmc\cores\DummyVideoPlayer.cpp" />
     <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDAudio.cpp" />
@@ -991,15 +1033,24 @@
     </ClCompile>
     <ClCompile Include="..\..\xbmc\cores\DllLoader\exports\util\EmuFileWrapper.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\BaseRenderer.cpp" />
-    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\LinuxRendererGL.cpp" />
+    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\LinuxRendererGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\OverlayRenderer.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererDX.cpp" />
-    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererGL.cpp" />
+    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererGL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererUtil.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\RenderManager.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\WinRenderer.cpp" />
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\ConvolutionKernels.cpp" />
-    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\VideoFilterShader.cpp" />
+    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\VideoFilterShader.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\YUV2RGBShader.cpp" />
     <ClCompile Include="..\..\xbmc\cores\AudioRenderers\AudioRendererFactory.cpp" />
     <ClCompile Include="..\..\xbmc\cores\AudioRenderers\NullDirectSound.cpp" />
@@ -1177,7 +1228,10 @@
     <ClCompile Include="..\..\xbmc\windowing\windows\WinEventsWin32.cpp" />
     <ClCompile Include="..\..\xbmc\windowing\windows\WinSystemWin32.cpp" />
     <ClCompile Include="..\..\xbmc\windowing\windows\WinSystemWin32DX.cpp" />
-    <ClCompile Include="..\..\xbmc\windowing\windows\WinSystemWin32GL.cpp" />
+    <ClCompile Include="..\..\xbmc\windowing\windows\WinSystemWin32GL.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\windowing\WinEventsSDL.cpp" />
     <ClCompile Include="..\..\xbmc\windowing\WinSystem.cpp" />
     <ClCompile Include="..\..\xbmc\windows\GUIMediaWindow.cpp" />
@@ -1293,7 +1347,10 @@
     <ClInclude Include="..\..\xbmc\guilib\DirtyRegion.h" />
     <ClInclude Include="..\..\xbmc\guilib\DirtyRegionSolvers.h" />
     <ClInclude Include="..\..\xbmc\guilib\DirtyRegionTracker.h" />
-    <ClInclude Include="..\..\xbmc\guilib\FrameBufferObject.h" />
+    <ClInclude Include="..\..\xbmc\guilib\FrameBufferObject.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\guilib\Geometry.h" />
     <ClInclude Include="..\..\xbmc\guilib\GraphicContext.h" />
     <ClInclude Include="..\..\xbmc\guilib\gui3d.h" />
@@ -1318,7 +1375,10 @@
     <ClInclude Include="..\..\xbmc\guilib\GUIFontManager.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUIFontTTF.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUIFontTTFDX.h" />
-    <ClInclude Include="..\..\xbmc\guilib\GUIFontTTFGL.h" />
+    <ClInclude Include="..\..\xbmc\guilib\GUIFontTTFGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\guilib\GUIImage.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUIIncludes.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUIInfoTypes.h" />
@@ -1353,8 +1413,14 @@
     <ClInclude Include="..\..\xbmc\guilib\GUITextLayout.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUITexture.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUITextureD3D.h" />
-    <ClInclude Include="..\..\xbmc\guilib\GUITextureGL.h" />
-    <ClInclude Include="..\..\xbmc\guilib\GUITextureGLES.h" />
+    <ClInclude Include="..\..\xbmc\guilib\GUITextureGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\guilib\GUITextureGLES.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\guilib\GUIToggleButtonControl.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUIVideoControl.h" />
     <ClInclude Include="..\..\xbmc\guilib\GUIVisualisationControl.h" />
@@ -1369,13 +1435,19 @@
     <ClInclude Include="..\..\xbmc\guilib\LocalizeStrings.h" />
     <ClInclude Include="..\..\xbmc\guilib\MatrixGLES.h" />
     <ClInclude Include="..\..\xbmc\guilib\Resolution.h" />
-    <ClInclude Include="..\..\xbmc\guilib\Shader.h" />
+    <ClInclude Include="..\..\xbmc\guilib\Shader.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\guilib\Texture.h" />
     <ClInclude Include="..\..\xbmc\guilib\TextureBundle.h" />
     <ClInclude Include="..\..\xbmc\guilib\TextureBundleXBT.h" />
     <ClInclude Include="..\..\xbmc\guilib\TextureBundleXPR.h" />
     <ClInclude Include="..\..\xbmc\guilib\TextureDX.h" />
-    <ClInclude Include="..\..\xbmc\guilib\TextureGL.h" />
+    <ClInclude Include="..\..\xbmc\guilib\TextureGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\guilib\TextureManager.h" />
     <ClInclude Include="..\..\xbmc\guilib\TransformMatrix.h" />
     <ClInclude Include="..\..\xbmc\guilib\Tween.h" />
@@ -1585,8 +1657,14 @@
     <ClInclude Include="..\..\xbmc\programs\Shortcut.h" />
     <ClInclude Include="..\..\xbmc\rendering\dx\GUIWindowTestPatternDX.h" />
     <ClInclude Include="..\..\xbmc\rendering\dx\RenderSystemDX.h" />
-    <ClInclude Include="..\..\xbmc\rendering\gl\GUIWindowTestPatternGL.h" />
-    <ClInclude Include="..\..\xbmc\rendering\gl\RenderSystemGL.h" />
+    <ClInclude Include="..\..\xbmc\rendering\gl\GUIWindowTestPatternGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\rendering\gl\RenderSystemGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\rendering\RenderSystem.h" />
     <ClInclude Include="..\..\xbmc\SectionLoader.h" />
     <ClInclude Include="..\..\xbmc\settings\AdvancedSettings.h" />
@@ -1641,6 +1719,7 @@
     <ClInclude Include="..\..\xbmc\utils\Archive.h" />
     <ClInclude Include="..\..\xbmc\utils\AsyncFileCopy.h" />
     <ClInclude Include="..\..\xbmc\utils\AutoPtrHandle.h" />
+    <ClInclude Include="..\..\xbmc\utils\Base64.h" />
     <ClInclude Include="..\..\xbmc\utils\BitstreamStats.h" />
     <ClInclude Include="..\..\xbmc\utils\CharsetConverter.h" />
     <ClInclude Include="..\..\xbmc\utils\CPUInfo.h" />
@@ -1654,11 +1733,15 @@
     <ClInclude Include="..\..\xbmc\utils\FileUtils.h" />
     <ClInclude Include="..\..\xbmc\utils\fstrcmp.h" />
     <ClInclude Include="..\..\xbmc\utils\GlobalsHandling.h" />
-    <ClInclude Include="..\..\xbmc\utils\GLUtils.h" />
+    <ClInclude Include="..\..\xbmc\utils\GLUtils.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\utils\HTMLTable.h" />
     <ClInclude Include="..\..\xbmc\utils\HTMLUtil.h" />
     <ClInclude Include="..\..\xbmc\utils\HttpHeader.h" />
     <ClInclude Include="..\..\xbmc\utils\HttpParser.h" />
+    <ClInclude Include="..\..\xbmc\utils\HttpResponse.h" />
     <ClInclude Include="..\..\xbmc\utils\InfoLoader.h" />
     <ClInclude Include="..\..\xbmc\utils\ISerializable.h" />
     <ClInclude Include="..\..\xbmc\utils\Job.h" />
@@ -1738,8 +1821,6 @@
     <ClInclude Include="..\..\xbmc\win32\WIN32Util.h" />
     <ClInclude Include="..\..\xbmc\win32\WINDirectSound.h" />
     <ClInclude Include="..\..\xbmc\win32\WindowHelper.h" />
-    <ClInclude Include="..\..\xbmc\win32\WINFileSMB.h" />
-    <ClInclude Include="..\..\xbmc\win32\WINSMBDirectory.h" />
     <ClInclude Include="..\..\xbmc\cores\DummyVideoPlayer.h" />
     <ClInclude Include="..\..\xbmc\cores\IPlayer.h" />
     <ClInclude Include="..\..\xbmc\cores\dvdplayer\dvd_config.h" />
@@ -1892,15 +1973,24 @@
     <ClInclude Include="..\..\xbmc\cores\DllLoader\exports\emu_socket\emu_socket.h" />
     <ClInclude Include="..\..\xbmc\cores\DllLoader\exports\util\EmuFileWrapper.h" />
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\BaseRenderer.h" />
-    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\LinuxRendererGL.h" />
+    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\LinuxRendererGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\OverlayRenderer.h" />
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererDX.h" />
-    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererGL.h" />
+    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererGL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\OverlayRendererUtil.h" />
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\RenderManager.h" />
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\WinRenderer.h" />
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\ConvolutionKernels.h" />
-    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\VideoFilterShader.h" />
+    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\VideoFilterShader.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\YUV2RGBShader.h" />
     <ClInclude Include="..\..\xbmc\cores\AudioRenderers\AudioRendererFactory.h" />
     <ClInclude Include="..\..\xbmc\cores\AudioRenderers\NullDirectSound.h" />
@@ -2048,7 +2138,10 @@
     <ClInclude Include="..\..\xbmc\windowing\windows\WinEventsWin32.h" />
     <ClInclude Include="..\..\xbmc\windowing\windows\WinSystemWin32.h" />
     <ClInclude Include="..\..\xbmc\windowing\windows\WinSystemWin32DX.h" />
-    <ClInclude Include="..\..\xbmc\windowing\windows\WinSystemWin32GL.h" />
+    <ClInclude Include="..\..\xbmc\windowing\windows\WinSystemWin32GL.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\..\xbmc\windowing\WinEvents.h" />
     <ClInclude Include="..\..\xbmc\windowing\WinEventsSDL.h" />
     <ClInclude Include="..\..\xbmc\windowing\WinSystem.h" />

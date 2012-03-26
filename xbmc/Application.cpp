@@ -552,10 +552,10 @@ bool CApplication::Create()
   CopyUserDataIfNeeded("special://masterprofile/", "Lircmap.xml");
   CopyUserDataIfNeeded("special://masterprofile/", "LCD.xml");
 
-  if (!CLog::Init(_P(g_settings.m_logFolder).c_str()))
+  if (!CLog::Init(CSpecialProtocol::TranslatePath(g_settings.m_logFolder).c_str()))
   {
     fprintf(stderr,"Could not init logging classes. Permission errors on ~/.xbmc (%s)\n",
-      _P(g_settings.m_logFolder).c_str());
+      CSpecialProtocol::TranslatePath(g_settings.m_logFolder).c_str());
     return false;
   }
 
@@ -756,7 +756,7 @@ bool CApplication::Create()
     g_guiSettings.m_LookAndFeelResolution = RES_DESKTOP;
   }
 
-#ifdef __APPLE__
+#ifdef TARGET_DARWIN_OSX
   // force initial window creation to be windowed, if fullscreen, it will switch to it below
   // fixes the white screen of death if starting fullscreen and switching to windowed.
   bool bFullScreen = false;
@@ -1024,7 +1024,7 @@ bool CApplication::InitDirectoriesWin32()
   CSpecialProtocol::SetMasterProfilePath(URIUtils::AddFileToFolder(strWin32UserFolder, "userdata"));
   CSpecialProtocol::SetTempPath(URIUtils::AddFileToFolder(strWin32UserFolder,"cache"));
 
-  SetEnvironmentVariable("XBMC_PROFILE_USERDATA",_P("special://masterprofile/").c_str());
+  SetEnvironmentVariable("XBMC_PROFILE_USERDATA",CSpecialProtocol::TranslatePath("special://masterprofile/").c_str());
 
   CreateUserDirs();
 
@@ -2644,7 +2644,7 @@ bool CApplication::OnAction(const CAction &action)
   }
   if (action.GetID() == ACTION_GUIPROFILE_BEGIN)
   {
-    CGUIControlProfiler::Instance().SetOutputFile(_P("special://home/guiprofiler.xml"));
+    CGUIControlProfiler::Instance().SetOutputFile(CSpecialProtocol::TranslatePath("special://home/guiprofiler.xml"));
     CGUIControlProfiler::Instance().Start();
     return true;
   }
@@ -3103,7 +3103,7 @@ bool CApplication::ProcessEventServer(float frameTime)
   return false;
 }
 
-bool CApplication::ProcessJoystickEvent(const std::string& joystickName, int wKeyID, bool isAxis, float fAmount)
+bool CApplication::ProcessJoystickEvent(const std::string& joystickName, int wKeyID, bool isAxis, float fAmount, unsigned int holdTime /*=0*/)
 {
 #if defined(HAS_EVENT_SERVER)
   m_idleTimer.StartZero();
@@ -3139,7 +3139,7 @@ bool CApplication::ProcessJoystickEvent(const std::string& joystickName, int wKe
    // Translate using regular joystick translator.
    if (CButtonTranslator::GetInstance().TranslateJoystickString(iWin, joystickName.c_str(), wKeyID, isAxis ? JACTIVE_AXIS : JACTIVE_BUTTON, actionID, actionName, fullRange))
    {
-     CAction action(actionID, fAmount, 0.0f, actionName);
+     CAction action(actionID, fAmount, 0.0f, actionName, holdTime);
      g_audioManager.PlayActionSound(action);
      return OnAction(action);
    }
@@ -3236,7 +3236,7 @@ bool CApplication::Cleanup()
     g_windowManager.Remove(WINDOW_SETTINGS_MYMUSIC);
     g_windowManager.Remove(WINDOW_SETTINGS_SYSTEM);
     g_windowManager.Remove(WINDOW_SETTINGS_MYVIDEOS);
-    g_windowManager.Remove(WINDOW_SETTINGS_NETWORK);
+    g_windowManager.Remove(WINDOW_SETTINGS_SERVICE);
     g_windowManager.Remove(WINDOW_SETTINGS_APPEARANCE);
     g_windowManager.Remove(WINDOW_DIALOG_KAI_TOAST);
 
@@ -3828,7 +3828,7 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
 
   // Workaround for bug/quirk in SDL_Mixer on OSX.
   // TODO: Remove after GUI Sounds redux
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_LINUX)
   g_audioManager.Enable(false);
 #endif
 
@@ -3892,7 +3892,7 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
     }
 #endif
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(_LINUX)
     g_audioManager.Enable(false);
 #endif
   }
@@ -5532,3 +5532,4 @@ CPerformanceStats &CApplication::GetPerformanceStats()
   return m_perfStats;
 }
 #endif
+

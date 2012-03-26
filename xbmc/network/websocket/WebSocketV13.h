@@ -1,6 +1,6 @@
 #pragma once
 /*
- *      Copyright (C) 2005-2008 Team XBMC
+ *      Copyright (C) 2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -20,29 +20,13 @@
  *
  */
 
+#include "WebSocketV8.h"
 
-#include "filesystem/IDirectory.h"
-#include "URL.h"
-
-namespace XFILE
-{
-
-class CWINSMBDirectory : public IDirectory
+class CWebSocketV13 : public CWebSocketV8
 {
 public:
-  CWINSMBDirectory(void);
-  virtual ~CWINSMBDirectory(void);
-  virtual bool GetDirectory(const CStdString& strPath, CFileItemList &items);
-  virtual DIR_CACHE_TYPE GetCacheType(const CStdString &strPath) const { return DIR_CACHE_ONCE; };
-  virtual bool Create(const char* strPath);
-  virtual bool Exists(const char* strPath);
-  virtual bool Remove(const char* strPath);
+  CWebSocketV13() { m_version = 13; }
 
-  bool ConnectToShare(const CURL& url);
-private:
-  bool m_bHost;
-  bool EnumerateFunc(LPNETRESOURCEW lpnr, CFileItemList &items);
-  CStdString GetLocal(const CStdString& strPath);
-  CStdString URLEncode(const CURL &url);
+  virtual bool Handshake(const char* data, size_t length, std::string &response);
+  virtual const CWebSocketFrame* Close(WebSocketCloseReason reason = WebSocketCloseNormal, const std::string &message = "");
 };
-}

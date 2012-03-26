@@ -106,6 +106,7 @@ void CAdvancedSettings::Initialize()
   m_DXVACheckCompatibility = false;
   m_DXVACheckCompatibilityPresent = false;
   m_DXVAForceProcessorRenderer = true;
+  m_DXVANoDeintProcForProgressive = false;
   m_videoFpsDetect = 1;
   m_videoDefaultLatency = 0.0;
 
@@ -548,6 +549,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
     m_DXVACheckCompatibilityPresent = XMLUtils::GetBoolean(pElement,"checkdxvacompatibility", m_DXVACheckCompatibility);
 
     XMLUtils::GetBoolean(pElement,"forcedxvarenderer", m_DXVAForceProcessorRenderer);
+    XMLUtils::GetBoolean(pElement,"dxvanodeintforprogressive", m_DXVANoDeintProcForProgressive);
     //0 = disable fps detect, 1 = only detect on timestamps with uniform spacing, 2 detect on all timestamps
     XMLUtils::GetInt(pElement, "fpsdetect", m_videoFpsDetect, 0, 2);
 
@@ -841,7 +843,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
       CStdString strFrom, strTo;
       TiXmlNode* pFrom = pSubstitute->FirstChild("from");
       if (pFrom)
-        strFrom = _P(pFrom->FirstChild()->Value()).c_str();
+        strFrom = CSpecialProtocol::TranslatePath(pFrom->FirstChild()->Value()).c_str();
       TiXmlNode* pTo = pSubstitute->FirstChild("to");
       if (pTo)
         strTo = pTo->FirstChild()->Value();
