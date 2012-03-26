@@ -28,6 +28,7 @@
 #include "OMXTexture.h"
 
 #include "OMXStreamInfo.h"
+#include "OMXClock.h"
 #include "utils/log.h"
 #include "linux/XMemUtils.h"
 
@@ -117,6 +118,8 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
   unsigned int demuxer_bytes = 0;
   const uint8_t *demuxer_content = NULL;
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+  OMX_BUFFERHEADERTYPE* m_output_buffer;
+  int nTimeOut = 0;
 
   if(!m_is_open || !omx_image)
     return false;
@@ -346,9 +349,20 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
     goto do_exit;
   }
 
-  OMX_BUFFERHEADERTYPE* m_output_buffer;
   // 2000ms - this has to wait for jpeg decode, so could take a while
-  m_output_buffer=m_omx_egl_render.GetOutputBuffer(2000);
+  while(nTimeOut < 2000)
+  {
+    m_output_buffer=m_omx_egl_render.GetOutputBuffer(2000);
+    if (!m_output_buffer) {
+      OMXClock::OMXSleep(50);
+      nTimeOut += 50;
+    }
+    else
+    {
+      break;
+    }
+  }
+
   if (!m_output_buffer) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_egl_render.GetOutputBuffer\n", CLASSNAME, __func__);
     goto do_exit;
