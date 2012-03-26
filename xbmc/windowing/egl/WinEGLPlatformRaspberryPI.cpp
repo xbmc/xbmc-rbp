@@ -147,7 +147,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
 
     if (success == 0) 
     {
-      CLog::Log(LOGERROR, "CWinEGLPlatformRaspberryPI::SetDisplayResolution set HDMI mode (%d,%d,%d)=%d\n", 
+      CLog::Log(LOGINFO, "CWinEGLPlatformRaspberryPI::SetDisplayResolution set HDMI mode (%d,%d,%d)=%d\n", 
                           GETFLAGS_MODE3D(resSearch.dwFlags) ? HDMI_MODE_3D:HDMI_MODE_HDMI, GETFLAGS_GROUP(resSearch.dwFlags), 
                           GETFLAGS_MODE(resSearch.dwFlags), success);
       sem_wait(&m_tv_synced);
