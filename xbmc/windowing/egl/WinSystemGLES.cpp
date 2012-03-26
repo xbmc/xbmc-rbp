@@ -148,9 +148,13 @@ void CWinSystemGLES::UpdateResolutions()
     // create a new empty setting to fill in.
     if ((int)g_settings.m_ResInfo.size() <= res_index)
     {
-      g_graphicsContext.ResetOverscan(resolutions[i]);
-      g_settings.m_ResInfo.push_back(resolutions[i]);
+      RESOLUTION_INFO res;
+
+      g_settings.m_ResInfo.push_back(res);
     }
+
+    g_graphicsContext.ResetOverscan(resolutions[i]);
+    g_settings.m_ResInfo[res_index] = resolutions[i];
 
     CLog::Log(LOGINFO, "Found resolution for display %d with %d x %d @ %f Hz\n",
       resolutions[i].iScreen,
