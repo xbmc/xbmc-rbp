@@ -167,7 +167,7 @@ protected:
   std::string m_filename; // holds the actual filename
 
 private:
-  virtual void FlushStreams();
+  virtual void FlushStreams(double pts);
 
   int                     m_speed;
   bool                    m_paused;

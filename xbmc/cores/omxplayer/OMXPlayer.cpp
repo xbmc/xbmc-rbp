@@ -80,11 +80,8 @@ bool COMXPlayer::Initialize(TiXmlElement* pConfig)
   return true;
 }
 
-void COMXPlayer::FlushStreams()
+void COMXPlayer::FlushStreams(double pts)
 {
-  if(m_av_clock)
-    m_av_clock->OMXPause();
-
   if(m_video_count)
     m_player_video.Flush();
 
@@ -95,11 +92,8 @@ void COMXPlayer::FlushStreams()
 
   m_last_subtitle_pts = DVD_NOPTS_VALUE;
 
-  if(m_av_clock)
-  {
-    m_av_clock->OMXReset();
-    m_av_clock->OMXResume();
-  }
+  if(pts != DVD_NOPTS_VALUE)
+    m_av_clock->OMXUpdateClock(pts);
 }
 
 bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
@@ -660,7 +654,7 @@ int COMXPlayer::SeekChapter(int chapter_index)
     g_infoManager.SetDisplayAfterSeek(100000);
 
     m_omx_reader.SeekChapter(chapter_index, &m_startpts);
-    FlushStreams();
+    FlushStreams(m_startpts);
 
     m_callback.OnPlayBackSeekChapter(chapter_index);
     g_infoManager.SetDisplayAfterSeek();
@@ -689,7 +683,7 @@ void COMXPlayer::SeekTime(__int64 seek_ms)
   int seek_flags = (seek_ms - m_elapsed_ms) < 0 ? AVSEEK_FLAG_BACKWARD : 0;
 
   if(m_omx_reader.SeekTime(seek_ms, seek_flags, &m_startpts))
-    FlushStreams();
+    FlushStreams(m_startpts);
 }
 
 __int64 COMXPlayer::GetTime()
@@ -933,7 +927,7 @@ void COMXPlayer::Process()
     bool deinterlace = ( g_settings.m_currentVideoSettings.m_DeinterlaceMode == VS_DEINTERLACEMODE_OFF ) ? false : true;
 
     if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, deinterlace,
-                                             m_bMpeg, m_audio_count, m_hdmi_clock_sync, m_thread_player))
+                                             m_bMpeg, m_hdmi_clock_sync, m_thread_player))
       goto do_exit;
 
     CStdString deviceString;
@@ -946,26 +940,22 @@ void COMXPlayer::Process()
                                 m_use_passthrough, m_use_hw_audio, m_thread_player))
       goto do_exit;
 
-    m_av_clock->OMXStateExecute();
-    m_av_clock->OMXReset();
-    m_av_clock->OMXResume();
-
-    m_video_fps         = m_player_video.GetFPS();
-
     RESOLUTION res      = g_graphicsContext.GetVideoResolution();
     int video_width     = g_settings.m_ResInfo[res].iWidth;
     int video_height    = g_settings.m_ResInfo[res].iHeight;
+    m_video_fps         = m_player_video.GetFPS();
 
     m_dst_rect.SetRect(0, 0, 0, 0);
     //if(m_video_decoder)
     //  m_video_decoder->SetVideoRect(m_dst_rect, m_dst_rect);
 
+    m_speed = DVD_PLAYSPEED_NORMAL;
+    m_av_clock->SetSpeed(m_speed);
     m_av_clock->OMXStateExecute();
-    m_av_clock->SetSpeed(DVD_PLAYSPEED_NORMAL);
+    m_av_clock->OMXStart();
 
     m_duration_ms = m_omx_reader.GetDuration();
 
-    m_speed = DVD_PLAYSPEED_NORMAL;
     m_callback.OnPlayBackSpeedChanged(m_speed);
 
     // starttime has units of seconds (SeekTime will start playback)
@@ -1048,7 +1038,7 @@ void COMXPlayer::Process()
 
         m_player_video.Close();
         if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, deinterlace,
-                                             m_bMpeg, m_audio_count, m_hdmi_clock_sync, m_thread_player))
+                                             m_bMpeg, m_hdmi_clock_sync, m_thread_player))
           goto do_exit;
 
         m_flush = false;
