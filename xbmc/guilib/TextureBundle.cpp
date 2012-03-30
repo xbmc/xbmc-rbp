@@ -26,6 +26,7 @@ CTextureBundle::CTextureBundle(void)
 {
   m_useXPR = false;
   m_useXBT = false;
+  m_useAtlas = false;
 }
 
 CTextureBundle::~CTextureBundle(void)
@@ -34,6 +35,11 @@ CTextureBundle::~CTextureBundle(void)
 
 bool CTextureBundle::HasFile(const CStdString& Filename)
 {
+  if (m_tbAtlas.HasFile(Filename))
+  {
+    m_useAtlas = true;
+    return true;
+  }
   if (m_useXBT)
   {
     return m_tbXBT.HasFile(Filename);
@@ -60,6 +66,10 @@ bool CTextureBundle::HasFile(const CStdString& Filename)
 
 void CTextureBundle::GetTexturesFromPath(const CStdString &path, std::vector<CStdString> &textures)
 {
+  if (m_useAtlas)
+  {
+    m_tbAtlas.GetTexturesFromPath(path,textures);
+  }
   if (m_useXBT)
   {
     m_tbXBT.GetTexturesFromPath(path, textures);
@@ -73,6 +83,10 @@ void CTextureBundle::GetTexturesFromPath(const CStdString &path, std::vector<CSt
 bool CTextureBundle::LoadTexture(const CStdString& Filename, CBaseTexture** ppTexture,
                                      int &width, int &height)
 {
+  if (m_useAtlas)
+  {
+    return m_tbAtlas.LoadTexture(Filename, ppTexture, width, height);
+  }
   if (m_useXBT)
   {
     return m_tbXBT.LoadTexture(Filename, ppTexture, width, height);
@@ -115,6 +129,7 @@ void CTextureBundle::SetThemeBundle(bool themeBundle)
 {
   m_tbXPR.SetThemeBundle(themeBundle);
   m_tbXBT.SetThemeBundle(themeBundle);
+  m_tbAtlas.SetThemeBundle(themeBundle);
 }
 
 CStdString CTextureBundle::Normalize(const CStdString &name)

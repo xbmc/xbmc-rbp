@@ -45,6 +45,7 @@ public:
   void CreateTextureObject();
   void DestroyTextureObject();
   virtual void LoadToGPU();
+  bool IsAtlas() { return m_loadedAtlas; }
 };
 
 #endif

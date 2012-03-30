@@ -1,4 +1,5 @@
 SRCS=AnimatedGif.cpp \
+     AtlasReader.cpp \
      AudioContext.cpp \
      DDSImage.cpp \
      DirectXGraphics.cpp \
@@ -71,6 +72,7 @@ SRCS=AnimatedGif.cpp \
      Texture.cpp \
      TextureBundleXPR.cpp \
      TextureBundleXBT.cpp \
+     TextureBundleAtlas.cpp \
      TextureBundle.cpp \
      TextureManager.cpp \
      VisibleEffect.cpp \

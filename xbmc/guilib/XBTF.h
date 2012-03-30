@@ -63,6 +63,16 @@ public:
   bool IsPacked() const;
   bool HasAlpha() const;
 
+  void SetAtlasWidth(uint32_t atlaswidth) { m_atlaswidth = atlaswidth; };
+  void SetAtlasHeight(uint32_t atlasheight) { m_atlasheight = atlasheight; };
+  void SetTextureXOffset(uint32_t texXOffset) { m_texXOffset = texXOffset; };
+  void SetTextureYOffset(uint32_t texYOffset) { m_texYOffset = texYOffset; };
+
+  uint32_t GetAtlasWidth() { return m_atlaswidth; };
+  uint32_t GetAtlasHeight() { return m_atlasheight; };
+  uint32_t GetTextureXOffset() { return m_texXOffset; };
+  uint32_t GetTextureYOffset() { return m_texYOffset; };
+
 private:
   uint32_t m_width;
   uint32_t m_height;
@@ -71,6 +81,10 @@ private:
   uint64_t m_unpackedSize;
   uint64_t m_offset;
   uint32_t m_duration;
+  uint32_t m_atlaswidth;
+  uint32_t m_atlasheight;
+  uint32_t m_texXOffset;
+  uint32_t m_texYOffset;
 };
 
 class CXBTFFile
@@ -78,6 +92,8 @@ class CXBTFFile
 public:
   CXBTFFile();
   CXBTFFile(const CXBTFFile& ref);
+  std::string GetAtlas() { return m_atlas; };
+  void SetAtlas(const std::string& atlas) { m_atlas = atlas; };
   char* GetPath();
   void SetPath(const std::string& path);
   uint32_t GetLoop() const;
@@ -89,6 +105,7 @@ private:
   char         m_path[256];
   uint32_t     m_loop;
   std::vector<CXBTFFrame> m_frames;
+  std::string m_atlas;
 };
 
 class CXBTF

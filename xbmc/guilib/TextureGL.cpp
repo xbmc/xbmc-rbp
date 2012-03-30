@@ -32,8 +32,8 @@ using namespace std;
 /************************************************************************/
 /*    CGLTexture                                                       */
 /************************************************************************/
-CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format)
-: CBaseTexture(width, height, format)
+CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format, bool allocate)
+: CBaseTexture(width, height, format, allocate)
 {
 }
 
@@ -85,8 +85,9 @@ void CGLTexture::DestroyTextureObject()
     delete m_omx_image;
   m_omx_image = NULL;
 #endif
-  if (m_texture)
-    glDeleteTextures(1, (GLuint*) &m_texture);
+  // TODO: release atlas texture
+  if (m_texture && !m_loadedAtlas)
+   glDeleteTextures(1, (GLuint*) &m_texture);
 }
 
 void CGLTexture::LoadToGPU()
@@ -145,13 +146,12 @@ void CGLTexture::LoadToGPU()
     // nothing to load - probably same image (no change)
     return;
   }
-  if (m_texture == 0)
+  if (m_texture == 0 && !m_loadedToGPU)
   {
     // Have OpenGL generate a texture object handle for us
     // this happens only one time - the first time the texture is loaded
     CreateTextureObject();
   }
-
   // Bind the texture object
   glBindTexture(GL_TEXTURE_2D, m_texture);
 

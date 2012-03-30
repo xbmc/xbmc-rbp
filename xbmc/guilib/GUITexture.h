@@ -112,6 +112,8 @@ public:
   float GetHeight() const { return m_height; };
   float GetXPosition() const { return m_posX; };
   float GetYPosition() const { return m_posY; };
+  unsigned int GetTextureXOffset() const { return m_texXOffset; };
+  unsigned int GetTextureYOffset() const { return m_texYOffset; };
   int GetOrientation() const;
   const CRect &GetRenderRect() const { return m_vertex; };
   bool IsLazyLoaded() const { return m_info.useLarge; };
@@ -125,7 +127,9 @@ protected:
   void LoadDiffuseImage();
   bool AllocateOnDemand();
   bool UpdateAnimFrame();
-  void Render(float left, float top, float bottom, float right, float u1, float v1, float u2, float v2, float u3, float v3);
+  void Render(float left, float top, float bottom, float right, 
+              float u1, float v1, float u2, float v2, float u3, float v3,
+              float u4, float v4, float u5, float v5, float u6, float v6);
   void OrientateTexture(CRect &rect, float width, float height, int orientation);
 
   // functions that our implementation classes handle
@@ -143,13 +147,20 @@ protected:
   float m_width;
   float m_height;
 
+  unsigned int m_texXOffset;
+  unsigned int m_texYOffset;
+  unsigned int m_diffuseXOffset;
+  unsigned int m_diffuseYOffset;
+
   CRect m_vertex;       // vertex coords to render
   bool m_invalid;       // if true, we need to recalculate
 
   unsigned char m_alpha;
 
   float m_frameWidth, m_frameHeight;          // size in pixels of the actual frame within the texture
+  float m_diffuseWidth, m_diffuseHeight;       // size in pixels of the actual diffuse 
   float m_texCoordsScaleU, m_texCoordsScaleV; // scale factor for pixel->texture coordinates
+  float m_diffuseCoordsScaleU, m_diffuseCoordsScaleV; // scale factor for pixel->texture coordinates
 
   // animations
   int m_currentLoop;

@@ -22,36 +22,40 @@
  */
 
 #include "utils/StdString.h"
-#include "Texture.h"
-#include "TextureBundleXPR.h"
-#include "TextureBundleXBT.h"
-#include "TextureBundleAtlas.h"
+#include <map>
+#include "pictures/DllImageLib.h"
+#include "XBTF.h"
+#include "XBTFReader.h"
+#include "AtlasReader.h"
 
-class CTextureBundle
+class CBaseTexture;
+
+class CTextureBundleAtlas
 {
 public:
-  CTextureBundle(void);
-  ~CTextureBundle(void);
+  CTextureBundleAtlas(void);
+  ~CTextureBundleAtlas(void);
 
   void Cleanup();
-
-  void SetThemeBundle(bool themeBundle);
   bool HasFile(const CStdString& Filename);
   void GetTexturesFromPath(const CStdString &path, std::vector<CStdString> &textures);
   static CStdString Normalize(const CStdString &name);
 
-  bool LoadTexture(const CStdString& Filename, CBaseTexture** ppTexture, int &width, int &height);
-
-  int LoadAnim(const CStdString& Filename, CBaseTexture*** ppTextures, int &width, int &height, int& nLoops, int** ppDelays);
-
+  bool LoadTexture(const CStdString& Filename, CBaseTexture** ppTexture,
+                       int &width, int &height);
+  void SetThemeBundle(bool themeBundle);
 private:
-  CTextureBundleXPR m_tbXPR;
-  CTextureBundleXBT m_tbXBT;
-  CTextureBundleAtlas m_tbAtlas;
+  bool OpenBundle();
+  bool ConvertFrameToTexture(const CStdString &atlas, const CStdString& name, CXBTFFrame& frame, CBaseTexture** ppTexture);
 
-  bool m_useXPR;
-  bool m_useXBT;
-  bool m_useAtlas;
+  time_t m_TimeStamp;
+
+  bool m_themeBundle;
+  ImageInfo image;
+  char *idxBuf;
+  int atlasWidth;
+  int atlasHeight;
+  CAtlasReader m_atlasReader;
+  unsigned char * m_pixels;
 };
-
 

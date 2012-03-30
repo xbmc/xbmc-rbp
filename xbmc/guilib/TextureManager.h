@@ -59,6 +59,9 @@ public:
   int m_loops;
   int m_texWidth;
   int m_texHeight;
+  int m_texXOffset;
+  int m_texYOffset;
+
   bool m_texCoordsArePixels;
 };
 

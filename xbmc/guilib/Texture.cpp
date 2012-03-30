@@ -39,10 +39,15 @@
 #include "xbmc/cores/omxplayer/OMXTexture.h"
 #endif
 
+#include <map>
+
 /************************************************************************/
 /*                                                                      */
 /************************************************************************/
-CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format)
+
+std::map<CStdString, XBMC::TexturePtr>  CBaseTexture::m_atlasTexture;
+
+CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format, bool allocate)
  : m_hasAlpha( true )
 {
 #ifndef HAS_DX
@@ -56,7 +61,7 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
   m_omx_texture = NULL;
 #endif
   m_loadedToGPU = false;
-  Allocate(width, height, format);
+  Allocate(width, height, format, allocate);
 }
 
 CBaseTexture::~CBaseTexture()
@@ -72,12 +77,15 @@ CBaseTexture::~CBaseTexture()
 #endif
 }
 
-void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format)
+void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format, bool allocate)
 {
   m_imageWidth = width;
   m_imageHeight = height;
   m_format = format;
   m_orientation = 0;
+  m_texXOffset = 0;
+  m_texYOffset = 0;
+  m_loadedAtlas = false;
 
   m_textureWidth = m_imageWidth;
   m_textureHeight = m_imageHeight;
@@ -106,11 +114,14 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   CLAMP(m_textureHeight, g_Windowing.GetMaxTextureSize());
   CLAMP(m_imageWidth, m_textureWidth);
   CLAMP(m_imageHeight, m_textureHeight);
-  if (m_pixels)
-    delete[] m_pixels;
+
+  delete[] m_pixels;
   m_pixels = NULL;
-  if (GetPitch() * GetRows() > 0)
-    m_pixels = new unsigned char[GetPitch() * GetRows()];
+  if(allocate)
+  {
+    if (GetPitch() * GetRows() > 0)
+      m_pixels = new unsigned char[GetPitch() * GetRows()];
+  }
 }
 
 void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU)
@@ -191,6 +202,36 @@ void CBaseTexture::ClampToEdge()
       dst += texturePitch;
     }
   }
+}
+
+bool CBaseTexture::LoadFromAtlas(const CStdString& subtexturename, unsigned int width, unsigned int height, unsigned int texXOffset, unsigned int texYOffset, bool hasAlpha, CStdString atlasname)
+{
+  if(CBaseTexture::m_atlasTexture[atlasname] == 0)
+  {
+    // TODO: delete atlas textures
+    if (LoadFromFile((const CStdString)atlasname))
+    {
+      m_texture = 0;
+      LoadToGPU();
+      m_loadedAtlas = true;
+      m_loadedToGPU = true;
+      CBaseTexture::m_atlasTexture[atlasname]   = m_texture;
+    }
+    else
+      return false;
+  }
+
+  m_loadedAtlas = true;
+  m_format = XB_FMT_A8R8G8B8;
+  m_texture = CBaseTexture::m_atlasTexture[atlasname];
+  m_textureWidth = width;
+  m_textureHeight = height;
+  m_texXOffset = texXOffset;
+  m_texYOffset = texYOffset;
+  m_hasAlpha = hasAlpha;
+  m_loadedToGPU = true;
+
+  return true;
 }
 
 bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxWidth, unsigned int maxHeight,
@@ -455,3 +496,4 @@ bool CBaseTexture::HasAlpha() const
 {
   return m_hasAlpha;
 }
+
