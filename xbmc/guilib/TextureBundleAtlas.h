@@ -27,6 +27,9 @@
 #include "XBTF.h"
 #include "XBTFReader.h"
 #include "AtlasReader.h"
+#include "Texture.h"
+
+#include <map>
 
 class CBaseTexture;
 
@@ -57,5 +60,8 @@ private:
   int atlasHeight;
   CAtlasReader m_atlasReader;
   unsigned char * m_pixels;
+
+  typedef std::map<CStdString, CTexture *> AtlasTexture;
+  AtlasTexture m_atlasTexture;
 };
 

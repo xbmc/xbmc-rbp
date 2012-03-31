@@ -54,10 +54,8 @@ bool CTextureBundleAtlas::OpenBundle()
 //  Cleanup();
 
   // Find the correct texture file (skin or theme)
-  CStdString strPath;
   CStdString strIndex;
 
-  /*
   if (m_themeBundle)
   {
     // if we are the theme bundle, we only load if the user has chosen
@@ -65,11 +63,9 @@ bool CTextureBundleAtlas::OpenBundle()
     CStdString theme = g_guiSettings.GetString("lookandfeel.skintheme");
     if (!theme.IsEmpty() && theme.CompareNoCase("SKINDEFAULT"))
     {
-      CStdString themeXBT(URIUtils::ReplaceExtension(theme, ".png"));
-      CStdString themeIDX(URIUtils::ReplaceExtension(theme, ".idx"));
-      strPath = URIUtils::AddFileToFolder(g_graphicsContext.GetMediaDir(), "media");
-      strPath = URIUtils::AddFileToFolder(strPath, themeXBT);
-      strIndex = URIUtils::AddFileToFolder(strPath, themeIDX);
+      CStdString themeAtlas(URIUtils::ReplaceExtension(theme, ".xml"));
+      strIndex = URIUtils::AddFileToFolder(g_graphicsContext.GetMediaDir(), "media");
+      strIndex = URIUtils::AddFileToFolder(strIndex, themeAtlas);
     }
     else
     {
@@ -78,13 +74,11 @@ bool CTextureBundleAtlas::OpenBundle()
   }
   else
   {
-  */
-    strIndex = URIUtils::AddFileToFolder(g_graphicsContext.GetMediaDir(), "media/Textures.xml");
-    /*
+    strIndex = URIUtils::AddFileToFolder(g_graphicsContext.GetMediaDir(), "media");
+    strIndex = URIUtils::AddFileToFolder(strIndex, "Textures.xml");
   }
 
-  strPath = CSpecialProtocol::TranslatePathConvertCase(strPath);
-  */
+  strIndex = CSpecialProtocol::TranslatePathConvertCase(strIndex);
 
   if (!m_atlasReader.Open(strIndex))
   {
@@ -99,7 +93,6 @@ bool CTextureBundleAtlas::OpenBundle()
 
 bool CTextureBundleAtlas::HasFile(const CStdString& Filename)
 {
-
   if (!m_atlasReader.IsOpen() && !OpenBundle())
     return false;
 
@@ -171,8 +164,30 @@ bool CTextureBundleAtlas::ConvertFrameToTexture(const CStdString &atlas, const C
 
   strAtlas = URIUtils::AddFileToFolder(g_graphicsContext.GetMediaDir(), strAtlas);
 
-  (*ppTexture)->LoadFromAtlas(name, ATLAS_WIDTH, ATLAS_HEIGHT, frame.GetTextureXOffset(), frame.GetTextureYOffset(), 
-                              frame.HasAlpha(), strAtlas);
+  CTexture *pAtlas = NULL;
+
+  if(m_atlasTexture[strAtlas] == 0)
+  {
+    pAtlas = new CTexture(frame.GetAtlasWidth(), frame.GetAtlasHeight(), XB_FMT_A8R8G8B8, false);
+    if(!pAtlas)
+      return false;
+
+    if (pAtlas->LoadFromFile((const CStdString)strAtlas))
+    {
+      pAtlas->LoadToGPU();
+      m_atlasTexture[strAtlas] = pAtlas;
+    }
+    else
+    {
+      return false;
+    }
+  }
+
+  pAtlas = m_atlasTexture[strAtlas];
+
+  (*ppTexture)->LoadFromAtlas(pAtlas->GetTextureObject(), frame.GetAtlasWidth(), frame.GetAtlasHeight(), 
+                              frame.GetTextureXOffset(), frame.GetTextureYOffset(), 
+                              frame.HasAlpha());
 
   return true;
 }
@@ -186,8 +201,16 @@ void CTextureBundleAtlas::Cleanup()
 {
   if (m_atlasReader.IsOpen())
   {
+    m_atlasReader.Close();
     CLog::Log(LOGDEBUG, "%s - Closed %sbundle", __FUNCTION__, m_themeBundle ? "theme " : "");
   }
+
+  for(AtlasTexture::iterator it = m_atlasTexture.begin(); it != m_atlasTexture.end(); it++)
+  {
+    CTexture *pTexture = (*it).second;
+    delete pTexture;
+  }
+  m_atlasTexture.clear();
 }
 
 // normalize to how it's stored within the bundle

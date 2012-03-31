@@ -122,7 +122,8 @@ void CTextureBundle::Cleanup()
 {
   m_tbXBT.Cleanup();
   m_tbXPR.Cleanup();
-  m_useXPR = m_useXBT = false;
+  m_tbAtlas.Cleanup();
+  m_useXPR = m_useXBT = m_useAtlas = false;
 }
 
 void CTextureBundle::SetThemeBundle(bool themeBundle)

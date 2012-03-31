@@ -44,7 +44,7 @@ CAtlasReader::CAtlasReader()
 
 bool CAtlasReader::IsOpen() const
 {
-return m_loaded;
+  return m_loaded;
 }
 
 bool CAtlasReader::LoadXML(CStdString strFile)
@@ -91,6 +91,8 @@ bool CAtlasReader::LoadXML(CStdString strFile)
     frame.SetHeight(height - 2);
     frame.SetTextureXOffset(x + 1);
     frame.SetTextureYOffset(y + 1);
+    frame.SetAtlasWidth(ATLAS_WIDTH);
+    frame.SetAtlasHeight(ATLAS_HEIGHT);
 
     file.GetFrames().push_back(frame);
     m_atlas.GetFiles().push_back(file);
@@ -111,6 +113,15 @@ bool CAtlasReader::Open(const CStdString& fileName)
 
   m_loaded = true;
   return true;
+}
+
+void CAtlasReader::Close()
+{
+  m_loaded = false;
+  m_fileName = "";
+
+  m_atlas.GetFiles().clear();
+  m_filesMap.clear();
 }
 
 time_t CAtlasReader::GetLastModificationTimestamp()
@@ -137,17 +148,19 @@ CXBTFFile* CAtlasReader::Find(const CStdString& name)
 {
   CStdString search = CStdString(name).ToLower();
 
-  //printf("search texture %s\n", name.c_str());
   std::map<CStdString, CXBTFFile>::iterator iter = m_filesMap.find(search);
   if (iter == m_filesMap.end())
   {
     return NULL;
   }
-  
+
   CXBTFFile *file = &(iter->second);
   CXBTFFrame& frame = file->GetFrames().at(0);
 
-  //printf("found texture %s %d %d %d %d\n", name.c_str(), frame.GetTextureXOffset(), frame.GetTextureYOffset(), frame.GetWidth(), frame.GetHeight());
+  CLog::Log(LOGDEBUG, "Loading Atlas image %s %d %d %d %d\n", name.c_str(), 
+            frame.GetTextureXOffset(), frame.GetTextureYOffset(), 
+            frame.GetWidth(), frame.GetHeight());
+
   return &(iter->second);
 }
 

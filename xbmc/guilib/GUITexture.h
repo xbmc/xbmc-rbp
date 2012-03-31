@@ -33,6 +33,8 @@
 #include "Geometry.h"
 #include "system.h" // HAS_GL, HAS_DX, etc
 
+#include <vector>
+
 typedef uint32_t color_t;
 
 // image alignment for <aspect>keep</aspect>, <aspect>scale</aspect> or <aspect>center</aspect>
@@ -106,14 +108,14 @@ public:
   bool SetAspectRatio(const CAspectRatio &aspect);
 
   const CStdString& GetFileName() const { return m_info.filename; };
-  float GetTextureWidth() const { return m_frameWidth; };
-  float GetTextureHeight() const { return m_frameHeight; };
+  float GetTextureWidth() const { return m_texture.m_width; };
+  float GetTextureHeight() const { return  m_texture.m_height; };
   float GetWidth() const { return m_width; };
   float GetHeight() const { return m_height; };
   float GetXPosition() const { return m_posX; };
   float GetYPosition() const { return m_posY; };
-  unsigned int GetTextureXOffset() const { return m_texXOffset; };
-  unsigned int GetTextureYOffset() const { return m_texYOffset; };
+  unsigned int GetTextureXOffset() const { return m_texture.m_texXOffset; };
+  unsigned int GetTextureYOffset() const { return m_texture.m_texYOffset; };
   int GetOrientation() const;
   const CRect &GetRenderRect() const { return m_vertex; };
   bool IsLazyLoaded() const { return m_info.useLarge; };
@@ -147,29 +149,15 @@ protected:
   float m_width;
   float m_height;
 
-  unsigned int m_texXOffset;
-  unsigned int m_texYOffset;
-  unsigned int m_diffuseXOffset;
-  unsigned int m_diffuseYOffset;
-
   CRect m_vertex;       // vertex coords to render
   bool m_invalid;       // if true, we need to recalculate
 
   unsigned char m_alpha;
 
-  float m_frameWidth, m_frameHeight;          // size in pixels of the actual frame within the texture
-  float m_diffuseWidth, m_diffuseHeight;       // size in pixels of the actual diffuse 
-  float m_texCoordsScaleU, m_texCoordsScaleV; // scale factor for pixel->texture coordinates
-  float m_diffuseCoordsScaleU, m_diffuseCoordsScaleV; // scale factor for pixel->texture coordinates
-
   // animations
   int m_currentLoop;
   unsigned int m_currentFrame;
   uint32_t m_frameCounter;
-
-  float m_diffuseU, m_diffuseV;           // size of the diffuse frame (in tex coords)
-  float m_diffuseScaleU, m_diffuseScaleV; // scale factor of the diffuse frame (from texture coords to diffuse tex coords)
-  CPoint m_diffuseOffset;                 // offset into the diffuse frame (it's not always the origin)
 
   bool m_allocateDynamically;
   enum ALLOCATE_TYPE { NO = 0, NORMAL, LARGE, NORMAL_FAILED, LARGE_FAILED };
@@ -180,6 +168,8 @@ protected:
 
   CTextureArray m_diffuse;
   CTextureArray m_texture;
+
+  std::vector<CTextureArray> m_textures;
 };
 
 

@@ -75,7 +75,8 @@ public:
                     bool autoRotate = false, unsigned int *originalWidth = NULL, unsigned int *originalHeight = NULL);
   bool LoadFromMemory(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, bool hasAlpha, unsigned char* pixels);
   bool LoadPaletted(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, const COLOR *palette);
-  bool LoadFromAtlas(const CStdString& subtexturename, unsigned int width, unsigned int height, unsigned int texXOffset, unsigned int texYOffset, bool hasAlpha, CStdString atlasname);
+  bool LoadFromAtlas(XBMC::TexturePtr texture, unsigned int width, unsigned int height, 
+                                 unsigned int texXOffset, unsigned int texYOffset, bool hasAlpha);
 
   bool HasAlpha() const;
 
@@ -140,7 +141,6 @@ protected:
   unsigned int m_format;
   int m_orientation;
   bool m_hasAlpha;
-  static std::map<CStdString, XBMC::TexturePtr> m_atlasTexture;
   bool m_loadedAtlas;
 };
 
