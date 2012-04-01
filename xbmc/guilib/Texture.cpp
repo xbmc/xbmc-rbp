@@ -193,6 +193,45 @@ void CBaseTexture::ClampToEdge()
   }
 }
 
+bool CBaseTexture::LoadFromAtlas(XBMC::TexturePtr texture, unsigned int width, unsigned int height,
+                                 unsigned int atlasWidth, unsigned int atlasHeight,
+                                 unsigned int texXOffset, unsigned int texYOffset, unsigned int format,
+                                 bool hasAlpha, unsigned char* pixels)
+{
+  if (pixels == NULL)
+    return false;
+
+  m_format = format;
+  //m_texture = texture;
+  m_textureWidth = width;
+  m_textureHeight = height;
+  m_hasAlpha = hasAlpha;
+
+  Allocate(width, height, format);
+
+  unsigned int srcPitch = GetPitch(atlasWidth);
+  unsigned int srcPitchX = GetPitch(texXOffset);
+  unsigned int srcRows = GetRows(atlasHeight);
+  unsigned int dstPitch = GetPitch(m_textureWidth);
+  unsigned int dstRows = GetRows(m_textureHeight);
+
+  const unsigned char *src = pixels + (srcPitch * texYOffset);
+  unsigned char* dst = m_pixels;
+  for (unsigned int y = 0; y < srcRows && y < dstRows; y++)
+  {
+    memcpy(dst, src + srcPitchX, std::min((srcPitch - srcPitchX), dstPitch));
+    src += srcPitch;
+    dst += dstPitch;
+  }
+  ClampToEdge();
+
+  /*
+  if (loadToGPU)
+    LoadToGPU();
+  */
+  return true;
+}
+
 bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxWidth, unsigned int maxHeight,
                                 bool autoRotate, unsigned int *originalWidth, unsigned int *originalHeight)
 {

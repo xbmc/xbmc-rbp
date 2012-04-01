@@ -69,6 +69,10 @@ public:
   CBaseTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8);
   virtual ~CBaseTexture();
 
+  bool LoadFromAtlas(XBMC::TexturePtr texture, unsigned int width, unsigned int height, 
+                                 unsigned int atlasWidth, unsigned int atlasHeight,
+                                 unsigned int texXOffset, unsigned int texYOffset, unsigned int format,
+                                 bool hasAlpha, unsigned char* pixels);
   bool LoadFromFile(const CStdString& texturePath, unsigned int maxHeight = 0, unsigned int maxWidth = 0,
                     bool autoRotate = false, unsigned int *originalWidth = NULL, unsigned int *originalHeight = NULL);
   bool LoadFromMemory(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, bool hasAlpha, unsigned char* pixels);
@@ -88,6 +92,7 @@ public:
     return m_texture;
 #endif
   }
+  unsigned int GetFormat() const { return m_format; }
   unsigned char* GetPixels() const { return m_pixels; }
   unsigned int GetPitch() const { return GetPitch(m_textureWidth); }
   unsigned int GetRows() const { return GetRows(m_textureHeight); }

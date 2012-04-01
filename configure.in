@@ -527,7 +527,7 @@ case $use_platform in
   raspberry-pi)
      target_platform=target_raspberry_pi
      use_neon=no
-     use_texturepacker=yes
+     use_texturepacker=no
      use_texturepacker_native=yes
      use_arch="arm"
      use_cpu=arm1176jzf-s
