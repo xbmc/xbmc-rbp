@@ -72,7 +72,7 @@ public:
   bool LoadFromAtlas(XBMC::TexturePtr texture, unsigned int width, unsigned int height, 
                                  unsigned int atlasWidth, unsigned int atlasHeight,
                                  unsigned int texXOffset, unsigned int texYOffset, unsigned int format,
-                                 bool hasAlpha, unsigned char* pixels);
+                                 bool hasAlpha, unsigned char* pixels, bool loadToGPU);
   bool LoadFromFile(const CStdString& texturePath, unsigned int maxHeight = 0, unsigned int maxWidth = 0,
                     bool autoRotate = false, unsigned int *originalWidth = NULL, unsigned int *originalHeight = NULL);
   bool LoadFromMemory(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, bool hasAlpha, unsigned char* pixels);

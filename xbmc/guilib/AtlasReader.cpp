@@ -157,10 +157,6 @@ CXBTFFile* CAtlasReader::Find(const CStdString& name)
   CXBTFFile *file = &(iter->second);
   CXBTFFrame& frame = file->GetFrames().at(0);
 
-  CLog::Log(LOGDEBUG, "Loading Atlas image %s %d %d %d %d\n", name.c_str(), 
-            frame.GetTextureXOffset(), frame.GetTextureYOffset(), 
-            frame.GetWidth(), frame.GetHeight());
-
   return &(iter->second);
 }
 

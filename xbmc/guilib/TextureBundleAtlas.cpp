@@ -174,7 +174,6 @@ bool CTextureBundleAtlas::ConvertFrameToTexture(const CStdString &atlas, const C
 
     if (pAtlas->LoadFromFile((const CStdString)strAtlas))
     {
-      //pAtlas->LoadToGPU();
       m_atlasTexture[strAtlas] = pAtlas;
     }
     else
@@ -188,7 +187,11 @@ bool CTextureBundleAtlas::ConvertFrameToTexture(const CStdString &atlas, const C
   (*ppTexture)->LoadFromAtlas(pAtlas->GetTextureObject(), frame.GetWidth(), frame.GetHeight(),
                               frame.GetAtlasWidth(), frame.GetAtlasHeight(), 
                               frame.GetTextureXOffset(), frame.GetTextureYOffset(), 
-                              pAtlas->GetFormat(), frame.HasAlpha(), pAtlas->GetPixels());
+                              pAtlas->GetFormat(), frame.HasAlpha(), pAtlas->GetPixels(), true);
+
+  CLog::Log(LOGDEBUG, "Loading Atlas image %s %d %d %d %d\n", name.c_str(), 
+            frame.GetTextureXOffset(), frame.GetTextureYOffset(), 
+            frame.GetWidth(), frame.GetHeight());
 
   return true;
 }

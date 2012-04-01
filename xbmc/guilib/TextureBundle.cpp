@@ -39,7 +39,7 @@ bool CTextureBundle::HasFile(const CStdString& Filename)
   {
     return m_tbAtlas.HasFile(Filename);
   }
-  if (m_useXBT)
+  else if (m_useXBT)
   {
     return m_tbXBT.HasFile(Filename);
   }

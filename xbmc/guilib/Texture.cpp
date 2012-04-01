@@ -196,18 +196,18 @@ void CBaseTexture::ClampToEdge()
 bool CBaseTexture::LoadFromAtlas(XBMC::TexturePtr texture, unsigned int width, unsigned int height,
                                  unsigned int atlasWidth, unsigned int atlasHeight,
                                  unsigned int texXOffset, unsigned int texYOffset, unsigned int format,
-                                 bool hasAlpha, unsigned char* pixels)
+                                 bool hasAlpha, unsigned char* pixels, bool loadToGPU)
 {
-  if (pixels == NULL)
-    return false;
-
   m_format = format;
-  //m_texture = texture;
+  m_texture = 0;
   m_textureWidth = width;
   m_textureHeight = height;
   m_hasAlpha = hasAlpha;
 
   Allocate(width, height, format);
+
+  if (pixels == NULL)
+    return false;
 
   unsigned int srcPitch = GetPitch(atlasWidth);
   unsigned int srcPitchX = GetPitch(texXOffset);
@@ -225,10 +225,9 @@ bool CBaseTexture::LoadFromAtlas(XBMC::TexturePtr texture, unsigned int width, u
   }
   ClampToEdge();
 
-  /*
   if (loadToGPU)
     LoadToGPU();
-  */
+
   return true;
 }
 
