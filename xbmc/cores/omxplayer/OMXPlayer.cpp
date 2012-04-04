@@ -1171,8 +1171,11 @@ do_exit:
         m_player_video.WaitCompletion();
     }
 
-    m_av_clock->OMXStop();
-    m_av_clock->OMXStateIdle();
+    if(m_av_clock)
+    {
+      m_av_clock->OMXStop();
+      m_av_clock->OMXStateIdle();
+    }
   
     m_player_video.Close();
     m_player_audio.Close();
