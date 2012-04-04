@@ -307,10 +307,6 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
-#ifdef TARGET_RASPBERRY_PI
-#include "linux/RBP.h"
-#endif
-
 using namespace std;
 using namespace ADDON;
 using namespace XFILE;
@@ -511,11 +507,6 @@ void CApplication::Preflight()
 
 bool CApplication::Create()
 {
-#ifdef TARGET_RASPBERRY_PI
-  if(!g_RBP.Initialize())
-    return false;
-#endif
-
   g_settings.Initialize(); //Initialize default AdvancedSettings
 
   m_bSystemScreenSaverEnable = g_Windowing.IsSystemScreenSaverEnabled();
@@ -3439,10 +3430,6 @@ void CApplication::Stop(int exitCode)
   {
     CLog::Log(LOGERROR, "Exception in CApplication::Stop()");
   }
-
-#ifdef TARGET_RASPBERRY_PI
-  g_RBP.Initialize();
-#endif
 
   // we may not get to finish the run cycle but exit immediately after a call to g_application.Stop()
   // so we may never get to Destroy() in CXBApplicationEx::Run(), we call it here.

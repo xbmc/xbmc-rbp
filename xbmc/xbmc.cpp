@@ -45,8 +45,17 @@
 #include "input/linux/LIRC.h"
 #endif
 
+#ifdef TARGET_RASPBERRY_PI
+#include "linux/RBP.h"
+#endif
+
 int main(int argc, char* argv[])
 {
+#ifdef TARGET_RASPBERRY_PI
+  if(!g_RBP.Initialize())
+    return false;
+#endif
+
   int status = -1;
   //this can't be set from CAdvancedSettings::Initialize() because it will overwrite
   //the loglevel set with the --debug flag
@@ -97,6 +106,10 @@ int main(int argc, char* argv[])
     fprintf(stderr, "ERROR: Exception caught on main loop. Exiting\n");
     status = -1;
   }
+
+#ifdef TARGET_RASPBERRY_PI
+  g_RBP.Initialize();
+#endif
 
   return status;
 }
