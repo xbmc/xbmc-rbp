@@ -36,7 +36,6 @@
 #include "DllAvFormat.h"
 #include "DllAvFilter.h"
 #include "DllAvCodec.h"
-#include "DllAvCore.h"
 
 #include "threads/SingleLock.h"
 

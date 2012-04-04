@@ -27,7 +27,6 @@
 #include "DllAvFormat.h"
 #include "DllAvFilter.h"
 #include "DllAvCodec.h"
-#include "DllAvCore.h"
 
 typedef struct {
   uint8_t *buffer, *start;

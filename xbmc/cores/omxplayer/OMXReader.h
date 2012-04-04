@@ -27,7 +27,6 @@
 #include "DllAvFormat.h"
 #include "DllAvFilter.h"
 #include "DllAvCodec.h"
-#include "DllAvCore.h"
 #include "OMXStreamInfo.h"
 #ifdef STANDALONE
 #include "OMXThread.h"
