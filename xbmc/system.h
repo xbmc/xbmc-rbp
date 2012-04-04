@@ -232,18 +232,6 @@
 #include "PlatformInclude.h"
 #endif
 
-// ARM does not support certain features... disable them here!
-#ifdef _ARMEL
-#undef HAS_AVAHI
-#undef HAS_ZEROCONF
-#if defined(TARGET_RASPBERRY_PI)
-#undef HAS_AIRPLAY
-#else
-#undef HAS_VISUALISATION
-#endif
-#undef HAS_FILESYSTEM_HTSP
-#endif
-
 // EGL detected. Dont use GLX!
 #ifdef HAVE_LIBEGL
 #undef HAS_GLX

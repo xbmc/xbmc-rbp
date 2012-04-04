@@ -36,6 +36,17 @@
 #include "video/Bookmark.h"
 #ifdef HAS_WEB_SERVER
 #include "network/WebServer.h"
+#include "network/httprequesthandler/HTTPVfsHandler.h"
+#ifdef HAS_HTTPAPI
+#include "network/httprequesthandler/HTTPApiHandler.h"
+#endif
+#ifdef HAS_JSONRPC
+#include "network/httprequesthandler/HTTPJsonRpcHandler.h"
+#endif
+#ifdef HAS_WEB_INTERFACE
+#include "network/httprequesthandler/HTTPWebinterfaceHandler.h"
+#include "network/httprequesthandler/HTTPWebinterfaceAddonsHandler.h"
+#endif
 #endif
 #ifdef HAS_LCD
 #include "utils/LCDFactory.h"
@@ -107,13 +118,13 @@
 #include "filesystem/SMBDirectory.h"
 #endif
 #ifdef HAS_FILESYSTEM_NFS
-#include "filesystem/FileNFS.h"
+#include "filesystem/NFSFile.h"
 #endif
 #ifdef HAS_FILESYSTEM_AFP
-#include "filesystem/FileAFP.h"
+#include "filesystem/AFPFile.h"
 #endif
 #ifdef HAS_FILESYSTEM_SFTP
-#include "filesystem/FileSFTP.h"
+#include "filesystem/SFTPFile.h"
 #endif
 #include "PartyModeManager.h"
 #ifdef HAS_VIDEO_PLAYBACK
@@ -160,9 +171,6 @@
 #endif
 #include "interfaces/AnnouncementManager.h"
 #include "peripherals/Peripherals.h"
-#ifdef HAVE_LIBCEC
-#include "peripherals/devices/PeripheralCecAdapter.h"
-#endif
 #include "peripherals/dialogs/GUIDialogPeripheralManager.h"
 #include "peripherals/dialogs/GUIDialogPeripheralSettings.h"
 
@@ -295,6 +303,7 @@
 #include "utils/JobManager.h"
 #include "utils/SaveFileStateJob.h"
 #include "utils/AlarmClock.h"
+#include "utils/StringUtils.h"
 
 #ifdef _LINUX
 #include "XHandle.h"
@@ -338,6 +347,17 @@ CApplication::CApplication(void)
   : m_pPlayer(NULL)
 #ifdef HAS_WEB_SERVER
   , m_WebServer(*new CWebServer)
+  , m_httpVfsHandler(*new CHTTPVfsHandler)
+#ifdef HAS_JSONRPC
+  , m_httpJsonRpcHandler(*new CHTTPJsonRpcHandler)
+#endif
+#ifdef HAS_HTTPAPI
+  , m_httpApiHandler(*new CHTTPApiHandler)
+#endif
+#ifdef HAS_WEB_INTERFACE
+  , m_httpWebinterfaceHandler(*new CHTTPWebinterfaceHandler)
+  , m_httpWebinterfaceAddonsHandler(*new CHTTPWebinterfaceAddonsHandler)
+#endif
 #endif
   , m_itemCurrentFile(new CFileItem)
   , m_progressTrackingVideoResumeBookmark(*new CBookmark)
@@ -387,6 +407,17 @@ CApplication::~CApplication(void)
 {
 #ifdef HAS_WEB_SERVER
   delete &m_WebServer;
+  delete &m_httpVfsHandler;
+#ifdef HAS_HTTPAPI
+  delete &m_httpApiHandler;
+#endif
+#ifdef HAS_JSONRPC
+  delete &m_httpJsonRpcHandler;
+#endif
+#ifdef HAS_WEB_INTERFACE
+  delete &m_httpWebinterfaceHandler;
+  delete &m_httpWebinterfaceAddonsHandler;
+#endif
 #endif
   delete &m_progressTrackingVideoResumeBookmark;
 #ifdef HAS_DVD_DRIVE
@@ -1070,6 +1101,20 @@ bool CApplication::Initialize()
   //  uses these other libraries."
   g_curlInterface.Load();
   g_curlInterface.Unload();
+
+#ifdef HAS_WEB_SERVER
+  CWebServer::RegisterRequestHandler(&m_httpVfsHandler);
+#ifdef HAS_JSONRPC
+  CWebServer::RegisterRequestHandler(&m_httpJsonRpcHandler);
+#endif
+#ifdef HAS_HTTPAPI
+  CWebServer::RegisterRequestHandler(&m_httpApiHandler);
+#endif
+#ifdef HAS_WEB_INTERFACE
+  CWebServer::RegisterRequestHandler(&m_httpWebinterfaceAddonsHandler);
+  CWebServer::RegisterRequestHandler(&m_httpWebinterfaceHandler);
+#endif
+#endif
 
   StartServices();
 
@@ -2567,6 +2612,10 @@ bool CApplication::OnAction(const CAction &action)
       }
     }
   }
+
+  if (g_peripherals.OnAction(action))
+    return true;
+
   if (action.GetID() == ACTION_MUTE)
   {
     ToggleMute();
@@ -2842,23 +2891,9 @@ bool CApplication::ProcessRemote(float frameTime)
 
 bool CApplication::ProcessPeripherals(float frameTime)
 {
-#ifdef HAVE_LIBCEC
-  vector<CPeripheral *> peripherals;
-  if (g_peripherals.GetPeripheralsWithFeature(peripherals, FEATURE_CEC))
-  {
-    for (unsigned int iPeripheralPtr = 0; iPeripheralPtr < peripherals.size(); iPeripheralPtr++)
-    {
-      CPeripheralCecAdapter *cecDevice = (CPeripheralCecAdapter *) peripherals.at(iPeripheralPtr);
-      if (cecDevice && cecDevice->GetButton())
-      {
-        CKey key(cecDevice->GetButton(), cecDevice->GetHoldTime());
-        cecDevice->ResetButton();
-        return OnKey(key);
-      }
-    }
-  }
-#endif
-
+  CKey key;
+  if (g_peripherals.GetNextKeypress(frameTime, key))
+    return OnKey(key);
   return false;
 }
 
@@ -2943,8 +2978,8 @@ void  CApplication::CheckForTitleChange()
         CStdString msg="";
         if (!tagVal->GetTitle().IsEmpty())
           msg=m_pXbmcHttp->GetOpenTag()+"AudioTitle:"+tagVal->GetTitle()+m_pXbmcHttp->GetCloseTag();
-        if (!tagVal->GetArtist().IsEmpty())
-          msg+=m_pXbmcHttp->GetOpenTag()+"AudioArtist:"+tagVal->GetArtist()+m_pXbmcHttp->GetCloseTag();
+        if (!tagVal->GetArtist().empty())
+          msg+=m_pXbmcHttp->GetOpenTag()+"AudioArtist:"+StringUtils::Join(tagVal->GetArtist(), g_advancedSettings.m_musicItemSeparator)+m_pXbmcHttp->GetCloseTag();
         if (m_prevMedia!=msg)
         {
           getApplicationMessenger().HttpApi("broadcastlevel; MediaChanged:"+msg+";1");
@@ -3299,7 +3334,8 @@ void CApplication::Stop(int exitCode)
 {
   try
   {
-    CAnnouncementManager::Announce(System, "xbmc", "OnQuit");
+    CVariant vExitCode(exitCode);
+    CAnnouncementManager::Announce(System, "xbmc", "OnQuit", vExitCode);
 
     // cancel any jobs from the jobmanager
     CJobManager::GetInstance().CancelJobs();
@@ -3350,6 +3386,20 @@ void CApplication::Stop(int exitCode)
 
     StopServices();
     //Sleep(5000);
+
+#ifdef HAS_WEB_SERVER
+  CWebServer::UnregisterRequestHandler(&m_httpVfsHandler);
+#ifdef HAS_JSONRPC
+  CWebServer::UnregisterRequestHandler(&m_httpJsonRpcHandler);
+#endif
+#ifdef HAS_HTTPAPI
+  CWebServer::UnregisterRequestHandler(&m_httpApiHandler);
+#endif
+#ifdef HAS_WEB_INTERFACE
+  CWebServer::UnregisterRequestHandler(&m_httpWebinterfaceAddonsHandler);
+  CWebServer::UnregisterRequestHandler(&m_httpWebinterfaceHandler);
+#endif
+#endif
 
 #if defined(__APPLE__) && !defined(__arm__)
     XBMCHelper::GetInstance().ReleaseAllInput();
@@ -3659,7 +3709,7 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
   if (item.IsStack())
     return PlayStack(item, bRestart);
 
-  //Is TuxBox, this should probably be moved to CFileTuxBox
+  //Is TuxBox, this should probably be moved to CTuxBoxFile
   if(item.IsTuxBox())
   {
     CLog::Log(LOGDEBUG, "%s - TuxBox URL Detected %s",__FUNCTION__, item.GetPath().c_str());
@@ -4151,6 +4201,13 @@ bool CApplication::IsPlayingVideo() const
 bool CApplication::IsPlayingFullScreenVideo() const
 {
   return IsPlayingVideo() && g_graphicsContext.IsFullScreenVideo();
+}
+
+bool CApplication::IsFullScreen()
+{
+  return IsPlayingFullScreenVideo() ||
+        (g_windowManager.GetActiveWindow() == WINDOW_VISUALISATION) ||
+         g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW;
 }
 
 void CApplication::SaveFileState()
@@ -5038,6 +5095,8 @@ void CApplication::ShowVolumeBar(const CAction *action)
 
 bool CApplication::IsMuted() const
 {
+  if (g_peripherals.IsMuted())
+    return true;
   return g_settings.m_bMute;
 }
 
@@ -5051,16 +5110,22 @@ void CApplication::ToggleMute(void)
 
 void CApplication::Mute()
 {
+  if (g_peripherals.Mute())
+    return;
+
   g_settings.m_iPreMuteVolumeLevel = GetVolume();
-  SetVolume(0);
   g_settings.m_bMute = true;
+  SetVolume(0);
 }
 
 void CApplication::UnMute()
 {
+  if (g_peripherals.UnMute())
+    return;
+
+  g_settings.m_bMute = false;
   SetVolume(g_settings.m_iPreMuteVolumeLevel);
   g_settings.m_iPreMuteVolumeLevel = 0;
-  g_settings.m_bMute = false;
 }
 
 void CApplication::SetVolume(long iValue, bool isPercentage /* = true */)
@@ -5075,6 +5140,13 @@ void CApplication::SetVolume(long iValue, bool isPercentage /* = true */)
 #else
   g_audioManager.SetVolume((int)(128.f * (g_settings.m_nVolumeLevel - VOLUME_MINIMUM) / (float)(VOLUME_MAXIMUM - VOLUME_MINIMUM)));
 #endif
+
+  CVariant data(CVariant::VariantTypeObject);
+  data["volume"] = (int)(((float)(g_settings.m_nVolumeLevel - VOLUME_MINIMUM)) / (VOLUME_MAXIMUM - VOLUME_MINIMUM) * 100.0f + 0.5f);
+  /* TODO: add once DRC is available
+  data["drc"] = (int)(((float)(g_settings.m_dynamicRangeCompressionLevel - VOLUME_DRC_MINIMUM)) / (VOLUME_DRC_MAXIMUM - VOLUME_DRC_MINIMUM) * 100.0f + 0.5f);*/
+  data["muted"] = g_settings.m_bMute;
+  CAnnouncementManager::Announce(Application, "xbmc", "OnVolumeChanged", data);
 }
 
 void CApplication::SetHardwareVolume(long hardwareVolume)
