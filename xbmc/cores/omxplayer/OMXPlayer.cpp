@@ -1163,7 +1163,7 @@ do_exit:
 
   try
   {
-    if(got_eof)
+    if(got_eof && !m_StopPlaying)
     {
       if(m_audio_count)
         m_player_audio.WaitCompletion();
