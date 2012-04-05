@@ -226,9 +226,6 @@ void COMXPlayer::Pause()
   if(!m_av_clock)
     return;
 
-  if (m_StopPlaying)
-    return;
-
   if (m_paused == true)
   {
     // unpause here
@@ -802,9 +799,6 @@ bool COMXPlayer::GetStreamDetails(CStreamDetails &details)
 
 void COMXPlayer::ToFFRW(int iSpeed)
 {
-  if (m_StopPlaying)
-    return;
-
   if(!m_av_clock)
     return;
 
@@ -1186,7 +1180,7 @@ do_exit:
       omx_pkt = NULL;
     }
 
-    m_bStop = m_StopPlaying = true;
+    m_StopPlaying = true;
   }
   catch(...)
   {
