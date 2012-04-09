@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2010 Team XBMC
+ *      Copyright (C) 2005-2012 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -19,8 +19,33 @@
  *
  */
 
-#import <UIKit/UIKit.h>
+#pragma once
 
-@interface XBMCApplicationDelegate : NSObject <UIApplicationDelegate> {
-}
-@end
+#include <Python.h>
+#include <string>
+
+int Py_XBMC_Event_OnSettingsChanged(void* arg);
+int Py_XBMC_Event_OnScreensaverActivated(void* arg);
+int Py_XBMC_Event_OnScreensaverDeactivated(void* arg);
+int Py_XBMC_Event_OnDatabaseUpdated(void* arg);
+
+class CPythonMonitor
+{
+public:
+  CPythonMonitor();
+  void    SetCallback(PyThreadState *state, PyObject *object);
+  void    OnSettingsChanged();
+  void    OnScreensaverActivated();
+  void    OnScreensaverDeactivated();
+  void    OnDatabaseUpdated(const std::string &database);
+  
+  void    Acquire();
+  void    Release();
+
+  PyObject* m_callback;
+  PyThreadState *m_state;
+  std::string Id;
+protected:
+  ~CPythonMonitor(void);
+  long   m_refs;
+};

@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2010 Team XBMC
+ *      Copyright (C) 2005-2012 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -18,9 +18,26 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
+#pragma once
 
-#import <UIKit/UIKit.h>
+#include <Python.h>
+#include "PythonMonitor.h"
 
-@interface XBMCApplicationDelegate : NSObject <UIApplicationDelegate> {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+namespace PYXBMC
+{
+  typedef struct {
+    PyObject_HEAD
+    CPythonMonitor* pMonitor;
+  } Monitor;
+
+  extern PyTypeObject Monitor_Type;
+  void initMonitor_Type();
 }
-@end
+  
+#ifdef __cplusplus
+}
+#endif
