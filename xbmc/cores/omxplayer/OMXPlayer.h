@@ -181,15 +181,15 @@ private:
   int64_t                 m_duration_ms;
   int                     m_audio_index;
   int                     m_audio_count;
-  CStdString              m_audio_info;
+  std::string             m_audio_info;
   int                     m_video_index;
   int                     m_video_count;
-  CStdString              m_video_info;
+  std::string             m_video_info;
   int                     m_subtitle_index;
   int                     m_subtitle_count;
   bool                    m_subtitle_show;
   double                  m_last_subtitle_pts;
-  CStdString              m_lastSub;
+  std::string             m_lastSub;
 
   int                     m_chapter_count;
 

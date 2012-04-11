@@ -98,7 +98,7 @@ void OMXPlayerAudio::UnLockDecoder()
     pthread_mutex_unlock(&m_lock_decoder);
 }
 
-bool OMXPlayerAudio::Open(COMXStreamInfo &hints, OMXClock *av_clock, OMXReader *omx_reader, CStdString device,
+bool OMXPlayerAudio::Open(COMXStreamInfo &hints, OMXClock *av_clock, OMXReader *omx_reader, std::string device,
                           bool passthrough, bool hw_decode, bool use_thread)
 {
   if(ThreadHandle())

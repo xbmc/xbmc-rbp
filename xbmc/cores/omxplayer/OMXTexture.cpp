@@ -65,20 +65,20 @@ COMXTexture::~COMXTexture()
 
 bool COMXTexture::Open(void)
 {
-  CStdString componentName = "";
+  std::string componentName = "";
 
   componentName = "OMX.broadcom.image_decode";
-  if(!m_omx_image_decode.Initialize((const CStdString)componentName, OMX_IndexParamImageInit)) {
+  if(!m_omx_image_decode.Initialize((const std::string)componentName, OMX_IndexParamImageInit)) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_render.SetStateForComponent\n", CLASSNAME, __func__);
     return false;
   }
   componentName = "OMX.broadcom.resize";
-  if(!m_omx_resize.Initialize((const CStdString)componentName, OMX_IndexParamImageInit)) {
+  if(!m_omx_resize.Initialize((const std::string)componentName, OMX_IndexParamImageInit)) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_render.SetStateForComponent\n", CLASSNAME, __func__);
     return false;
   }
   componentName = "OMX.broadcom.egl_render";
-  if(!m_omx_egl_render.Initialize((const CStdString)componentName, OMX_IndexParamVideoInit)) {
+  if(!m_omx_egl_render.Initialize((const std::string)componentName, OMX_IndexParamVideoInit)) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_render.SetStateForComponent\n", CLASSNAME, __func__);
     return false;
   }
