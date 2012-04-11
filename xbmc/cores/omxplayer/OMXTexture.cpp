@@ -54,6 +54,7 @@ typedef struct {
 COMXTexture::COMXTexture()
 {
   m_is_open       = false;
+  m_egl_buffer    = NULL;
 }
 
 COMXTexture::~COMXTexture()
@@ -98,10 +99,15 @@ void COMXTexture::Close()
   m_omx_tunnel_decode.Deestablish(false);
   m_omx_tunnel_egl.Deestablish(false);
 
-  omx_err = m_omx_egl_render.FreeOutputBuffer(m_egl_buffer);
-  if(omx_err != OMX_ErrorNone) {
-    CLog::Log(LOGERROR, "%s::%s error m_omx_egl_render.FreeBuffer\n", CLASSNAME, __func__);
+  if(m_egl_buffer)
+  {
+    omx_err = m_omx_egl_render.FreeOutputBuffer(m_egl_buffer);
+    if(omx_err != OMX_ErrorNone) {
+      CLog::Log(LOGERROR, "%s::%s error m_omx_egl_render.FreeBuffer\n", CLASSNAME, __func__);
+    }
+    m_egl_buffer = NULL;
   }
+
 
   // delete components
   m_omx_image_decode.Deinitialize();

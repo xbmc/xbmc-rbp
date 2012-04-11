@@ -73,6 +73,8 @@ CBaseTexture::CBaseTexture(const CBaseTexture &copy)
 #endif
   m_pixels = NULL;
   m_loadedToGPU = false;
+  m_omx_texture = NULL;
+  m_omx_image = NULL;
   if (copy.m_pixels)
   {
     m_pixels = new unsigned char[GetPitch() * GetRows()];
@@ -84,12 +86,12 @@ CBaseTexture::~CBaseTexture()
 {
   delete[] m_pixels;
 #ifdef TARGET_RASPBERRY_PI
-  if(m_omx_image)
-    delete m_omx_image;
-  m_omx_image = NULL;
   if(m_omx_texture)
     delete m_omx_texture;
   m_omx_texture = NULL;
+  if(m_omx_image)
+    delete m_omx_image;
+  m_omx_image = NULL;
 #endif
 }
 
