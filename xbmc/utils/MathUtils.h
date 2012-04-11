@@ -63,7 +63,7 @@ namespace MathUtils
       sar i, 1
     }
 #else
-#if defined(__powerpc__) || defined(__ppc__)
+#if defined(__powerpc__) || defined(__ppc__) || defined(TARGET_RASPBERRY_PI)
     i = floor(x + round_to_nearest);
 #elif defined(__arm__)
     // From 'ARM®v7-M Architecture Reference Manual' page A7-569:
@@ -82,7 +82,7 @@ namespace MathUtils
        int_val++;
      return int_val;
      */
-/*
+
     __asm__ __volatile__ (
                           "vmov.F64 d1,%[rnd_val]      \n\t" // Copy round_to_nearest into a working register (d1 = 0.5)
                           "fcmpezd %P[value]           \n\t" // Check value against zero (value == 0?)
@@ -103,8 +103,6 @@ namespace MathUtils
                           : [rnd_val] "Dv" (round_to_nearest), [value] "w"(x) // Inputs
                           : "d1", "d2", "s3"                                  // Clobbers
                           );
-*/
-    i = floor(x + round_to_nearest);
 #else
     __asm__ __volatile__ (
                           "fadd %%st\n\t"
