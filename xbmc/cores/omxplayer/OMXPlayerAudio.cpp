@@ -674,24 +674,22 @@ double OMXPlayerAudio::GetCacheTime()
     return 0;
 }
 
-void OMXPlayerAudio::WaitCompletion()
+bool OMXPlayerAudio::WaitCompletion()
 {
   if(!m_decoder)
-    return;
+    return false;
 
-  while(true)
+  Lock();
+  if(m_packets.empty())
   {
-    Lock();
-    if(m_packets.empty())
-    {
-      UnLock();
-      break;
-    }
     UnLock();
-    OMXClock::OMXSleep(50);
+    return true;
   }
+  UnLock();
 
   m_decoder->WaitCompletion();
+
+  return false;
 }
 
 void OMXPlayerAudio::RegisterAudioCallback(IAudioCallback *pCallback)

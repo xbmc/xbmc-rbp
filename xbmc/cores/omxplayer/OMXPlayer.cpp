@@ -65,7 +65,7 @@ COMXPlayer::COMXPlayer(IPlayerCallback &callback)
 {
   m_speed           = 1;
   m_paused          = false;
-  m_StopPlaying     = false;
+  m_bAbortRequest     = false;
   m_hdmi_clock_sync = false;
   m_av_clock        = NULL;
 }
@@ -110,7 +110,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
 
     m_item        = file;
     m_options     = options;
-    m_StopPlaying = false;
+    m_bAbortRequest = false;
 
     m_elapsed_ms  = 0;
     m_duration_ms = 0;
@@ -175,7 +175,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     }
 
     // Playback might have been stopped due to some error
-    if (m_bStop || m_StopPlaying)
+    if (m_bStop || m_bAbortRequest)
       return false;
 
     return true;
@@ -191,7 +191,7 @@ bool COMXPlayer::CloseFile()
 {
   CLog::Log(LOGDEBUG, "COMXPlayer::CloseFile");
 
-  m_StopPlaying = true;
+  m_bAbortRequest = true;
 
   CLog::Log(LOGDEBUG, "COMXPlayer: waiting for threads to exit");
   // wait for the main thread to finish up
@@ -854,7 +854,6 @@ bool COMXPlayer::SetPlayerState(CStdString state)
 
 CStdString COMXPlayer::GetPlayingTitle()
 {
-  //return video_title;
   return "";
 }
 
@@ -873,7 +872,7 @@ void COMXPlayer::OnExit()
   // if we didn't stop playing, advance to the next item in xbmc's playlist
   if(m_options.identify == false)
   {
-    if (m_StopPlaying)
+    if (m_bAbortRequest)
       m_callback.OnPlayBackStopped();
     else
       m_callback.OnPlayBackEnded();
@@ -888,7 +887,6 @@ void COMXPlayer::Process()
     CLog::Log(LOGDEBUG, "COMXPlayer: SetThreadPriority failed");
 
   struct  timespec starttime, endtime;
-  bool    got_eof = false;
   OMXPacket *omx_pkt = NULL;
 
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
@@ -899,7 +897,10 @@ void COMXPlayer::Process()
     m_stats             = false;
 
     if(!m_omx_reader.Open(m_filename, false))
+    {
+      m_bAbortRequest = true;
       goto do_exit;
+    }
 
     m_video_count     = m_omx_reader.VideoStreamCount();
     m_audio_count     = m_omx_reader.AudioStreamCount();
@@ -913,7 +914,10 @@ void COMXPlayer::Process()
 
     m_av_clock = new OMXClock();
     if(!m_av_clock->OMXInitialize(m_video_count, m_audio_count))
+    {
+      m_bAbortRequest = true;
       goto do_exit;
+    }
 
     if(m_hdmi_clock_sync && !m_av_clock->HDMIClockSync())
       goto do_exit;
@@ -922,7 +926,10 @@ void COMXPlayer::Process()
 
     if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, deinterlace,
                                              m_bMpeg, m_hdmi_clock_sync, m_thread_player))
+    {
+      m_bAbortRequest = true;
       goto do_exit;
+    }
 
     CStdString deviceString;
     if(m_use_passthrough)
@@ -932,7 +939,10 @@ void COMXPlayer::Process()
 
     if(m_audio_count && !m_player_audio.Open(m_hints_audio, m_av_clock, &m_omx_reader, deviceString,
                                 m_use_passthrough, m_use_hw_audio, m_thread_player))
+    {
+      m_bAbortRequest = true;
       goto do_exit;
+    }
 
     RESOLUTION res      = g_graphicsContext.GetVideoResolution();
     int video_width     = g_settings.m_ResInfo[res].iWidth;
@@ -1012,7 +1022,7 @@ void COMXPlayer::Process()
     CSingleLock lock(m_csection);
     m_csection.unlock();
 
-    while (!m_bStop && !m_StopPlaying)
+    while (!m_bAbortRequest)
     {
       if(m_paused)
       {
@@ -1033,7 +1043,10 @@ void COMXPlayer::Process()
         m_player_video.Close();
         if(m_video_count && !m_player_video.Open(m_hints_video, m_av_clock, deinterlace,
                                              m_bMpeg, m_hdmi_clock_sync, m_thread_player))
+        {
+          m_bAbortRequest = true;
           goto do_exit;
+        }
 
         m_flush = false;
       }
@@ -1122,7 +1135,10 @@ void COMXPlayer::Process()
 
       /* player emergency exit */
       if(m_player_audio.Error())
+      {
+        m_bAbortRequest = true;
         goto do_exit;
+      }
 
       if(m_stats)
       {
@@ -1142,10 +1158,8 @@ void COMXPlayer::Process()
       m_csection.unlock();
 
       if(m_omx_reader.IsEof())
-      {
-        got_eof = true; 
         break;
-      }
+
     }
   }
   catch(...)
@@ -1157,12 +1171,22 @@ do_exit:
 
   try
   {
-    if(got_eof && !m_StopPlaying)
+    if(m_omx_reader.IsEof())
     {
-      if(m_audio_count)
-        m_player_audio.WaitCompletion();
-      else if(m_video_count)
-        m_player_video.WaitCompletion();
+      bool running = true;
+
+      while(running)
+      {
+        if(m_bAbortRequest)
+          break;
+
+        if(m_audio_count)
+          running = m_player_audio.WaitCompletion();
+        else if(m_video_count)
+          running = m_player_video.WaitCompletion();
+
+        OMXClock::OMXSleep(50);
+      }
     }
 
     if(m_av_clock)
@@ -1179,8 +1203,6 @@ do_exit:
       OMXReader::FreePacket(omx_pkt);
       omx_pkt = NULL;
     }
-
-    m_StopPlaying = true;
   }
   catch(...)
   {

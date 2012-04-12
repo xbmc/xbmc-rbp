@@ -170,7 +170,7 @@ private:
 
   int                     m_speed;
   bool                    m_paused;
-  bool                    m_StopPlaying;
+  bool                    m_bAbortRequest;
   CEvent                  m_ready;
   CFileItem               m_item;
   CPlayerOptions          m_options;

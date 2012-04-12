@@ -1079,7 +1079,7 @@ void COMXVideo::WaitCompletion()
     if(m_omx_render.IsEOS())
       break;
     clock_gettime(CLOCK_REALTIME, &endtime);
-    if((endtime.tv_sec - starttime.tv_sec) > 5)
+    if((endtime.tv_sec - starttime.tv_sec) > 2)
     {
       CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
       break;

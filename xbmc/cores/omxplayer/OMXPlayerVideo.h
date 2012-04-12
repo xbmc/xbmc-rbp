@@ -116,7 +116,7 @@ public:
   double GetCurrentPTS() { return m_pts; };
   double GetFPS() { return m_fps; };
   unsigned int GetCached() { return m_cached_size; };
-  void  WaitCompletion();
+  bool  WaitCompletion();
   void SetDelay(double delay) { m_iVideoDelay = delay; }
   double GetDelay() { return m_iVideoDelay; }
   void SetSpeed(int iSpeed);

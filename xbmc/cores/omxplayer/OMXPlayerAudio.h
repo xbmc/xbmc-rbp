@@ -122,7 +122,7 @@ public:
   double GetDelay();
   double GetCacheTime();
   double GetCurrentPTS() { return m_iCurrentPts; };
-  void WaitCompletion();
+  bool WaitCompletion();
   unsigned int GetCached() { return m_cached_size; };
   void  RegisterAudioCallback(IAudioCallback* pCallback);
   void  UnRegisterAudioCallback();
