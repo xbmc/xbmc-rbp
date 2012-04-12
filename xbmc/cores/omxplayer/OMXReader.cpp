@@ -190,6 +190,7 @@ bool OMXReader::Open(std::string filename, bool dump_format)
   ClearStreams();
 
   m_dllAvFormat.av_register_all();
+  m_dllAvFormat.avformat_network_init();
 
   int           result    = -1;
   AVInputFormat *iformat  = NULL;
@@ -238,7 +239,7 @@ bool OMXReader::Open(std::string filename, bool dump_format)
 
     if(m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL) == 0)
       m_ioContext->seekable = 1;
-
+    
     m_dllAvFormat.av_probe_input_buffer(m_ioContext, &iformat, m_filename.c_str(), NULL, 0, 0);
 
     if(!iformat)
@@ -270,7 +271,7 @@ bool OMXReader::Open(std::string filename, bool dump_format)
   m_pFormatContext->flags |= AVFMT_FLAG_NONBLOCK;
 
   // analyse very short to speed up mjpeg playback start
-  if (iformat && (strcmp(iformat->name, "mjpeg") == 0) && m_ioContext->seekable)
+  if (iformat && (strcmp(iformat->name, "mjpeg") == 0) && m_pFormatContext->pb->seekable)
     m_pFormatContext->max_analyze_duration = 500000;
 
 #ifdef STANDALONE
@@ -373,6 +374,8 @@ bool OMXReader::Close()
     m_pFile = NULL;
   }
 
+  m_dllAvFormat.avformat_network_deinit();
+
   m_dllAvUtil.Unload();
   m_dllAvCodec.Unload();
   m_dllAvFormat.Unload();
@@ -417,19 +420,27 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
   if(seek_ms < 0)
     seek_ms = 0;
 
-  if(!m_pFile || !m_pFormatContext)
-    return false;
-
-  if(!m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, NULL))
+  if(!m_pFormatContext || !m_pFormatContext->pb->seekable)
     return false;
 
   Lock();
 
   FlushRead();
 
-  int64_t seek_pts = (int64_t)seek_ms * 1000;
+  if(m_ioContext)
+    m_ioContext->buf_ptr = m_ioContext->buf_end;
+
+  int64_t seek_pts = (int64_t)seek_ms * (AV_TIME_BASE / 1000);
   if (m_pFormatContext->start_time != (int64_t)AV_NOPTS_VALUE)
     seek_pts += m_pFormatContext->start_time;
+
+  /* seek behind eof */
+  if((seek_pts / AV_TIME_BASE) > (GetStreamLength()  / 1000))
+  {
+    m_eof = true;
+    UnLock();
+    return false;
+  }
 
   int ret = m_dllAvFormat.av_seek_frame(m_pFormatContext, -1, seek_pts, seek_flags ? AVSEEK_FLAG_BACKWARD : 0);
 
@@ -437,13 +448,9 @@ bool OMXReader::SeekTime(int64_t seek_ms, int seek_flags, double *startpts)
     UpdateCurrentPTS();
 
   if(m_iCurrentPts == DVD_NOPTS_VALUE)
-  {
     CLog::Log(LOGDEBUG, "OMXReader::SeekTime - unknown position after seek");
-  }
   else
-  {
     CLog::Log(LOGDEBUG, "OMXReader::SeekTime - seek ended up on time %d",(int)(m_iCurrentPts / DVD_TIME_BASE * 1000));
-  }
 
   if(startpts)
     *startpts = DVD_MSEC_TO_TIME(seek_ms);
