@@ -98,6 +98,8 @@ public:
   virtual int avformat_write_header (AVFormatContext *s, AVDictionary **options)=0;
   virtual int av_write_trailer(AVFormatContext *s)=0;
   virtual int av_write_frame  (AVFormatContext *s, AVPacket *pkt)=0;
+  virtual int avformat_network_init  (void)=0;
+  virtual int avformat_network_deinit  (void)=0;
 };
 
 #if (defined USE_EXTERNAL_FFMPEG) || (defined TARGET_DARWIN) 
@@ -117,13 +119,12 @@ public:
   virtual int url_feof(AVIOContext *s) { return ::url_feof(s); }
   virtual void avformat_close_input(AVFormatContext **s) { ::avformat_close_input(s); }
   virtual int av_read_frame(AVFormatContext *s, AVPacket *pkt) { return ::av_read_frame(s, pkt); }
-  virtual void av_read_frame_flush(AVFormatContext *s) { ::av_read_frame_flush(s); }
+  virtual void av_read_frame_flush(AVFormatContext *s) { ::av_read_frame_flush_internal(s); }
   virtual int av_read_play(AVFormatContext *s) { return ::av_read_play(s); }
   virtual int av_read_pause(AVFormatContext *s) { return ::av_read_pause(s); }
   virtual int av_seek_frame(AVFormatContext *s, int stream_index, int64_t timestamp, int flags) { return ::av_seek_frame(s, stream_index, timestamp, flags); }
   virtual int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
   {
-    CSingleLock lock(DllAvCodec::m_critSection);
     return ::avformat_find_stream_info(ic, options);
   }
   virtual int avformat_open_input(AVFormatContext **ps, const char *filename, AVInputFormat *fmt, AVDictionary **options)
@@ -153,6 +154,8 @@ public:
   virtual int avformat_write_header (AVFormatContext *s, AVDictionary **options) { return ::avformat_write_header (s, options); }
   virtual int av_write_trailer(AVFormatContext *s) { return ::av_write_trailer(s); }
   virtual int av_write_frame  (AVFormatContext *s, AVPacket *pkt) { return ::av_write_frame(s, pkt); }
+  virtual int avformat_network_init  (void) { return ::avformat_network_init(); }
+  virtual int avformat_network_deinit  (void) { return ::avformat_network_deinit(); }
 
   // DLL faking.
   virtual bool ResolveExports() { return true; }
@@ -207,6 +210,8 @@ class DllAvFormat : public DllDynamic, DllAvFormatInterface
   DEFINE_METHOD2(int, avformat_write_header , (AVFormatContext *p1, AVDictionary **p2))
   DEFINE_METHOD1(int, av_write_trailer, (AVFormatContext *p1))
   DEFINE_METHOD2(int, av_write_frame  , (AVFormatContext *p1, AVPacket *p2))
+  DEFINE_METHOD0(int, avformat_network_init)
+  DEFINE_METHOD0(int, avformat_network_deinit)
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD_RENAME(av_register_all, av_register_all_dont_call)
     RESOLVE_METHOD(av_find_input_format)
@@ -241,6 +246,8 @@ class DllAvFormat : public DllDynamic, DllAvFormatInterface
     RESOLVE_METHOD(avformat_write_header)
     RESOLVE_METHOD(av_write_trailer)
     RESOLVE_METHOD(av_write_frame)
+    RESOLVE_METHOD(avformat_network_init)
+    RESOLVE_METHOD(avformat_network_deinit)
   END_METHOD_RESOLVE()
 
   /* dependencies of libavformat */
@@ -250,12 +257,10 @@ class DllAvFormat : public DllDynamic, DllAvFormatInterface
 public:
   void av_register_all()
   {
-    CSingleLock lock(DllAvCodec::m_critSection);
     av_register_all_dont_call();
   }
   int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
   {
-    CSingleLock lock(DllAvCodec::m_critSection);
     return avformat_find_stream_info_dont_call(ic, options);
   }
 
