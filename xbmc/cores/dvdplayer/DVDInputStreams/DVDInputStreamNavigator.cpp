@@ -568,7 +568,7 @@ int CDVDInputStreamNavigator::ProcessBlock(BYTE* dest_buffer, int* read)
 void CDVDInputStreamNavigator::UpdateState()
 {
   /* if events where not checked since last call, check them here */
-  if(m_bCheckEvents)
+  if(m_bCheckEvents && m_dvdnav->sync_wait_skip == 0)
   {
     /* this is a bit of a hack, we force libdvdnav into wait *
      * state, this allow us to process highlight updates     *
@@ -576,7 +576,7 @@ void CDVDInputStreamNavigator::UpdateState()
     int sync_wait = m_dvdnav->sync_wait;
     m_dvdnav->sync_wait = 1;
     while(ProcessBlock(NULL, NULL) == NAVRESULT_NOP)
-      ; /* ProcessBlock.. */
+      m_dvdnav->sync_wait = 1; /* Some action will reset the wait.. */
     m_dvdnav->sync_wait = sync_wait;
   }
   else
