@@ -27,6 +27,15 @@
 
 #if defined(HAS_GL) || defined(HAS_GLES)
 
+#if TARGET_RASPBERRY_PI
+// EGL extension functions
+#define GETEXTENSION(type, ext) \
+do \
+{ \
+    ext = (type) eglGetProcAddress(#ext); \
+} while (0);
+#endif
+
 using namespace std;
 
 /************************************************************************/
@@ -47,6 +56,9 @@ void CGLTexture::CreateTextureObject()
   glGenTextures(1, (GLuint*) &m_texture);
 
 #if defined(TARGET_RASPBERRY_PI)
+  PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
+  GETEXTENSION(PFNEGLCREATEIMAGEKHRPROC, eglCreateImageKHR);
+
   if (m_accelerated && !m_egl_image && m_texture)
   {
     EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
@@ -68,7 +80,10 @@ void CGLTexture::CreateTextureObject()
 
 void CGLTexture::DestroyTextureObject()
 {
-#ifdef TARGET_RASPBERRY_PI
+#ifdef TARGET_RASPBERRY_PI  
+  PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
+  GETEXTENSION(PFNEGLDESTROYIMAGEKHRPROC, eglDestroyImageKHR);
+
   if (m_accelerated)
   {
     if (m_egl_image)
