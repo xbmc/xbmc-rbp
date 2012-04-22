@@ -40,7 +40,7 @@
 #include "DllAvUtil.h"
 #include "OMXCore.h"
 #include "OMXClock.h"
-#include "OMXStreamInfo.h"
+#include "DVDStreamInfo.h"
 #include "BitstreamConverter.h"
 
 #define AUDIO_BUFFER_SECONDS 2
@@ -57,7 +57,7 @@ public:
   float GetCacheTotal();
   COMXAudio();
   bool Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
-                           COMXStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode);
+                           CDVDStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode);
   bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, EEncoded bPassthrough = IAudioRenderer::ENCODED_NONE);
   ~COMXAudio();
 

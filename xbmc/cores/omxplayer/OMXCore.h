@@ -76,6 +76,7 @@ public:
   OMX_ERRORTYPE Deestablish(bool noWait = false);
   OMX_ERRORTYPE Establish(bool portSettingsChanged);
 private:
+  pthread_mutex_t   m_lock;
   bool              m_portSettingsChanged;
   COMXCoreComponent *m_src_component;
   COMXCoreComponent *m_dst_component;
@@ -83,6 +84,8 @@ private:
   unsigned int      m_dst_port;
   DllOMX            *m_DllOMX;
   bool              m_DllOMXOpen;
+  void              Lock();
+  void              UnLock();
 };
 
 class COMXCoreComponent
@@ -164,6 +167,7 @@ private:
   int            m_ports_enabled[OMX_MAX_PORTS];
   std::string    m_componentName;
   pthread_mutex_t   m_omx_event_mutex;
+  pthread_mutex_t   m_lock;
   std::vector<omx_event> m_omx_events;
 
   OMX_CALLBACKTYPE  m_callbacks;
@@ -193,6 +197,8 @@ private:
   bool          m_eos;
   bool          m_flush_input;
   bool          m_flush_output;
+  void              Lock();
+  void              UnLock();
 };
 
 class COMXCore

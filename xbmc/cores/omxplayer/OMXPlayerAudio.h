@@ -22,67 +22,54 @@
 #ifndef _OMX_PLAYERAUDIO_H_
 #define _OMX_PLAYERAUDIO_H_
 
-#include "DllAvUtil.h"
-#include "DllAvFormat.h"
-#include "DllAvFilter.h"
-#include "DllAvCodec.h"
+#include "utils/StdString.h"
 
 #include "utils/PCMRemap.h"
 
-#include "OMXReader.h"
 #include "OMXClock.h"
-#include "OMXStreamInfo.h"
+#include "DVDStreamInfo.h"
 #include "OMXAudio.h"
 #include "OMXAudioCodecOMX.h"
-#ifdef STANDALONE
-#include "OMXThread.h"
-#else
+//#ifdef STANDALONE
+//#include "OMXThread.h"
+//#else
 #include "threads/Thread.h"
-#endif
+//#endif
 
 #include <deque>
-#include <string>
 #include <sys/types.h>
+
+#include "DVDDemuxers/DVDDemux.h"
+#include "DVDMessageQueue.h"
+
+#include "utils/BitstreamStats.h"
 
 using namespace std;
 
-#ifdef STANDALONE
-class OMXPlayerAudio : public OMXThread
-#else
+//#ifdef STANDALONE
+//class OMXPlayerAudio : public OMXThread
+//#else
 class OMXPlayerAudio : public CThread
-#endif
+//#endif
 {
 protected:
-  AVStream                  *m_pStream;
-  int                       m_stream_id;
-  std::deque<OMXPacket *>   m_packets;
-  DllAvUtil                 m_dllAvUtil;
-  DllAvCodec                m_dllAvCodec;
-  DllAvFormat               m_dllAvFormat;
-  bool                      m_open;
-  COMXStreamInfo            m_hints;
-  double                    m_iCurrentPts;
-  pthread_cond_t            m_packet_cond;
-  pthread_cond_t            m_audio_cond;
-  pthread_mutex_t           m_lock;
-  pthread_mutex_t           m_lock_decoder;
+  CDVDMessageQueue      m_messageQueue;
+  CDVDMessageQueue      &m_messageParent;
+
+  CDVDStreamInfo            m_hints;
   OMXClock                  *m_av_clock;
-  OMXReader                 *m_omx_reader;
-  COMXAudio                 *m_decoder;
+  COMXAudio                 m_omxAudio;
   std::string               m_codec_name;
   std::string               m_device;
   bool                      m_use_passthrough;
   bool                      m_use_hw_decode;
   IAudioRenderer::EEncoded  m_passthrough;
   bool                      m_hw_decode;
-  bool                      m_bMpeg;
-  bool                      m_bAbort;
-  bool                      m_use_thread; 
-  bool                      m_flush;
   enum PCMChannels          *m_pChannelMap;
-  unsigned int              m_cached_size;
   COMXAudioCodecOMX         *m_pAudioCodec;
   int                       m_speed;
+  bool                      m_silence;
+  double                    m_audioClock;
   double m_error;    //last average error
 
   int64_t m_errortime; //timestamp of last time we measured
@@ -93,42 +80,49 @@ protected:
   int    m_errorcount;//number of errors stored
   bool   m_syncclock;
 
-  bool   m_player_error;
-
   double m_integral; //integral correction for resampler
   int    m_skipdupcount; //counter for skip/duplicate synctype
   bool   m_prevskipped;
 
-  void Lock();
-  void UnLock();
-  void LockDecoder();
-  void UnLockDecoder();
+  bool                      m_stalled;
+  bool                      m_started;
+
+  BitstreamStats            m_audioStats;
+
+  struct timespec           m_starttime, m_endtime;
+  bool                      m_buffer_empty;
+
 private:
 public:
-  OMXPlayerAudio();
+  OMXPlayerAudio(OMXClock *av_clock, CDVDMessageQueue& parent);
   ~OMXPlayerAudio();
-  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, OMXReader *omx_reader, std::string device,
-            bool passthrough, bool hw_decode, bool use_thread);
-  bool Close();
-  bool Decode(OMXPacket *pkt);
+  bool OpenStream(CDVDStreamInfo &hints);
+  bool OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec);
+  void SendMessage(CDVDMsg* pMsg, int priority = 0) { m_messageQueue.Put(pMsg, priority); }
+  bool AcceptsData() const                          { return !m_messageQueue.IsFull(); }
+  bool HasData() const                              { return m_messageQueue.GetDataSize() > 0; }
+  bool IsInited() const                             { return m_messageQueue.IsInited(); }
+  int  GetLevel() const                             { return m_messageQueue.GetLevel(); }
+  bool IsStalled()                                  { return m_stalled;  }
+  void WaitForBuffers();
+  bool CloseStream(bool bWaitForBuffers);
+  bool Decode(DemuxPacket *pkt, bool bDropPacket);
   void Process();
   void Flush();
-  bool AddPacket(OMXPacket *pkt);
-  bool OpenAudioCodec();
-  void CloseAudioCodec();      
-  IAudioRenderer::EEncoded IsPassthrough(COMXStreamInfo hints);
+  bool AddPacket(DemuxPacket *pkt);
+  IAudioRenderer::EEncoded IsPassthrough(CDVDStreamInfo hints);
+  bool Passthrough() const;
   bool OpenDecoder();
-  bool CloseDecoder();
   double GetDelay();
   double GetCacheTime();
-  double GetCurrentPTS() { return m_iCurrentPts; };
-  bool WaitCompletion();
-  unsigned int GetCached() { return m_cached_size; };
+  double GetCurrentPTS() { return m_audioClock; };
+  void WaitCompletion();
   void  RegisterAudioCallback(IAudioCallback* pCallback);
   void  UnRegisterAudioCallback();
   void  DoAudioWork();
   void SetCurrentVolume(long nVolume);
   void SetSpeed(int iSpeed);
-  bool Error() { return !m_player_error; };
+  int  GetAudioBitrate();
+  std::string GetPlayerInfo();
 };
 #endif

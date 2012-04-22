@@ -118,7 +118,7 @@ COMXAudio::~COMXAudio()
 
 
 bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
-                           COMXStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode)
+                           CDVDStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode)
 {
   m_HWDecode = false;
   m_Passthrough = false;
@@ -151,6 +151,12 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
 
 bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic, EEncoded bPassthrough)
 {
+  if(m_Initialized)
+    Deinitialize();
+
+  if(iChannels == 0)
+    return false;
+
   std::string deviceuse;
   if(device == "hdmi") {
     deviceuse = "hdmi";
@@ -160,6 +166,24 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
 
   if(!m_dllAvUtil.Load())
     return false;
+
+  if(m_av_clock == NULL)
+  {
+    /* no external clock set. generate one */
+    m_external_clock = false;
+
+    m_av_clock = new OMXClock();
+    
+    if(!m_av_clock->OMXInitialize(false, true))
+    {
+      delete m_av_clock;
+      m_av_clock = NULL;
+      CLog::Log(LOGERROR, "COMXAudio::Initialize error creating av clock\n");
+      return false;
+    }
+  }
+
+  m_omx_clock = m_av_clock->GetOMXClock();
 
   m_Passthrough = false;
 
@@ -373,24 +397,6 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
     }
   }
 
-  if(m_av_clock == NULL)
-  {
-    /* no external clock set. generate one */
-    m_external_clock = false;
-
-    m_av_clock = new OMXClock();
-    
-    if(!m_av_clock->OMXInitialize(false, true))
-    {
-      delete m_av_clock;
-      m_av_clock = NULL;
-      CLog::Log(LOGERROR, "COMXAudio::Initialize error creating av clock\n");
-      return false;
-    }
-  }
-
-  m_omx_clock = m_av_clock->GetOMXClock();
-
   m_omx_tunnel_clock.Initialize(m_omx_clock, m_omx_clock->GetInputPort(), &m_omx_render, m_omx_render.GetInputPort()+1);
 
   omx_err = m_omx_tunnel_clock.Establish(false);
@@ -549,10 +555,14 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
 
   SetCurrentVolume(m_CurrentVolume);
 
-  CLog::Log(LOGDEBUG, "COMXAudio::Initialize Ouput bps %d samplerate %d channels %d device %s buffer size %d bytes per second %d passthrough %d hwdecode %d", 
-      (int)m_pcm_output.nBitPerSample, (int)m_pcm_output.nSamplingRate, (int)m_pcm_output.nChannels, deviceuse.c_str(), m_BufferLen, m_BytesPerSec, m_Passthrough, m_HWDecode);
-  CLog::Log(LOGDEBUG, "COMXAudio::Initialize Input bps %d samplerate %d channels %d device %s buffer size %d bytes per second %d passthrough %d hwdecode %d", 
-      (int)m_pcm_input.nBitPerSample, (int)m_pcm_input.nSamplingRate, (int)m_pcm_input.nChannels, deviceuse.c_str(), m_BufferLen, m_BytesPerSec, m_Passthrough, m_HWDecode);
+  CLog::Log(LOGDEBUG, "COMXAudio::Initialize Ouput bps %d samplerate %d channels %d buffer size %d bytes per second %d", 
+      (int)m_pcm_output.nBitPerSample, (int)m_pcm_output.nSamplingRate, (int)m_pcm_output.nChannels, m_BufferLen, m_BytesPerSec);
+  CLog::Log(LOGDEBUG, "COMXAudio::Initialize Input bps %d samplerate %d channels %d buffer size %d bytes per second %d", 
+      (int)m_pcm_input.nBitPerSample, (int)m_pcm_input.nSamplingRate, (int)m_pcm_input.nChannels, m_BufferLen, m_BytesPerSec);
+  CLog::Log(LOGDEBUG, "COMXAudio::Initialize device %s passthrough %d hwdecode %d external clock %d", 
+      deviceuse.c_str(), m_Passthrough, m_HWDecode, m_external_clock);
+
+  m_av_clock->OMXStateExecute();
 
   return true;
 }
@@ -563,8 +573,12 @@ bool COMXAudio::Deinitialize()
   if(!m_Initialized)
     return true;
 
-  if(!m_external_clock && m_av_clock != NULL)
-    m_av_clock->OMXStop();
+  if(m_av_clock)
+  {
+    m_av_clock->Lock();
+    m_av_clock->OMXSaveState(false);
+    m_av_clock->OMXStop(false);
+  }
 
   m_omx_tunnel_decoder.Flush();
   if(!m_Passthrough)
@@ -586,6 +600,12 @@ bool COMXAudio::Deinitialize()
   m_Initialized = false;
   m_BytesPerSec = 0;
   m_BufferLen   = 0;
+
+  if(m_av_clock)
+  {
+    m_av_clock->OMXRestoreState(false);
+    m_av_clock->UnLock();
+  }
 
   if(!m_external_clock && m_av_clock != NULL)
   {
@@ -620,11 +640,24 @@ void COMXAudio::Flush()
   if(!m_Initialized)
     return;
 
+  if(m_av_clock)
+  {
+    m_av_clock->Lock();
+    m_av_clock->OMXSaveState(false);
+    m_av_clock->OMXStop(false);
+  }
+
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
   if(!m_Passthrough)
     m_omx_tunnel_mixer.Flush();
   
+  if(m_av_clock)
+  {
+    m_av_clock->OMXRestoreState(false);
+    m_av_clock->UnLock();
+  }
+
   //m_setStartTime  = true;
   m_last_pts      = DVD_NOPTS_VALUE;
   m_LostSync      = true;
@@ -711,12 +744,6 @@ bool COMXAudio::SetCurrentVolume(long nVolume)
 
 
 //***********************************************************************************************
-unsigned int COMXAudio::GetSpace()
-{
-  int free = m_omx_decoder.GetInputBufferSpace();
-  return free;
-}
-
 unsigned int COMXAudio::AddPackets(const void* data, unsigned int len)
 {
   return AddPackets(data, len, 0, 0);
@@ -781,9 +808,12 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
     {
       pts += ((double)omx_buffer->nFilledLen * DVD_TIME_BASE) / m_SampleSize;
     }
-    printf("ADec : pts %f omx_buffer 0x%08x buffer 0x%08x number %d\n", 
-          (float)pts / AV_TIME_BASE, omx_buffer, omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate);
     */
+    if(pts == DVD_NOPTS_VALUE)
+    {
+      printf("ADec : pts %f omx_buffer 0x%08x buffer 0x%08x number %d\n", 
+          (float)pts / AV_TIME_BASE, (int)omx_buffer, (int)omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate);
+    }
 
     uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;
 
@@ -793,6 +823,8 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
 
       m_setStartTime = false;
       m_last_pts = pts;
+
+      printf("ADec : m_setStartTime %f\n", (float)val / DVD_TIME_BASE);
     }
     else
     {
@@ -995,6 +1027,12 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
 }
 
 //***********************************************************************************************
+unsigned int COMXAudio::GetSpace()
+{
+  int free = m_omx_decoder.GetInputBufferSpace();
+  return free;
+}
+
 float COMXAudio::GetDelay()
 {
   unsigned int free = m_omx_decoder.GetInputBufferSize() - m_omx_decoder.GetInputBufferSpace();
@@ -1087,7 +1125,7 @@ void COMXAudio::WaitCompletion()
       CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
       break;
     }
-    OMXClock::OMXSleep(50);
+    Sleep(50);
   }
 
   return;

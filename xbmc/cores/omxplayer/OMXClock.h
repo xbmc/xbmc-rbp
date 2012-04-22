@@ -22,25 +22,9 @@
 #ifndef _AVCLOCK_H_
 #define _AVCLOCK_H_
 
-#include "DllAvFormat.h"
-
 #include "OMXCore.h"
-
-#define AV_SYNC_THRESHOLD 0.01
-#define AV_NOSYNC_THRESHOLD 10.0
-#define SAMPLE_CORRECTION_PERCENT_MAX 10
-#define AUDIO_DIFF_AVG_NB 20
-
-#define DVD_TIME_BASE 1000000
-#define DVD_NOPTS_VALUE    (-1LL<<52) // should be possible to represent in both double and __int64
-
-#define DVD_TIME_TO_SEC(x)  ((int)((double)(x) / DVD_TIME_BASE))
-#define DVD_TIME_TO_MSEC(x) ((int)((double)(x) * 1000 / DVD_TIME_BASE))
-#define DVD_SEC_TO_TIME(x)  ((double)(x) * DVD_TIME_BASE)
-#define DVD_MSEC_TO_TIME(x) ((double)(x) * DVD_TIME_BASE / 1000)
-
-#define DVD_PLAYSPEED_PAUSE       0       // frame stepping
-#define DVD_PLAYSPEED_NORMAL      1000
+#include "DVDClock.h"
+#include "linux/XTimeUtils.h"
 
 #ifdef OMX_SKIP64BIT
 static inline OMX_TICKS ToOMXTime(int64_t pts)
@@ -60,6 +44,9 @@ static inline uint64_t FromOMXTime(OMX_TICKS ticks)
 #define ToOMXTime(x) (x)
 #endif
 
+#define OMX_PLAYSPEED_PAUSE  0
+#define OMX_PLAYSPEED_NORMAL 1
+
 enum {
   AV_SYNC_AUDIO_MASTER,
   AV_SYNC_VIDEO_MASTER,
@@ -69,10 +56,7 @@ enum {
 class OMXClock
 {
 protected:
-  double            m_video_clock;
-  double            m_audio_clock;
   bool              m_pause;
-  double            m_iCurrentPts;
   bool              m_has_video;
   bool              m_has_audio;
   int               m_play_speed;
@@ -92,9 +76,12 @@ protected:
   bool              m_speedadjust;
   static bool       m_ismasterclock;
   double            m_fps;
+  int               m_omx_speed;
+  bool              m_video_start;
+  bool              m_audio_start;
+  OMX_TIME_CONFIG_CLOCKSTATETYPE m_clock_state;
 private:
   COMXCoreComponent m_omx_clock;
-  DllAvFormat       m_dllAvFormat;
 public:
   OMXClock();
   ~OMXClock();
@@ -107,7 +94,7 @@ public:
   double  WaitAbsoluteClock(double target);
   double GetClock(bool interpolated = true);
   double GetClock(double& absolute, bool interpolated = true);
-  void SetSpeed(int iSpeed);
+  void SetPlaySpeed(int iSpeed);
   void SetMasterClock(bool ismasterclock) { m_ismasterclock = ismasterclock; }
   bool IsMasterClock()                    { return m_ismasterclock;          }
   void Discontinuity(double currentPts = 0LL);
@@ -119,39 +106,46 @@ public:
   int UpdateFramerate(double fps, double* interval = NULL);
   bool   SetMaxSpeedAdjust(double speed);
 
-  bool OMXReset();
+  void OMXSetClockPorts(OMX_TIME_CONFIG_CLOCKSTATETYPE *clock);
   bool OMXInitialize(bool has_video, bool has_audio);
   void Deinitialize();
   bool OMXIsPaused() { return m_pause; };
-  bool OMXStop();
-  bool OMXStart();
-  bool OMXPause();
-  bool OMXResume();
-  bool OMXUpdateClock(double pts);
-  bool OMXWaitStart(double pts);
-  bool OMXSpeed(int speed);
-  int  OMXPlaySpeed() { return m_play_speed; };
+  void OMXSaveState(bool lock = true);
+  void OMXRestoreState(bool lock = true);
+  bool OMXStop(bool lock = true);
+  bool OMXStart(bool lock = true);
+  bool OMXReset(bool lock = true);
+  double OMXWallTime(bool lock = true);
+  double OMXMediaTime(bool lock = true);
+  bool OMXPause(bool lock = true);
+  bool OMXResume(bool lock = true);
+  bool OMXUpdateClock(double pts, bool lock = true);
+  bool OMXWaitStart(double pts, bool lock = true);
+  void OMXHandleBackward(bool lock = true);
+  bool OMXSetPlaySpeed(int speed, bool lock = true);
+  int  OMXGetPlaySpeed() { return m_omx_speed; };
   COMXCoreComponent *GetOMXClock();
-  bool OMXStatePause();
-  bool OMXStateExecute();
-  void OMXStateIdle();
-  double GetPTS();
-  void   SetPTS(double pts);
+  bool OMXStatePause(bool lock = true);
+  bool OMXStateExecute(bool lock = true);
+  void OMXStateIdle(bool lock = true);
   static void AddTimespecs(struct timespec &time, long millisecs);
-  bool HDMIClockSync();
+  bool HDMIClockSync(bool lock = true);
   static int64_t CurrentHostCounter(void);
   static int64_t CurrentHostFrequency(void);
-  void  SetVideoClock(double video_clock) { m_video_clock = video_clock; };
-  void  SetAudioClock(double audio_clock) { m_audio_clock = audio_clock; };
-  double  GetVideoClock() { return m_video_clock; };
-  double  GetAudioClock() { return m_audio_clock; };
   bool HasVideo() { return m_has_video; };
   bool HasAudio() { return m_has_audio; };
+  void HasVideo(bool has_video) { m_has_video = has_video; };
+  void HasAudio(bool has_audio) { m_has_audio = has_audio; };
+  bool VideoStart() { return m_video_start; };
+  bool AudioStart() { return m_audio_start; };
+  void VideoStart(bool video_start) { m_video_start = video_start; };
+  void AudioStart(bool audio_start) { m_audio_start = audio_start; };
   static void AddTimeSpecNano(struct timespec &time, uint64_t nanoseconds);
-  static void OMXSleep(unsigned int dwMilliSeconds);
 
   int     GetRefreshRate(double* interval = NULL);
   void    SetRefreshRate(double fps) { m_fps = fps; };
+
+  static double NormalizeFrameduration(double frameduration);
 };
 
 #endif

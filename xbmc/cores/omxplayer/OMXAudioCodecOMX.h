@@ -25,7 +25,7 @@
 #include "DllAvFormat.h"
 #include "DllAvUtil.h"
 
-#include "OMXStreamInfo.h"
+#include "DVDStreamInfo.h"
 #include "utils/PCMRemap.h"
 #include "linux/PlatformDefs.h"
 
@@ -34,7 +34,7 @@ class COMXAudioCodecOMX
 public:
   COMXAudioCodecOMX();
   ~COMXAudioCodecOMX();
-  bool Open(COMXStreamInfo &hints);
+  bool Open(CDVDStreamInfo &hints);
   void Dispose();
   int Decode(BYTE* pData, int iSize);
   int GetData(BYTE** dst);

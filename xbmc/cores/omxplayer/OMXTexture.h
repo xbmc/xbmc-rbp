@@ -23,7 +23,6 @@
 #if defined(HAVE_OMXLIB)
 
 #include "OMXCore.h"
-#include "OMXStreamInfo.h"
 
 #include <IL/OMX_Video.h>
 

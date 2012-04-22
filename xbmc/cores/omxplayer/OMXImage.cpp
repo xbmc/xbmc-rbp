@@ -27,7 +27,6 @@
 
 #include "OMXImage.h"
 
-#include "OMXStreamInfo.h"
 #include "utils/log.h"
 #include "linux/XMemUtils.h"
 
@@ -164,7 +163,7 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
   {
     m_omx_image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
 
-    unsigned char ff = CBitstreamConverter::read_bits(&br, 8);
+    CBitstreamConverter::read_bits(&br, 8);
     unsigned char marker = CBitstreamConverter::read_bits(&br, 8);
     unsigned short block_size = 0;
     bool nMarker = false;
@@ -254,7 +253,6 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
         int readBits = 2;
         bool bMotorolla = false;
         bool bError = false;
-        bool bOrientation = false;
 
         // Exif header
         if(CBitstreamConverter::read_bits(&br, 32) == 0x45786966)
@@ -346,7 +344,6 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
               //found orientation tag
               if(tagNumber == EXIF_TAG_ORIENTATION)
               {
-                bOrientation = true;
                 if(bMotorolla)
                 {
                   CBitstreamConverter::skip_bits(&br, 8 * 7);
@@ -384,7 +381,7 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
         CBitstreamConverter::skip_bits(&br, 8 * (block_size - 2));
       }
 
-      ff = CBitstreamConverter::read_bits(&br, 8);
+      CBitstreamConverter::read_bits(&br, 8);
       marker = CBitstreamConverter::read_bits(&br, 8);
 
     }

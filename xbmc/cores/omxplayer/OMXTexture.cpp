@@ -27,7 +27,6 @@
 
 #include "OMXTexture.h"
 
-#include "OMXStreamInfo.h"
 #include "OMXClock.h"
 #include "utils/log.h"
 #include "linux/XMemUtils.h"
@@ -360,7 +359,7 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
   {
     m_output_buffer=m_omx_egl_render.GetOutputBuffer(2000);
     if (!m_output_buffer) {
-      OMXClock::OMXSleep(50);
+      Sleep(50);
       nTimeOut += 50;
     }
     else

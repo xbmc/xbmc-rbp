@@ -4,18 +4,15 @@ SRCS=	\
 	OMXPlayer.cpp \
 	OMXClock.cpp \
 	OMXCore.cpp \
-	OMXStreamInfo.cpp \
-	OMXSubtitleTagSami.cpp \
-	OMXOverlayCodecText.cpp \
-	OMXAudioCodecOMX.cpp \
 	OMXAudio.cpp \
 	OMXVideo.cpp \
+	OMXAudioCodecOMX.cpp \
 	OMXPlayerAudio.cpp \
 	OMXPlayerVideo.cpp \
+	OMXPlayerSubtitle.cpp \
 	OMXImage.cpp \
 	OMXTexture.cpp \
 	OMXThread.cpp \
-	OMXReader.cpp \
 	BitstreamConverter.cpp
 
 LIB=	OMXPlayer.a

@@ -50,7 +50,7 @@ COMXAudioCodecOMX::~COMXAudioCodecOMX()
   Dispose();
 }
 
-bool COMXAudioCodecOMX::Open(COMXStreamInfo &hints)
+bool COMXAudioCodecOMX::Open(CDVDStreamInfo &hints)
 {
   AVCodec* pCodec;
   m_bOpenedCodec = false;
