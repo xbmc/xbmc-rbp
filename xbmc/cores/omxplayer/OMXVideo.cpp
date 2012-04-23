@@ -560,12 +560,14 @@ void COMXVideo::Close()
   if(!m_is_open)
     return;
 
+  /*
   if(m_av_clock)
   {
     m_av_clock->Lock();
     m_av_clock->OMXSaveState(false);
     m_av_clock->OMXStop(false);
   }
+  */
 
   m_omx_tunnel_decoder.Flush();
   if(m_deinterlace)
@@ -587,11 +589,13 @@ void COMXVideo::Close()
   m_omx_decoder.Deinitialize();
   m_omx_render.Deinitialize();
 
+  /*
   if(m_av_clock)
   {
     m_av_clock->OMXRestoreState(false);
     m_av_clock->UnLock();
   }
+  */
 
   m_is_open       = false;
 
@@ -781,21 +785,25 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
 
 void COMXVideo::Reset(void)
 {
+  /*
   if(m_av_clock)
   {
     m_av_clock->Lock();
     m_av_clock->OMXSaveState(false);
     m_av_clock->OMXStop(false);
   }
+  */
 
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
 
+  /*
   if(m_av_clock)
   {
     m_av_clock->OMXRestoreState(false);
     m_av_clock->UnLock();
   }
+  */
 
   //m_setStartTime  = true;
   //m_first_frame   = true;

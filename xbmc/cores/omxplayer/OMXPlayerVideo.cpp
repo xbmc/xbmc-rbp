@@ -338,7 +338,7 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
   if(bDropPacket)
     return;
 
-#if 0
+//#if 0
   if( m_speed != DVD_PLAYSPEED_NORMAL)
   {
     // calculate frame dropping pattern to render at this speed
@@ -362,13 +362,13 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
     m_droptime = 0.0f;
     m_dropbase = 0.0f;
   }
-#endif
+//#endif
 
   double pts_media = m_av_clock->OMXMediaTime();
   ProcessOverlays(pPacket, pts_media);
 
-  while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
-    Sleep(10);
+  //while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
+  //  Sleep(10);
 
   /*
   printf("iPlayingClock %f iCurrentClock %f iClockSleep %f iFrameSleep %f iFrameDuration %f WaitAbsolut %f m_FlipTimeStamp %f pts %f\n", 

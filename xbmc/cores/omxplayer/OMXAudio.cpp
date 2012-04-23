@@ -573,12 +573,16 @@ bool COMXAudio::Deinitialize()
   if(!m_Initialized)
     return true;
 
+  if(m_av_clock && !m_external_clock)
+    m_av_clock->OMXStop();
+  /*
   if(m_av_clock)
   {
     m_av_clock->Lock();
     m_av_clock->OMXSaveState(false);
     m_av_clock->OMXStop(false);
   }
+  */
 
   m_omx_tunnel_decoder.Flush();
   if(!m_Passthrough)
@@ -601,11 +605,13 @@ bool COMXAudio::Deinitialize()
   m_BytesPerSec = 0;
   m_BufferLen   = 0;
 
+  /*
   if(m_av_clock)
   {
     m_av_clock->OMXRestoreState(false);
     m_av_clock->UnLock();
   }
+  */
 
   if(!m_external_clock && m_av_clock != NULL)
   {
@@ -640,23 +646,27 @@ void COMXAudio::Flush()
   if(!m_Initialized)
     return;
 
+  /*
   if(m_av_clock)
   {
     m_av_clock->Lock();
     m_av_clock->OMXSaveState(false);
     m_av_clock->OMXStop(false);
   }
+  */
 
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
   if(!m_Passthrough)
     m_omx_tunnel_mixer.Flush();
   
+  /*
   if(m_av_clock)
   {
     m_av_clock->OMXRestoreState(false);
     m_av_clock->UnLock();
   }
+  */
 
   //m_setStartTime  = true;
   m_last_pts      = DVD_NOPTS_VALUE;
