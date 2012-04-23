@@ -94,9 +94,10 @@ void COMXTexture::Close()
 {
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
 
-  m_omx_tunnel_decode.Flush();
-  m_omx_tunnel_decode.Deestablish(false);
-  m_omx_tunnel_egl.Deestablish(false);
+  Reset();
+
+  m_omx_tunnel_decode.Deestablish();
+  m_omx_tunnel_egl.Deestablish();
 
   if(m_egl_buffer)
   {
@@ -227,7 +228,7 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
   {   
     omx_buffer = m_omx_image_decode.GetInputBuffer();
     if(omx_buffer == NULL)
-      assert(0);
+      goto do_exit;
     
     omx_buffer->nOffset = omx_buffer->nFlags  = 0;
 
@@ -255,7 +256,7 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
       if(omx_err == OMX_ErrorStreamCorrupt)
       {
         CLog::Log(LOGERROR, "%s::%s - image not unsupported\n", CLASSNAME, __func__);
-        return false;
+        goto do_exit;
       }
 
       m_omx_image_decode.SendCommand(OMX_CommandPortDisable, m_omx_image_decode.GetOutputPort(), NULL);
@@ -377,6 +378,9 @@ int COMXTexture::Decode(COMXImage *omx_image, void *egl_image, void *egl_display
   if(omx_err != OMX_ErrorNone) {
     CLog::Log(LOGERROR, "%s::%s error m_omx_egl_render.GetParameter\n", CLASSNAME, __func__);
   }
+
+  m_omx_image_decode.FlushInput();
+  m_omx_image_decode.FreeInputBuffers(true);
 
   return true;
 
