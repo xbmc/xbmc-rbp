@@ -41,8 +41,8 @@ using namespace std;
 /************************************************************************/
 /*    CGLTexture                                                       */
 /************************************************************************/
-CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format)
-: CBaseTexture(width, height, format)
+CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format, bool allocate)
+: CBaseTexture(width, height, format, allocate)
 {
 }
 

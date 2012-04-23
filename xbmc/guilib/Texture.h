@@ -66,7 +66,7 @@ class CBaseTexture
 {
 
 public:
-  CBaseTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8);
+  CBaseTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8, bool allocate = true);
   CBaseTexture(const CBaseTexture &copy);
 
   virtual ~CBaseTexture();
@@ -101,7 +101,7 @@ public:
   void SetOrientation(int orientation) { m_orientation = orientation; }
 
   void Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU);
-  void Allocate(unsigned int width, unsigned int height, unsigned int format);
+  void Allocate(unsigned int width, unsigned int height, unsigned int format, bool allocate = true);
   void ClampToEdge();
 
   static unsigned int PadPow2(unsigned int x);

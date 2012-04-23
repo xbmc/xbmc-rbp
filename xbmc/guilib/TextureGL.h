@@ -48,7 +48,7 @@
 class CGLTexture : public CBaseTexture
 {
 public:
-  CGLTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8);
+  CGLTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8, bool allocate = true);
   virtual ~CGLTexture();
 
   void CreateTextureObject();

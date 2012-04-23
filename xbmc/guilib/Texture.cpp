@@ -42,7 +42,7 @@
 /************************************************************************/
 /*                                                                      */
 /************************************************************************/
-CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format)
+CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format, bool allocate)
  : m_hasAlpha( true )
 {
 #ifndef HAS_DX
@@ -56,7 +56,7 @@ CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int
   m_omx_texture = NULL;
 #endif
   m_loadedToGPU = false;
-  Allocate(width, height, format);
+  Allocate(width, height, format, allocate);
 }
 
 CBaseTexture::CBaseTexture(const CBaseTexture &copy)
@@ -75,7 +75,7 @@ CBaseTexture::CBaseTexture(const CBaseTexture &copy)
   m_loadedToGPU = false;
   m_omx_texture = NULL;
   m_omx_image = NULL;
-  if (copy.m_pixels)
+  if (copy.m_pixels && m_pixels)
   {
     m_pixels = new unsigned char[GetPitch() * GetRows()];
     memcpy(m_pixels, copy.m_pixels, GetPitch() * GetRows());
@@ -95,7 +95,7 @@ CBaseTexture::~CBaseTexture()
 #endif
 }
 
-void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format)
+void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format, bool allocate)
 {
   m_imageWidth = width;
   m_imageHeight = height;
@@ -132,7 +132,7 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   if (m_pixels)
     delete[] m_pixels;
   m_pixels = NULL;
-  if (GetPitch() * GetRows() > 0)
+  if (GetPitch() * GetRows() > 0 && allocate)
     m_pixels = new unsigned char[GetPitch() * GetRows()];
 }
 
@@ -250,7 +250,7 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
 
       m_accelerated = true;
 
-      Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
+      Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8, false);
 
       if(autoRotate)
         m_orientation = m_omx_image->GetOrientation();
