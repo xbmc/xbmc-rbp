@@ -332,6 +332,14 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   if (omx_err != OMX_ErrorNone)
     return false;
 
+  OMX_CONFIG_BOOLEANTYPE configBool;
+  OMX_INIT_STRUCTURE(configBool);
+  configBool.bEnabled = OMX_FALSE;
+
+  omx_err = m_omx_render.SetConfig(OMX_IndexConfigBrcmClockReferenceSource, &configBool);
+  if (omx_err != OMX_ErrorNone)
+    return false;
+
   componentName = "OMX.broadcom.audio_decode";
   if(!m_omx_decoder.Initialize((const std::string)componentName, OMX_IndexParamAudioInit))
     return false;
@@ -352,7 +360,6 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
     if(omx_err != OMX_ErrorNone)
     {
       CLog::Log(LOGERROR, "COMXAudio::Initialize - Error OMX_IndexParamBrcmDecoderPassThrough 0x%08x", omx_err);
-      printf("OMX_IndexParamBrcmDecoderPassThrough omx_err(0x%08x)\n", omx_err);
       return false;
     }
   }
@@ -562,7 +569,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   CLog::Log(LOGDEBUG, "COMXAudio::Initialize device %s passthrough %d hwdecode %d external clock %d", 
       deviceuse.c_str(), m_Passthrough, m_HWDecode, m_external_clock);
 
-  m_av_clock->OMXStateExecute();
+  m_av_clock->OMXStateExecute(false);
 
   return true;
 }
@@ -573,16 +580,16 @@ bool COMXAudio::Deinitialize()
   if(!m_Initialized)
     return true;
 
+  /*
   if(m_av_clock && !m_external_clock)
     m_av_clock->OMXStop();
-  /*
-  if(m_av_clock)
+  */
+
+  if(m_av_clock && !m_external_clock)
   {
     m_av_clock->Lock();
-    m_av_clock->OMXSaveState(false);
     m_av_clock->OMXStop(false);
   }
-  */
 
   m_omx_tunnel_decoder.Flush();
   if(!m_Passthrough)
@@ -605,13 +612,11 @@ bool COMXAudio::Deinitialize()
   m_BytesPerSec = 0;
   m_BufferLen   = 0;
 
-  /*
-  if(m_av_clock)
+  if(m_av_clock && !m_external_clock)
   {
-    m_av_clock->OMXRestoreState(false);
+    m_av_clock->OMXReset(false);
     m_av_clock->UnLock();
   }
-  */
 
   if(!m_external_clock && m_av_clock != NULL)
   {
@@ -646,29 +651,12 @@ void COMXAudio::Flush()
   if(!m_Initialized)
     return;
 
-  /*
-  if(m_av_clock)
-  {
-    m_av_clock->Lock();
-    m_av_clock->OMXSaveState(false);
-    m_av_clock->OMXStop(false);
-  }
-  */
-
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
   if(!m_Passthrough)
     m_omx_tunnel_mixer.Flush();
   
-  /*
-  if(m_av_clock)
-  {
-    m_av_clock->OMXRestoreState(false);
-    m_av_clock->UnLock();
-  }
-  */
-
-  //m_setStartTime  = true;
+  m_setStartTime  = true;
   m_last_pts      = DVD_NOPTS_VALUE;
   m_LostSync      = true;
   //m_first_frame   = true;
@@ -762,7 +750,8 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len)
 //***********************************************************************************************
 unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dts, double pts)
 {
-  if(!m_Initialized) {
+  if(!m_Initialized) 
+  {
     CLog::Log(LOGERROR,"COMXAudio::AddPackets - sanity failed. no valid play handle!");
     return len;
   }
@@ -803,7 +792,6 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
     if(omx_buffer == NULL)
     {
       CLog::Log(LOGERROR, "COMXAudio::Decode timeout\n");
-      printf("COMXAudio::Decode timeout\n");
       return len;
     }
 
@@ -818,23 +806,24 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
     {
       pts += ((double)omx_buffer->nFilledLen * DVD_TIME_BASE) / m_SampleSize;
     }
-    */
     if(pts == DVD_NOPTS_VALUE)
     {
-      printf("ADec : pts %f omx_buffer 0x%08x buffer 0x%08x number %d\n", 
+      CLog::Log(LOGDEBUG, "ADec : pts %f omx_buffer 0x%08x buffer 0x%08x number %d\n", 
           (float)pts / AV_TIME_BASE, (int)omx_buffer, (int)omx_buffer->pBuffer, (int)omx_buffer->pAppPrivate);
     }
+    */
 
     uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;
 
-    if(m_setStartTime)
+    if(m_av_clock->AudioStart() /* m_setStartTime*/)
     {
       omx_buffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
 
       m_setStartTime = false;
       m_last_pts = pts;
 
-      printf("ADec : m_setStartTime %f\n", (float)val / DVD_TIME_BASE);
+      CLog::Log(LOGDEBUG, "ADec : m_setStartTime %f\n", (float)val / DVD_TIME_BASE);
+      m_av_clock->AudioStart(false);
     }
     else
     {
@@ -880,7 +869,6 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
       if(nRetry == 5)
       {
         CLog::Log(LOGERROR, "%s::%s - OMX_EmptyThisBuffer() finaly failed\n", CLASSNAME, __func__);
-        printf("%s::%s - OMX_EmptyThisBuffer() finaly failed\n", CLASSNAME, __func__);
         return 0;
       }
     }
@@ -907,8 +895,6 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
         {
           CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 1 omx_err(0x%08x)\n", omx_err);
         }
-
-        //printf("m_omx_mixer.GetInputPort() %d m_omx_mixer.GetPutputPort() %d\n", m_omx_mixer.GetInputPort(), m_omx_mixer.GetOutputPort());
 
         /* setup mixer input */
         m_pcm_input.nPortIndex      = m_omx_mixer.GetInputPort();

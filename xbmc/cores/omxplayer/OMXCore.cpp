@@ -937,59 +937,6 @@ OMX_ERRORTYPE COMXCoreComponent::AddEvent(OMX_EVENTTYPE eEvent, OMX_U32 nData1, 
   return OMX_ErrorNone;
 }
 
-
-/*
-bool COMXCoreComponent::GotError(OMX_ERRORTYPE errorType)
-{
-#ifdef OMX_DEBUG_EVENTS
-  CLog::Log(LOGDEBUG, "COMXCoreComponent::GotError %s search error 0x%08x\n",
-      m_componentName.c_str(), (int)errorType);
-#endif
-
-  long timeout = 300; // milliseconds
-  pthread_mutex_lock(&m_omx_event_mutex);
-  struct timespec endtime;
-  clock_gettime(CLOCK_REALTIME, &endtime);
-  add_timespecs(endtime, timeout);
-
-  while(true) {
-    for (std::vector<omx_event>::iterator it = m_omx_events.begin(); it != m_omx_events.end(); it++) {
-      omx_event event = *it;
-
-    printf("hansi\n");
-#ifdef OMX_DEBUG_EVENTS
-      CLog::Log(LOGDEBUG, "COMXCoreComponent::GotError %s inlist error event.eEvent 0x%08x event.nData1 0x%08x event.nData2 0x%08x\n",
-          m_componentName.c_str(), (int)event.eEvent, (int)event.nData1, (int)event.nData2);
-#endif
-
-      if(event.eEvent == OMX_EventError && (OMX_S32)event.nData1 == errorType)
-      {
-#ifdef OMX_DEBUG_EVENTS
-        CLog::Log(LOGDEBUG, "COMXCoreComponent::GotError %s remove error event.eEvent 0x%08x event.nData1 0x%08x event.nData2 0x%08x\n",
-          m_componentName.c_str(), (int)event.eEvent, (int)event.nData1, (int)event.nData2);
-#endif
-
-        //pthread_mutex_lock(&m_omx_event_mutex);
-        m_omx_events.erase(it);
-        pthread_mutex_unlock(&m_omx_event_mutex);
-        return true;
-      }
-    }
-
-    int retcode = pthread_cond_timedwait(&m_omx_event_cond, &m_omx_event_mutex, &endtime);
-    if (retcode != 0) {
-      CLog::Log(LOGERROR, "COMXCoreComponent::GotError %s wait event timeout 0x%08x\n",
-                          m_componentName.c_str(), (int)errorType);
-      pthread_mutex_unlock(&m_omx_event_mutex);
-      return false;
-    }
-  }
-
-  pthread_mutex_unlock(&m_omx_event_mutex);
-  return false;
-}
-*/
-
 // timeout in milliseconds
 OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType, long timeout)
 {
@@ -1058,7 +1005,6 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForCommand(OMX_U32 command, OMX_U32 nData2,
       m_componentName.c_str(), (int)OMX_EventCmdComplete, (int)command, (int)nData2);
 #endif
 
-  //printf("COMXCoreComponent::WaitForCommand %s 0x%08x,0x%08x,0x%08x\n",       m_componentName.c_str(), (int)OMX_EventCmdComplete, (int)command, (int)nData2);
   pthread_mutex_lock(&m_omx_event_mutex);
   struct timespec endtime;
   clock_gettime(CLOCK_REALTIME, &endtime);
@@ -1072,7 +1018,6 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForCommand(OMX_U32 command, OMX_U32 nData2,
       CLog::Log(LOGDEBUG, "COMXCoreComponent::WaitForCommand %s inlist event event.eEvent 0x%08x event.nData1 0x%08x event.nData2 0x%08x\n",
           m_componentName.c_str(), (int)event.eEvent, (int)event.nData1, (int)event.nData2);
 #endif
-      //printf("COMXCoreComponent::WaitForCommand %s inlist event event.eEvent 0x%08x event.nData1 0x%08x event.nData2 0x%08x\n",          m_componentName.c_str(), (int)event.eEvent, (int)event.nData1, (int)event.nData2);
       if(event.eEvent == OMX_EventError && event.nData1 == (OMX_U32)OMX_ErrorSameState && event.nData2 == 1)
       {
 #ifdef OMX_DEBUG_EVENTS

@@ -75,7 +75,7 @@ protected:
   int64_t m_errortime; //timestamp of last time we measured
   int64_t m_freq;
 
-  void   HandleSyncError(double duration, double pts);
+  void   HandleSyncError(double duration);
   double m_errorbuff; //place to store average errors
   int    m_errorcount;//number of errors stored
   bool   m_syncclock;
@@ -91,6 +91,9 @@ protected:
 
   struct timespec           m_starttime, m_endtime;
   bool                      m_buffer_empty;
+  bool                      m_flush;
+  //SYNC_DISCON, SYNC_SKIPDUP, SYNC_RESAMPLE
+  int                       m_synctype;
 
 private:
 public:

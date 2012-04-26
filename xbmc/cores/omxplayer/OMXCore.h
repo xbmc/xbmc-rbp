@@ -102,7 +102,6 @@ public:
   OMX_ERRORTYPE DisableAllPorts();
   void          Remove(OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2);
   OMX_ERRORTYPE AddEvent(OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2);
-  //bool          GotError(OMX_ERRORTYPE errorType);
   OMX_ERRORTYPE WaitForEvent(OMX_EVENTTYPE event, long timeout = 300);
   OMX_ERRORTYPE WaitForCommand(OMX_U32 command, OMX_U32 nData2, long timeout = 2000);
   OMX_ERRORTYPE SetStateForComponent(OMX_STATETYPE state);

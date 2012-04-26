@@ -218,7 +218,6 @@ int COMXAudioCodecOMX::GetData(BYTE** dst)
     int16_t *pDst = (int16_t *)m_pBuffer2;
     const int16_t *pSrc = (const int16_t *)m_pFrame1->data[0];
 
-    //printf("\ncopy_chunk_len %d, omx_chunk_len %d\n", copy_chunk_len, omx_chunk_len);
     memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
 
     m_iBufferSize2 = 0;

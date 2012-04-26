@@ -85,7 +85,6 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
   m_buffer_empty  = false;
 
   m_av_clock->SetMasterClock(false);
-  m_omxAudio.SetClock(m_av_clock);
 
   m_messageQueue.SetMaxDataSize(3 * 1024 * 1024);
   m_messageQueue.SetMaxTimeSize(8.0);
@@ -99,7 +98,10 @@ OMXPlayerAudio::~OMXPlayerAudio()
 
 bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints)
 {
-  CloseStream(false);
+  /*
+  if(ThreadHandle())
+    CloseStream(false);
+  */
 
   COMXAudioCodecOMX *codec = new COMXAudioCodecOMX();
 
@@ -139,6 +141,7 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
 
   m_hints           = hints;
   m_pAudioCodec     = codec;
+  m_flush           = false;
 
   if(m_hints.bitspersample == 0)
     m_hints.bitspersample = 16;
@@ -158,6 +161,8 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
   m_silence         = false;
   m_freq            = m_av_clock->CurrentHostFrequency();
   m_started         = false;
+  m_flush           = false;
+  m_synctype        = SYNC_DISCON;
   m_stalled         = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
   m_use_passthrough = (g_guiSettings.GetInt("audiooutput.mode") == IAudioRenderer::ENCODED_NONE) ? false : true ;
   m_use_hw_decode   = g_advancedSettings.m_omHWAudioDecode;
@@ -188,7 +193,11 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
     m_pAudioCodec = NULL;
   }
 
+  m_av_clock->Lock();
+  m_av_clock->OMXStop(false);
   m_omxAudio.Deinitialize();
+  m_av_clock->OMXReset(false);
+  m_av_clock->UnLock();
 
   m_messageQueue.End();
 
@@ -198,10 +207,10 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
   return true;
 }
 
-void OMXPlayerAudio::HandleSyncError(double duration, double pts)
+void OMXPlayerAudio::HandleSyncError(double duration)
 {
   double clock = m_av_clock->GetClock();
-  double error = pts - clock;
+  double error = m_audioClock - clock;
   int64_t now;
 
   if( fabs(error) > DVD_MSEC_TO_TIME(100) || m_syncclock )
@@ -209,7 +218,7 @@ void OMXPlayerAudio::HandleSyncError(double duration, double pts)
     m_av_clock->Discontinuity(clock+error);
     /*
     if(m_speed == DVD_PLAYSPEED_NORMAL)
-      printf("OMXPlayerAudio:: Discontinuity - was:%f, should be:%f, error:%f\n", clock, clock+error, error);
+    CLog::Log(LOGDEBUG, "OMXPlayerAudio:: Discontinuity - was:%f, should be:%f, error:%f\n", clock, clock+error, error);
     */
 
     m_errorbuff = 0;
@@ -243,11 +252,10 @@ void OMXPlayerAudio::HandleSyncError(double duration, double pts)
     m_errorbuff = 0;
     m_errorcount = 0;
 
-/*
     if (m_synctype == SYNC_DISCON)
     {
-*/
       double limit, error;
+      /*
       if (m_av_clock->GetRefreshRate(&limit) > 0)
       {
         //when the videoreferenceclock is running, the discontinuity limit is one vblank period
@@ -265,6 +273,9 @@ void OMXPlayerAudio::HandleSyncError(double duration, double pts)
         limit = DVD_MSEC_TO_TIME(10);
         error = m_error;
       }
+      */
+      limit = DVD_MSEC_TO_TIME(10);
+      error = m_error;
 
       if (fabs(error) > limit - 0.001)
       {
@@ -275,7 +286,7 @@ void OMXPlayerAudio::HandleSyncError(double duration, double pts)
         */
       }
     }
-/*
+    /*
     else if (m_synctype == SYNC_SKIPDUP && m_skipdupcount == 0 && fabs(m_error) > DVD_MSEC_TO_TIME(10))
     if (m_skipdupcount == 0 && fabs(m_error) > DVD_MSEC_TO_TIME(10))
     {
@@ -292,8 +303,8 @@ void OMXPlayerAudio::HandleSyncError(double duration, double pts)
         CLog::Log(LOGDEBUG, "OMXPlayerAudio:: Skipping %i packet(s) of %.2f ms duration ",
                   m_skipdupcount * -1,  duration / DVD_TIME_BASE * 1000.0);
     }
+    */
   }
-*/
 }
 
 bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
@@ -322,7 +333,7 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
 
   if(!m_passthrough && !m_hw_decode)
   {
-    while(data_len > 0)
+    while(!m_bStop && data_len > 0)
     {
       int len = m_pAudioCodec->Decode((BYTE *)data_dec, data_len);
       if( (len < 0) || (len >  data_len) )
@@ -344,38 +355,76 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
 
       m_audioStats.AddSampleBytes(decoded_size);
 
-      if(!bDropPacket)
+      while(!m_bStop)
       {
-        // Zero out the frame data if we are supposed to silence the audio
-        if(m_silence)
-          memset(decoded, 0x0, decoded_size);
-
-        ret = m_omxAudio.AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
-
-        if(ret != decoded_size)
+        if(m_flush)
         {
-          printf("error ret %d decoded_size %d\n", ret, decoded_size);
+          m_flush = false;
+          break;
         }
+
+        if((unsigned long)m_omxAudio.GetSpace() < pkt->iSize)
+        {
+          Sleep(10);
+          continue;
+        }
+        
+        if(!bDropPacket)
+        {
+          // Zero out the frame data if we are supposed to silence the audio
+          if(m_silence)
+            memset(decoded, 0x0, decoded_size);
+
+          ret = m_omxAudio.AddPackets(decoded, decoded_size, m_audioClock, m_audioClock);
+
+          if(ret != decoded_size)
+          {
+            CLog::Log(LOGERROR, "error ret %d decoded_size %d\n", ret, decoded_size);
+          }
+        }
+
+        int n = (channels * m_hints.bitspersample * m_hints.samplerate)>>3;
+        if (n > 0)
+          m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
+
+        if(m_speed == DVD_PLAYSPEED_NORMAL)
+          HandleSyncError((((double)decoded_size * DVD_TIME_BASE) / n));
+        break;
+
       }
-
-      int n = (m_hints.channels * m_hints.bitspersample * m_hints.samplerate)>>3;
-      if (n > 0)
-        m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
-
-      HandleSyncError((((double)decoded_size * DVD_TIME_BASE) / n), m_audioClock);
     }
   }
   else
   {
-    if(!bDropPacket)
+    while(!m_bStop)
     {
-      if(m_silence)
-        memset(pkt->pData, 0x0, pkt->iSize);
+      if(m_flush)
+      {
+        m_flush = false;
+        break;
+      }
 
-      m_omxAudio.AddPackets(pkt->pData, pkt->iSize, m_audioClock, m_audioClock);
+      if((unsigned long)m_omxAudio.GetSpace() < pkt->iSize)
+      {
+        Sleep(10);
+        continue;
+      }
+        
+      if(!bDropPacket)
+      {
+        if(m_silence)
+          memset(pkt->pData, 0x0, pkt->iSize);
+
+        m_omxAudio.AddPackets(pkt->pData, pkt->iSize, m_audioClock, m_audioClock);
+      }
+
+      if(m_speed == DVD_PLAYSPEED_NORMAL)
+        HandleSyncError(0);
+
+      m_audioStats.AddSampleBytes(pkt->iSize);
+
+      break;
     }
-
-    HandleSyncError(0, m_audioClock);
   }
 
   if(bDropPacket)
@@ -391,29 +440,23 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
     m_messageParent.Put(new CDVDMsgInt(CDVDMsg::PLAYER_STARTED, DVDPLAYER_AUDIO));
   }
 
-  if(!m_av_clock->OMXIsPaused() && !bDropPacket)
+  if(!bDropPacket && m_speed == DVD_PLAYSPEED_NORMAL)
   {
-    if((m_speed == DVD_PLAYSPEED_PAUSE || m_speed == DVD_PLAYSPEED_NORMAL))
+    if(GetDelay() < 0.1f && !m_av_clock->OMXAudioBuffer())
     {
-      if(GetDelay() < 0.1f)
+      clock_gettime(CLOCK_REALTIME, &m_starttime);
+      m_av_clock->OMXAudioBufferStart();
+    }
+    else if(GetDelay() > (AUDIO_BUFFER_SECONDS * 0.75f) && m_av_clock->OMXAudioBuffer())
+    {
+      m_av_clock->OMXAudioBufferStop();
+    }
+    else if(m_av_clock->OMXAudioBuffer())
+    {
+      clock_gettime(CLOCK_REALTIME, &m_endtime);
+      if((m_endtime.tv_sec - m_starttime.tv_sec) > 1)
       {
-        m_buffer_empty = true;
-        clock_gettime(CLOCK_REALTIME, &m_starttime);
-        m_av_clock->OMXSetPlaySpeed(OMX_PLAYSPEED_PAUSE);
-      }
-      else if(GetDelay() > (AUDIO_BUFFER_SECONDS * 0.75f))
-      {
-        m_buffer_empty = false;
-        m_av_clock->OMXSetPlaySpeed(OMX_PLAYSPEED_NORMAL);
-      }
-      if(m_buffer_empty && m_av_clock->OMXGetPlaySpeed() == OMX_PLAYSPEED_PAUSE)
-      {
-        clock_gettime(CLOCK_REALTIME, &m_endtime);
-        if((m_endtime.tv_sec - m_starttime.tv_sec) > 1)
-        {
-          m_buffer_empty = false;
-          m_av_clock->OMXSetPlaySpeed(OMX_PLAYSPEED_NORMAL);
-        }
+        m_av_clock->OMXAudioBufferStop();
       }
     }
   }
@@ -451,22 +494,12 @@ void OMXPlayerAudio::Process()
       DemuxPacket* pPacket = ((CDVDMsgDemuxerPacket*)pMsg)->GetPacket();
       bool bPacketDrop     = ((CDVDMsgDemuxerPacket*)pMsg)->GetPacketDrop();
 
-      while (!m_bStop)
+      if(Decode(pPacket, m_speed > DVD_PLAYSPEED_NORMAL || m_speed < 0 || bPacketDrop))
       {
-        if((unsigned long)m_omxAudio.GetSpace() < pPacket->iSize)
+        if (m_stalled && (m_omxAudio.GetDelay() > (AUDIO_BUFFER_SECONDS * 0.75f)))
         {
-          Sleep(10);
-          continue;
-        }
-  
-        if(Decode(pPacket, m_speed > DVD_PLAYSPEED_NORMAL || m_speed < 0 || bPacketDrop))
-        {
-          if (m_stalled && (m_omxAudio.GetDelay() > (AUDIO_BUFFER_SECONDS * 0.75f)))
-          {
-            CLog::Log(LOGINFO, "COMXPlayerAudio - Switching to normal playback");
-            m_stalled = false;
-          }
-          break;
+          CLog::Log(LOGINFO, "COMXPlayerAudio - Switching to normal playback");
+          m_stalled = false;
         }
       }
     }
@@ -487,7 +520,8 @@ void OMXPlayerAudio::Process()
       {
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_RESYNC(%f, 1)", m_audioClock);
         //m_pClock->Discontinuity(m_ptsOutput.Current());
-        m_av_clock->Discontinuity(m_audioClock + GetDelay());
+        m_av_clock->Discontinuity(m_audioClock + (GetDelay() * DVD_TIME_BASE));
+        //m_av_clock->OMXUpdateClock(m_audioClock + (GetDelay() * DVD_TIME_BASE));
       }
       else
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_RESYNC(%f, 0)", m_audioClock);
@@ -500,7 +534,12 @@ void OMXPlayerAudio::Process()
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_FLUSH))
     {
+      CLog::Log(LOGDEBUG, "COMXlayerAudio - CDVDMsg::GENERAL_FLUSH");
+      m_av_clock->Lock();
+      m_av_clock->OMXStop(false);
       m_omxAudio.Flush();
+      m_av_clock->OMXReset(false);
+      m_av_clock->UnLock();
       m_syncclock = true;
       m_stalled   = true;
       m_started   = false;
@@ -535,7 +574,9 @@ void OMXPlayerAudio::Process()
     }
     else if (pMsg->IsType(CDVDMsg::PLAYER_SETSPEED))
     {
+      CLog::Log(LOGDEBUG, "COMXlayerAudio - CDVDMsg::PLAYER_SETSPEED");
       m_speed = static_cast<CDVDMsgInt*>(pMsg)->m_value;
+      /*
       if (m_speed == DVD_PLAYSPEED_NORMAL)
       {
         //m_dvdAudio.Resume();
@@ -544,9 +585,16 @@ void OMXPlayerAudio::Process()
       {
         m_syncclock = true;
         if (m_speed != DVD_PLAYSPEED_PAUSE)
+        {
+          m_av_clock->Lock();
+          m_av_clock->OMXStop(false);
           m_omxAudio.Flush();
+          m_av_clock->OMXReset(false);
+          m_av_clock->UnLock();
+        }
         //m_dvdAudio.Pause();
       }
+      */
     }
     else if (pMsg->IsType(CDVDMsg::AUDIO_SILENCE))
     {
@@ -569,6 +617,7 @@ void OMXPlayerAudio::Process()
 
 void OMXPlayerAudio::Flush()
 {
+  m_flush = true;
   m_messageQueue.Flush();
   m_messageQueue.Put( new CDVDMsg(CDVDMsg::GENERAL_FLUSH), 1);
 }
@@ -629,6 +678,9 @@ IAudioRenderer::EEncoded OMXPlayerAudio::IsPassthrough(CDVDStreamInfo hints)
 bool OMXPlayerAudio::OpenDecoder()
 {
   bool bAudioRenderOpen = false;
+  int nChannels = m_hints.channels;
+
+  m_omxAudio.SetClock(m_av_clock);
 
   if(m_use_passthrough)
     m_passthrough = IsPassthrough(m_hints);
@@ -636,6 +688,9 @@ bool OMXPlayerAudio::OpenDecoder()
   if(!m_passthrough && m_use_hw_decode)
     m_hw_decode = COMXAudio::HWDecode(m_hints.codec);
 
+  m_av_clock->Lock();
+  m_av_clock->OMXStop(false);
+  m_av_clock->HasAudio(false);
   if(m_passthrough || m_use_hw_decode)
   {
     if(m_passthrough)
@@ -646,10 +701,10 @@ bool OMXPlayerAudio::OpenDecoder()
   else
   {
     /* omx needs 6 channels packed into 8 for PCM */
-    if(m_hints.channels == 6)
-      m_hints.channels = 8;
+    if(nChannels == 6)
+      nChannels = 8;
 
-    bAudioRenderOpen = m_omxAudio.Initialize(NULL, m_device.substr(4), m_hints.channels, m_pChannelMap,
+    bAudioRenderOpen = m_omxAudio.Initialize(NULL, m_device.substr(4), nChannels, m_pChannelMap,
                                              m_hints.samplerate, m_hints.bitspersample, 
                                              false, false, m_passthrough);
   }
@@ -658,21 +713,28 @@ bool OMXPlayerAudio::OpenDecoder()
   
   if(!bAudioRenderOpen)
   {
+    m_av_clock->HasAudio(false);
+    m_av_clock->OMXReset(false);
+    m_av_clock->UnLock();
     return false;
   }
   else
   {
     if(m_passthrough)
     {
-      printf("Audio codec %s channels %d samplerate %d bitspersample %d\n",
+      CLog::Log(LOGINFO, "Audio codec %s channels %d samplerate %d bitspersample %d\n",
         m_codec_name.c_str(), 2, m_hints.samplerate, m_hints.bitspersample);
     }
     else
     {
-      printf("Audio codec %s channels %d samplerate %d bitspersample %d\n",
-        m_codec_name.c_str(), m_hints.channels, m_hints.samplerate, m_hints.bitspersample);
+      CLog::Log(LOGINFO, "Audio codec %s channels %d samplerate %d bitspersample %d\n",
+        m_codec_name.c_str(), nChannels, m_hints.samplerate, m_hints.bitspersample);
     }
   }
+
+  m_av_clock->HasAudio(true);
+  m_av_clock->OMXReset(false);
+  m_av_clock->UnLock();
   return true;
 }
 

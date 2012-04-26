@@ -79,6 +79,7 @@ protected:
   int               m_omx_speed;
   bool              m_video_start;
   bool              m_audio_start;
+  bool              m_audio_buffer;
   OMX_TIME_CONFIG_CLOCKSTATETYPE m_clock_state;
 private:
   COMXCoreComponent m_omx_clock;
@@ -108,7 +109,7 @@ public:
 
   void OMXSetClockPorts(OMX_TIME_CONFIG_CLOCKSTATETYPE *clock);
   bool OMXInitialize(bool has_video, bool has_audio);
-  void Deinitialize();
+  void OMXDeinitialize();
   bool OMXIsPaused() { return m_pause; };
   void OMXSaveState(bool lock = true);
   void OMXRestoreState(bool lock = true);
@@ -123,6 +124,7 @@ public:
   bool OMXWaitStart(double pts, bool lock = true);
   void OMXHandleBackward(bool lock = true);
   bool OMXSetPlaySpeed(int speed, bool lock = true);
+  int  OMXPlaySpeed() { return m_omx_speed; };
   int  OMXGetPlaySpeed() { return m_omx_speed; };
   COMXCoreComponent *GetOMXClock();
   bool OMXStatePause(bool lock = true);
@@ -138,9 +140,13 @@ public:
   void HasAudio(bool has_audio) { m_has_audio = has_audio; };
   bool VideoStart() { return m_video_start; };
   bool AudioStart() { return m_audio_start; };
-  void VideoStart(bool video_start) { m_video_start = video_start; };
-  void AudioStart(bool audio_start) { m_audio_start = audio_start; };
+  void VideoStart(bool video_start);
+  void AudioStart(bool audio_start);
   static void AddTimeSpecNano(struct timespec &time, uint64_t nanoseconds);
+
+  void OMXAudioBufferStart();
+  void OMXAudioBufferStop();
+  bool OMXAudioBuffer() { return m_audio_buffer; };
 
   int     GetRefreshRate(double* interval = NULL);
   void    SetRefreshRate(double fps) { m_fps = fps; };

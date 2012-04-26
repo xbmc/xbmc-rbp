@@ -133,7 +133,6 @@ bool OMXPlayerVideo::OpenStream(CDVDStreamInfo &hints)
 
   if(!OpenDecoder())
   {
-    //CloseStream(false);
     return false;
   }
 
@@ -143,16 +142,16 @@ bool OMXPlayerVideo::OpenStream(CDVDStreamInfo &hints)
   {
     if(!OpenStream(hints, NULL))
       return false;
-
-    if(m_hdmi_clock_sync)
-      m_av_clock->HDMIClockSync();
-
     CLog::Log(LOGNOTICE, "Creating video thread");
     m_messageQueue.Init();
     Create();
   }
 
   /*
+  if(!OpenStream(hints, NULL))
+    return false;
+
+  CLog::Log(LOGNOTICE, "Creating video thread");
   m_messageQueue.Init();
   Create();
   */
@@ -193,7 +192,12 @@ bool OMXPlayerVideo::CloseStream(bool bWaitForBuffers)
     m_pTempOverlayPicture = NULL;
   }
 
+  m_av_clock->Lock();
+  m_av_clock->OMXStop(false);
   m_omxVideo.Close();
+  m_av_clock->HasVideo(false);
+  m_av_clock->OMXReset(false);
+  m_av_clock->UnLock();
 
   return true;
 }
@@ -204,6 +208,7 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
   if (m_started)
     m_pOverlayContainer->CleanUp(pts - m_iSubtitleDelay);
 
+  /*
   VecOverlays overlays;
 
   {
@@ -243,6 +248,7 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
       g_renderManager.AddOverlay(*it, pts2);
     }
   }
+  */
 }
 
 void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
@@ -370,14 +376,6 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
   //while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
   //  Sleep(10);
 
-  /*
-  printf("iPlayingClock %f iCurrentClock %f iClockSleep %f iFrameSleep %f iFrameDuration %f WaitAbsolut %f m_FlipTimeStamp %f pts %f\n", 
-      iPlayingClock / DVD_TIME_BASE, iCurrentClock  / DVD_TIME_BASE,
-      iClockSleep / DVD_TIME_BASE, iFrameSleep / DVD_TIME_BASE,
-      iFrameDuration / DVD_TIME_BASE, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, m_FlipTimeStamp / DVD_TIME_BASE, 
-      pts / DVD_TIME_BASE);
-  */
-
   //g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_TOP);
 
   m_av_clock->WaitAbsoluteClock((iCurrentClock + iSleepTime));
@@ -427,7 +425,7 @@ void OMXPlayerVideo::Process()
     if (pMsg->IsType(CDVDMsg::GENERAL_SYNCHRONIZE))
     {
       ((CDVDMsgGeneralSynchronize*)pMsg)->Wait( &m_bStop, SYNCSOURCE_VIDEO );
-      CLog::Log(LOGDEBUG, "COMXlayerVideo - CDVDMsg::GENERAL_SYNCHRONIZE");
+      CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_SYNCHRONIZE");
       pMsg->Release();
       continue;
     }
@@ -444,11 +442,12 @@ void OMXPlayerVideo::Process()
 
       if(pMsgGeneralResync->m_clock)
       {
-        CLog::Log(LOGDEBUG, "COMXlayerVideo - CDVDMsg::GENERAL_RESYNC(%f, 1)", pts);
+        CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_RESYNC(%f, 1)", pts);
         m_av_clock->Discontinuity(pts - delay);
+        //m_av_clock->OMXUpdateClock(pts - delay);
       }
       else
-        CLog::Log(LOGDEBUG, "COMXlayerVideo - CDVDMsg::GENERAL_RESYNC(%f, 0)", pts);
+        CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_RESYNC(%f, 0)", pts);
 
       pMsgGeneralResync->Release();
       continue;
@@ -470,14 +469,24 @@ void OMXPlayerVideo::Process()
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_RESET))
     {
+      CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_RESET");
+      m_av_clock->Lock();
+      m_av_clock->OMXStop(false);
       m_omxVideo.Reset();
+      m_av_clock->OMXReset(false);
+      m_av_clock->UnLock();
       m_started = false;
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_FLUSH)) // private message sent by (COMXPlayerVideo::Flush())
     {
+      CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_FLUSH");
       m_stalled = true;
       m_started = false;
+      m_av_clock->Lock();
+      m_av_clock->OMXStop(false);
       m_omxVideo.Reset();
+      m_av_clock->OMXReset(false);
+      m_av_clock->UnLock();
     }
     else if (pMsg->IsType(CDVDMsg::PLAYER_SETSPEED))
     {
@@ -518,6 +527,12 @@ void OMXPlayerVideo::Process()
 
       while (!m_bStop)
       {
+        if(m_flush)
+        {
+          m_flush = false;
+          break;
+        }
+
         if((unsigned long)m_omxVideo.GetFreeSpace() < pPacket->iSize)
         {
           Sleep(10);
@@ -537,12 +552,6 @@ void OMXPlayerVideo::Process()
 
         if(pPacket->duration == 0)
           pPacket->duration = frametime;
-
-        /*
-        printf("m_iCurrentPts %f pts %f pPacket->pts %f streamid %d extrasize %d\n", 
-            m_iCurrentPts / DVD_TIME_BASE, pts / DVD_TIME_BASE, pPacket->pts / DVD_TIME_BASE,
-            pPacket->iStreamId, m_hints.extrasize);
-        */
 
         m_omxVideo.Decode(pPacket->pData, pPacket->iSize, pPacket->pts, pPacket->pts);
         Output(pPacket, pPacket->pts, bRequestDrop);
@@ -566,6 +575,7 @@ void OMXPlayerVideo::Process()
 
 void OMXPlayerVideo::Flush()
 {
+  m_flush = true;
   m_messageQueue.Flush();
   m_messageQueue.Put(new CDVDMsg(CDVDMsg::GENERAL_FLUSH), 1);
 }
@@ -582,14 +592,21 @@ bool OMXPlayerVideo::OpenDecoder()
 
   if( m_fFrameRate > 100 || m_fFrameRate < 5 )
   {
-    printf("Invalid framerate %d, using forced 25fps and just trust timestamps\n", (int)m_fFrameRate);
+    CLog::Log(LOGINFO, "OMXPlayerVideo::OpenDecoder : Invalid framerate %d, using forced 25fps and just trust timestamps\n", (int)m_fFrameRate);
     m_fFrameRate = 25;
   }
 
+  m_av_clock->Lock();
+  m_av_clock->OMXStop(false);
   if(!m_omxVideo.Open(m_hints, m_av_clock, m_Deinterlace, m_hdmi_clock_sync))
+  {
+    m_av_clock->HasVideo(false);
+    m_av_clock->OMXReset(false);
+    m_av_clock->UnLock();
     return false;
+  }
   else
-    printf("Video codec %s width %d height %d profile %d fps %f\n",
+    CLog::Log(LOGINFO, "OMXPlayerVideo::OpenDecoder : Video codec %s width %d height %d profile %d fps %f\n",
         m_omxVideo.GetDecoderName().c_str() , m_hints.width, m_hints.height, m_hints.profile, m_fFrameRate);
 
   m_codecname = m_omxVideo.GetDecoderName();
@@ -597,6 +614,9 @@ bool OMXPlayerVideo::OpenDecoder()
   if(m_av_clock)
     m_av_clock->SetRefreshRate(m_fFrameRate);
 
+  m_av_clock->HasVideo(true);
+  m_av_clock->OMXReset(false);
+  m_av_clock->UnLock();
   return true;
 }
 

@@ -409,7 +409,7 @@ bool COMXPlayer::CloseFile()
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
   g_renderManager.UnInit();
 
-  m_av_clock.Deinitialize();
+  m_av_clock.OMXDeinitialize();
 
   m_Edl.Clear();
   m_EdlAutoSkipMarkers.Clear();
@@ -727,6 +727,7 @@ void COMXPlayer::OpenDefaultStreams()
   if(valid && (g_settings.m_currentVideoSettings.m_SubtitleOn || force))
     m_player_video.EnableSubtitle(true);
 
+  m_av_clock.OMXStop();
   m_av_clock.OMXReset();
 }
 
@@ -894,6 +895,8 @@ void COMXPlayer::Process()
     m_bAbortRequest = true;
     return;
   }
+  if(g_guiSettings.GetBool("videoplayer.adjustrefreshrate"))
+    m_av_clock.HDMIClockSync();
 
   //m_av_clock.OMXStateExecute();
   //m_av_clock.OMXStart();
@@ -1992,6 +1995,7 @@ void COMXPlayer::HandleMessages()
             {
               m_dvd.iSelectedAudioStream = -1;
               CloseAudioStream(false);
+              CloseVideoStream(false);
               m_messenger.Put(new CDVDMsgPlayerSeek(GetTime(), true, true, true));
             }
           }
@@ -2092,7 +2096,7 @@ void COMXPlayer::HandleMessages()
         m_av_clock.SetPlaySpeed(speed);
         m_player_audio.SetSpeed(speed);
         m_player_video.SetSpeed(speed);
-        if(!m_av_clock.OMXIsPaused())
+        //if(!m_av_clock.OMXIsPaused())
           m_av_clock.OMXSetPlaySpeed(m_playSpeed / DVD_PLAYSPEED_NORMAL);
 
         // TODO - we really shouldn't pause demuxer
@@ -2198,13 +2202,13 @@ void COMXPlayer::Pause()
 
   if (m_playSpeed == DVD_PLAYSPEED_PAUSE)
   {
-    m_av_clock.OMXResume();
+    //m_av_clock.OMXResume();
     SetPlaySpeed(DVD_PLAYSPEED_NORMAL);
     m_callback.OnPlayBackResumed();
   }
   else
   {
-    m_av_clock.OMXPause();
+    //m_av_clock.OMXPause();
     SetPlaySpeed(DVD_PLAYSPEED_PAUSE);
     m_callback.OnPlayBackPaused();
   }
@@ -2629,12 +2633,9 @@ bool COMXPlayer::OpenAudioStream(int iStream, int source)
       CLog::Log(LOGWARNING, "%s - Unsupported stream %d. Stream disabled.", __FUNCTION__, iStream);
       pStream->disabled = true;
       pStream->SetDiscard(AVDISCARD_ALL);
-      m_av_clock.HasAudio(false);
       return false;
     }
-    m_av_clock.HasAudio(true);
     m_av_clock.SetPlaySpeed(DVD_PLAYSPEED_NORMAL);
-    m_av_clock.HasAudio(true);
   }
   else
     m_player_audio.SendMessage(new CDVDMsg(CDVDMsg::GENERAL_RESET));
@@ -2691,11 +2692,9 @@ bool COMXPlayer::OpenVideoStream(int iStream, int source)
       CLog::Log(LOGWARNING, "%s - Unsupported stream %d. Stream disabled.", __FUNCTION__, iStream);
       pStream->disabled = true;
       pStream->SetDiscard(AVDISCARD_ALL);
-      m_av_clock.HasVideo(false);
       return false;
     }
     m_av_clock.SetPlaySpeed(DVD_PLAYSPEED_NORMAL);
-    m_av_clock.HasVideo(true);
   }
   else
     m_player_video.SendMessage(new CDVDMsg(CDVDMsg::GENERAL_RESET));
@@ -2924,8 +2923,10 @@ void COMXPlayer::FlushBuffers(bool queued, double pts, bool accurate)
       m_av_clock.Discontinuity(pts);
     UpdatePlayState(0);
 
-    m_av_clock.OMXUpdateClock(pts);
-    //m_av_clock.OMXReset();
+    CloseVideoStream(false);
+    if(m_CurrentVideo.id >= 0)
+      OpenVideoStream(m_CurrentVideo.id, m_CurrentVideo.source);
+    m_av_clock.OMXReset();
   }
 }
 
