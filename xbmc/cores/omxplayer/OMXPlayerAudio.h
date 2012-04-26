@@ -56,6 +56,7 @@ protected:
   CDVDMessageQueue      m_messageQueue;
   CDVDMessageQueue      &m_messageParent;
 
+  CDVDStreamInfo            m_hints_current;
   CDVDStreamInfo            m_hints;
   OMXClock                  *m_av_clock;
   COMXAudio                 m_omxAudio;
@@ -94,6 +95,7 @@ protected:
   bool                      m_flush;
   //SYNC_DISCON, SYNC_SKIPDUP, SYNC_RESAMPLE
   int                       m_synctype;
+  int                       m_nChannels;
 
 private:
 public:
@@ -116,6 +118,7 @@ public:
   IAudioRenderer::EEncoded IsPassthrough(CDVDStreamInfo hints);
   bool Passthrough() const;
   bool OpenDecoder();
+  void CloseDecoder();
   double GetDelay();
   double GetCacheTime();
   double GetCurrentPTS() { return m_audioClock; };

@@ -83,6 +83,7 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
   m_stalled       = false;
   m_audioClock    = 0;
   m_buffer_empty  = false;
+  m_nChannels     = 0;
 
   m_av_clock->SetMasterClock(false);
 
@@ -94,6 +95,7 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
 OMXPlayerAudio::~OMXPlayerAudio()
 {
   CloseStream(false);
+  CloseDecoder();
 }
 
 bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints)
@@ -162,6 +164,7 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
   m_freq            = m_av_clock->CurrentHostFrequency();
   m_started         = false;
   m_flush           = false;
+  m_nChannels       = 0;
   m_synctype        = SYNC_DISCON;
   m_stalled         = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
   m_use_passthrough = (g_guiSettings.GetInt("audiooutput.mode") == IAudioRenderer::ENCODED_NONE) ? false : true ;
@@ -174,7 +177,7 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
 
   m_pChannelMap = m_pAudioCodec->GetChannelMap();
 
-  return OpenDecoder();
+  return true /*OpenDecoder()*/;
 }
 
 bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
@@ -192,12 +195,6 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
     delete m_pAudioCodec;
     m_pAudioCodec = NULL;
   }
-
-  m_av_clock->Lock();
-  m_av_clock->OMXStop(false);
-  m_omxAudio.Deinitialize();
-  m_av_clock->OMXReset(false);
-  m_av_clock->UnLock();
 
   m_messageQueue.End();
 
@@ -316,20 +313,29 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
   if(!m_pAudioCodec)
     return true;
 
-  int channels = m_hints.channels;
-
-  /* 6 channel have to be mapped to 8 for PCM */
-  if(!m_passthrough && !m_hw_decode)
-  {
-    if(channels == 6)
-      channels = 8;
-  }
- 
   if(pkt->dts != DVD_NOPTS_VALUE)
     m_audioClock = pkt->dts;
 
   const uint8_t *data_dec = pkt->pData;
   int            data_len = pkt->iSize;
+
+  unsigned int old_bitrate = m_hints.bitrate;
+  unsigned int new_bitrate = m_hints_current.bitrate;
+
+  /* only check bitrate changes on CODEC_ID_DTS, CODEC_ID_AC3, CODEC_ID_EAC3 */
+  if(m_hints.codec != CODEC_ID_DTS && m_hints.codec != CODEC_ID_AC3 && m_hints.codec != CODEC_ID_EAC3)
+    new_bitrate = old_bitrate = 0;
+    
+  if(m_hints_current.codec          != m_hints.codec ||
+     m_hints_current.channels       != m_hints.channels ||
+     m_hints_current.samplerate     != m_hints.samplerate ||
+     m_hints_current.bitspersample  != m_hints.bitspersample ||
+     old_bitrate                    != new_bitrate)
+  {
+    m_hints_current = m_hints;
+
+    OpenDecoder();
+  }
 
   if(!m_passthrough && !m_hw_decode)
   {
@@ -383,7 +389,7 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
           }
         }
 
-        int n = (channels * m_hints.bitspersample * m_hints.samplerate)>>3;
+        int n = (m_nChannels * m_hints.bitspersample * m_hints.samplerate)>>3;
         if (n > 0)
           m_audioClock += ((double)decoded_size * DVD_TIME_BASE) / n;
 
@@ -678,7 +684,8 @@ IAudioRenderer::EEncoded OMXPlayerAudio::IsPassthrough(CDVDStreamInfo hints)
 bool OMXPlayerAudio::OpenDecoder()
 {
   bool bAudioRenderOpen = false;
-  int nChannels = m_hints.channels;
+
+  m_nChannels = m_hints.channels;
 
   m_omxAudio.SetClock(m_av_clock);
 
@@ -700,11 +707,11 @@ bool OMXPlayerAudio::OpenDecoder()
   }
   else
   {
-    /* omx needs 6 channels packed into 8 for PCM */
-    if(nChannels == 6)
-      nChannels = 8;
+    /* 6 channel have to be mapped to 8 for PCM */
+    if(m_nChannels == 6)
+      m_nChannels = 8;
 
-    bAudioRenderOpen = m_omxAudio.Initialize(NULL, m_device.substr(4), nChannels, m_pChannelMap,
+    bAudioRenderOpen = m_omxAudio.Initialize(NULL, m_device.substr(4), m_nChannels, m_pChannelMap,
                                              m_hints.samplerate, m_hints.bitspersample, 
                                              false, false, m_passthrough);
   }
@@ -728,7 +735,7 @@ bool OMXPlayerAudio::OpenDecoder()
     else
     {
       CLog::Log(LOGINFO, "Audio codec %s channels %d samplerate %d bitspersample %d\n",
-        m_codec_name.c_str(), nChannels, m_hints.samplerate, m_hints.bitspersample);
+        m_codec_name.c_str(), m_nChannels, m_hints.samplerate, m_hints.bitspersample);
     }
   }
 
@@ -736,6 +743,15 @@ bool OMXPlayerAudio::OpenDecoder()
   m_av_clock->OMXReset(false);
   m_av_clock->UnLock();
   return true;
+}
+
+void OMXPlayerAudio::CloseDecoder()
+{
+  m_av_clock->Lock();
+  m_av_clock->OMXStop(false);
+  m_omxAudio.Deinitialize();
+  m_av_clock->OMXReset(false);
+  m_av_clock->UnLock();
 }
 
 double OMXPlayerAudio::GetDelay()

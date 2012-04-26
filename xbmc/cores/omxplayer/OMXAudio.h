@@ -129,7 +129,7 @@ private:
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_input;
   OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;
   WAVEFORMATEXTENSIBLE        m_wave_header;
-
+  unsigned int  m_uiSamplesPerSec;
 protected:
   COMXCoreComponent m_omx_render;
   COMXCoreComponent m_omx_mixer;

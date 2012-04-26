@@ -106,7 +106,8 @@ COMXAudio::COMXAudio() :
   m_extradata       (NULL   ),
   m_extrasize       (0      ),
   m_visBufferLength (0      ),
-  m_last_pts        (DVD_NOPTS_VALUE)
+  m_last_pts        (DVD_NOPTS_VALUE),
+  m_uiSamplesPerSec (44100  )
 {
 }
 
@@ -182,6 +183,8 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
       return false;
     }
   }
+
+  m_uiSamplesPerSec = uiSamplesPerSec;
 
   m_omx_clock = m_av_clock->GetOMXClock();
 
@@ -896,42 +899,48 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
           CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 1 omx_err(0x%08x)\n", omx_err);
         }
 
+        m_pcm_input.nSamplingRate = m_uiSamplesPerSec;
+
         /* setup mixer input */
         m_pcm_input.nPortIndex      = m_omx_mixer.GetInputPort();
         omx_err = m_omx_mixer.SetParameter(OMX_IndexParamAudioPcm, &m_pcm_input);
         if(omx_err != OMX_ErrorNone)
         {
-          CLog::Log(LOGERROR, "COMXAudio::AddPackets error SetParameter 1 omx_err(0x%08x)\n", omx_err);
+          CLog::Log(LOGERROR, "COMXAudio::AddPackets error SetParameter 1 input omx_err(0x%08x)\n", omx_err);
         }
         omx_err = m_omx_mixer.GetParameter(OMX_IndexParamAudioPcm, &m_pcm_input);
         if(omx_err != OMX_ErrorNone)
         {
-          CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2  omx_err(0x%08x)\n", omx_err);
+          CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2 input omx_err(0x%08x)\n", omx_err);
         }
+
+        m_pcm_input.nSamplingRate = m_uiSamplesPerSec;
 
         /* setup mixer output */
         m_pcm_output.nPortIndex      = m_omx_mixer.GetOutputPort();
         omx_err = m_omx_mixer.SetParameter(OMX_IndexParamAudioPcm, &m_pcm_output);
         if(omx_err != OMX_ErrorNone)
         {
-          CLog::Log(LOGERROR, "COMXAudio::AddPackets error SetParameter 1 omx_err(0x%08x)\n", omx_err);
+          CLog::Log(LOGERROR, "COMXAudio::AddPackets error SetParameter 1 output omx_err(0x%08x)\n", omx_err);
         }
         omx_err = m_omx_mixer.GetParameter(OMX_IndexParamAudioPcm, &m_pcm_output);
         if(omx_err != OMX_ErrorNone)
         {
-          CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2  omx_err(0x%08x)\n", omx_err);
+          CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2 output omx_err(0x%08x)\n", omx_err);
         }
+
+        m_pcm_output.nSamplingRate = m_uiSamplesPerSec;
 
         m_pcm_output.nPortIndex      = m_omx_render.GetInputPort();
         omx_err = m_omx_render.SetParameter(OMX_IndexParamAudioPcm, &m_pcm_output);
         if(omx_err != OMX_ErrorNone)
         {
-          CLog::Log(LOGERROR, "COMXAudio::AddPackets error SetParameter 1 omx_err(0x%08x)\n", omx_err);
+          CLog::Log(LOGERROR, "COMXAudio::AddPackets error SetParameter 1 render omx_err(0x%08x)\n", omx_err);
         }
         omx_err = m_omx_render.GetParameter(OMX_IndexParamAudioPcm, &m_pcm_output);
         if(omx_err != OMX_ErrorNone)
         {
-          CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2  omx_err(0x%08x)\n", omx_err);
+          CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2 render omx_err(0x%08x)\n", omx_err);
         }
 
         PrintPCM(&m_pcm_input);
