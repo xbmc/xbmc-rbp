@@ -84,6 +84,7 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
   m_audioClock    = 0;
   m_buffer_empty  = false;
   m_nChannels     = 0;
+  m_DecoderOpen   = false;
 
   m_av_clock->SetMasterClock(false);
 
@@ -95,7 +96,6 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
 OMXPlayerAudio::~OMXPlayerAudio()
 {
   CloseStream(false);
-  CloseDecoder();
 }
 
 bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints)
@@ -195,6 +195,8 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
     delete m_pAudioCodec;
     m_pAudioCodec = NULL;
   }
+
+  CloseDecoder();
 
   m_messageQueue.End();
 
@@ -330,11 +332,12 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
      m_hints_current.channels       != m_hints.channels ||
      m_hints_current.samplerate     != m_hints.samplerate ||
      m_hints_current.bitspersample  != m_hints.bitspersample ||
-     old_bitrate                    != new_bitrate)
+     old_bitrate                    != new_bitrate ||
+     !m_DecoderOpen)
   {
     m_hints_current = m_hints;
 
-    OpenDecoder();
+    m_DecoderOpen = OpenDecoder();
   }
 
   if(!m_passthrough && !m_hw_decode)
@@ -752,6 +755,8 @@ void OMXPlayerAudio::CloseDecoder()
   m_omxAudio.Deinitialize();
   m_av_clock->OMXReset(false);
   m_av_clock->UnLock();
+
+  m_DecoderOpen = false;
 }
 
 double OMXPlayerAudio::GetDelay()

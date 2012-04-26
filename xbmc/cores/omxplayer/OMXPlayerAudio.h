@@ -96,7 +96,7 @@ protected:
   //SYNC_DISCON, SYNC_SKIPDUP, SYNC_RESAMPLE
   int                       m_synctype;
   int                       m_nChannels;
-
+  bool                      m_DecoderOpen;
 private:
 public:
   OMXPlayerAudio(OMXClock *av_clock, CDVDMessageQueue& parent);
