@@ -238,6 +238,7 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
       m_pTempOverlayPicture = CDVDCodecUtils::AllocatePicture(m_width, m_height);
     if(!m_pTempOverlayPicture)
       return;
+    m_pTempOverlayPicture->format == DVDVideoPicture::FMT_YUV420P;
   }
 
   if(render == OVERLAY_AUTO)
@@ -281,6 +282,11 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
 
       if (render == OVERLAY_GPU)
         g_renderManager.AddOverlay(*it, pts2);
+
+      printf("subtitle : DVDOVERLAY_TYPE_SPU %d DVDOVERLAY_TYPE_IMAGE %d DVDOVERLAY_TYPE_SSA %d\n",
+         m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_SPU),
+         m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_IMAGE),
+         m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_SSA) );
 
       if (render == OVERLAY_BUF)
         CDVDOverlayRenderer::Render(m_pTempOverlayPicture, *it, pts2);
@@ -382,7 +388,6 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
   if(bDropPacket)
     return;
 
-//#if 0
   if( m_speed != DVD_PLAYSPEED_NORMAL)
   {
     // calculate frame dropping pattern to render at this speed
@@ -406,15 +411,17 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
     m_droptime = 0.0f;
     m_dropbase = 0.0f;
   }
-//#endif
 
   double pts_media = m_av_clock->OMXMediaTime();
   ProcessOverlays(pPacket, pts_media);
 
-  while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
-    Sleep(10);
 
   //g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_TOP);
+
+  /*
+  while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
+    Sleep(1);
+  */
 
   m_av_clock->WaitAbsoluteClock((iCurrentClock + iSleepTime));
 }
