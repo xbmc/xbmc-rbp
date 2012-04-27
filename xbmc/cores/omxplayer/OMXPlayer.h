@@ -468,7 +468,6 @@ private:
   OMXClock                m_av_clock;
   OMXPlayerVideo          m_player_video;
   OMXPlayerAudio          m_player_audio;
-  //OMXPlayerSubtitle       m_player_subtitle;
   CDVDPlayerSubtitle      m_player_subtitle;
 
   CDVDMessageQueue        m_messenger;
