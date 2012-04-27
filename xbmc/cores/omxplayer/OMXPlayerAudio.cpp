@@ -187,7 +187,10 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
 
   m_messageQueue.Abort();
 
-  StopThread();
+  if(ThreadHandle())
+    StopThread();
+
+  m_messageQueue.End();
 
   if (m_pAudioCodec)
   {
@@ -197,8 +200,6 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
   }
 
   CloseDecoder();
-
-  m_messageQueue.End();
 
   m_speed         = DVD_PLAYSPEED_NORMAL;
   m_started       = false;

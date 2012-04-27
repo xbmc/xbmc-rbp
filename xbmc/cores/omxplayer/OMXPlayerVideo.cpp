@@ -208,7 +208,41 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
   if (m_started)
     m_pOverlayContainer->CleanUp(pts - m_iSubtitleDelay);
 
-  /*
+#if 0
+  enum EOverlay
+  { OVERLAY_AUTO // select mode auto
+  , OVERLAY_GPU  // render osd using gpu
+  , OVERLAY_BUF  // render osd on buffer
+  } render = OVERLAY_AUTO;
+
+  if(m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_SPU)
+    || m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_IMAGE)
+    || m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_SSA) )
+      render = OVERLAY_BUF;
+
+  if(render == OVERLAY_BUF)
+  {
+    // rendering spu overlay types directly on video memory costs a lot of processing power.
+    // thus we allocate a temp picture, copy the original to it (needed because the same picture can be used more than once).
+    // then do all the rendering on that temp picture and finaly copy it to video memory.
+    // In almost all cases this is 5 or more times faster!.
+
+    if(m_pTempOverlayPicture && ( m_pTempOverlayPicture->iWidth  != m_width
+                               || m_pTempOverlayPicture->iHeight != m_height))
+    {
+      CDVDCodecUtils::FreePicture(m_pTempOverlayPicture);
+      m_pTempOverlayPicture = NULL;
+    }
+
+    if(!m_pTempOverlayPicture)
+      m_pTempOverlayPicture = CDVDCodecUtils::AllocatePicture(m_width, m_height);
+    if(!m_pTempOverlayPicture)
+      return;
+  }
+
+  if(render == OVERLAY_AUTO)
+    render = OVERLAY_GPU;
+
   VecOverlays overlays;
 
   {
@@ -245,10 +279,14 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
     {
       double pts2 = (*it)->bForced ? pts : pts - m_iSubtitleDelay;
 
-      g_renderManager.AddOverlay(*it, pts2);
+      if (render == OVERLAY_GPU)
+        g_renderManager.AddOverlay(*it, pts2);
+
+      if (render == OVERLAY_BUF)
+        CDVDOverlayRenderer::Render(m_pTempOverlayPicture, *it, pts2);
     }
   }
-  */
+#endif
 }
 
 void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
@@ -373,8 +411,8 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
   double pts_media = m_av_clock->OMXMediaTime();
   ProcessOverlays(pPacket, pts_media);
 
-  //while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
-  //  Sleep(10);
+  while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
+    Sleep(10);
 
   //g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_TOP);
 

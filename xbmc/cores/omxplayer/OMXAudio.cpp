@@ -1202,13 +1202,13 @@ bool COMXAudio::CanHWDecode(CodecID codec)
       m_eEncoding = OMX_AUDIO_CodingAAC;
       m_HWDecode = true;
       break;
-    */
     case CODEC_ID_MP2:
     case CODEC_ID_MP3:
       CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingMP3\n");
       m_eEncoding = OMX_AUDIO_CodingMP3;
       m_HWDecode = true;
       break;
+    */
     case CODEC_ID_DTS:
       CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingDTS\n");
       m_eEncoding = OMX_AUDIO_CodingDTS;
@@ -1245,12 +1245,12 @@ bool COMXAudio::HWDecode(CodecID codec)
       CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_AAC\n");
       ret = true;
       break;
-    */
     case CODEC_ID_MP2:
     case CODEC_ID_MP3:
       CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_MP2 / CODEC_ID_MP3\n");
       ret = true;
       break;
+    */
     case CODEC_ID_DTS:
       CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_DTS\n");
       ret = true;

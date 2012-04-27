@@ -76,10 +76,10 @@ protected:
   double                    m_iSubtitleDelay;
   bool                      m_bRenderSubs;
 
-  int                       m_width;
-  int                       m_height;
-  int                       m_video_width;
-  int                       m_video_height;
+  unsigned int              m_width;
+  unsigned int              m_height;
+  unsigned int              m_video_width;
+  unsigned int              m_video_height;
   unsigned int              m_flags;
   float                     m_fps;
 

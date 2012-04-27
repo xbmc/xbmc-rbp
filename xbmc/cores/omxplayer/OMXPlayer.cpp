@@ -407,13 +407,18 @@ bool COMXPlayer::CloseFile()
     StopThread();
   
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
-  g_renderManager.UnInit();
 
+  m_av_clock.OMXStop();
+  m_av_clock.OMXStateIdle();
+  CloseVideoStream(false);
+  CloseAudioStream(false);
+  CloseSubtitleStream(false);
   m_av_clock.OMXDeinitialize();
 
   m_Edl.Clear();
   m_EdlAutoSkipMarkers.Clear();
 
+  g_renderManager.UnInit();
   return true;
 }
 
@@ -1200,10 +1205,6 @@ void COMXPlayer::Process()
   {
     CLog::Log(LOGERROR, "COMXPlayer::Process: Exception thrown");
   }
-
-  m_av_clock.OMXStop();
-  m_av_clock.OMXStateIdle();
-
 }
 
 void COMXPlayer::ProcessPacket(CDemuxStream* pStream, DemuxPacket* pPacket)
@@ -2923,9 +2924,11 @@ void COMXPlayer::FlushBuffers(bool queued, double pts, bool accurate)
       m_av_clock.Discontinuity(pts);
     UpdatePlayState(0);
 
+    /*
     CloseVideoStream(false);
     if(m_CurrentVideo.id >= 0)
       OpenVideoStream(m_CurrentVideo.id, m_CurrentVideo.source);
+    */
     m_av_clock.OMXReset();
   }
 }

@@ -569,6 +569,8 @@ bool OMXClock::OMXReset(bool lock /* = true */)
 
   CLog::Log(LOGDEBUG, "OMXClock::OMXReset 0x%08x\n", m_omx_clock.GetState());
 
+  m_audio_buffer = false;
+
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   OMX_TIME_CONFIG_CLOCKSTATETYPE clock;
   OMX_INIT_STRUCTURE(clock);
@@ -581,7 +583,7 @@ bool OMXClock::OMXReset(bool lock /* = true */)
   omx_err = m_omx_clock.SetConfig(OMX_IndexConfigTimeClockState, &clock);
   if(omx_err != OMX_ErrorNone)
   {
-    CLog::Log(LOGERROR, "OMXClock::Reset error setting OMX_IndexConfigTimeClockState\n");
+    CLog::Log(LOGERROR, "OMXClock::OMXReset error setting OMX_IndexConfigTimeClockState\n");
     if(lock)
       UnLock();
     return false;
