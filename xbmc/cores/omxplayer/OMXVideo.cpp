@@ -73,7 +73,6 @@ COMXVideo::COMXVideo()
 {
   m_is_open           = false;
   m_Pause             = false;
-  m_setStartTime      = true;
   m_extradata         = NULL;
   m_extrasize         = 0;
   m_converter         = NULL;
@@ -462,7 +461,6 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
 
   m_is_open           = true;
   m_drop_state        = false;
-  m_setStartTime      = true;
 
   /*
   OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
@@ -589,7 +587,6 @@ void COMXVideo::Close()
   m_video_codec_name  = "";
   m_deinterlace       = false;
   m_first_frame       = true;
-  m_setStartTime      = true;
 }
 
 void COMXVideo::SetDropState(bool bDrop)
@@ -655,11 +652,10 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
 
       uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;
 
-      if(m_av_clock->VideoStart() /*m_setStartTime*/)
+      if(m_av_clock->VideoStart())
       {
         omx_buffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
-        CLog::Log(LOGDEBUG, "VDec : m_setStartTime %f\n", (float)val / DVD_TIME_BASE);
-        m_setStartTime = false;
+        CLog::Log(LOGDEBUG, "VDec : setStartTime %f\n", (float)val / DVD_TIME_BASE);
         m_av_clock->VideoStart(false);
       }
       else
@@ -762,11 +758,26 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
 
 void COMXVideo::Reset(void)
 {
+  if(!m_is_open)
+    return;
+
   m_omx_decoder.FlushInput();
   m_omx_tunnel_decoder.Flush();
 
-  m_setStartTime  = true;
-  //m_first_frame   = true;
+  /*
+  OMX_ERRORTYPE omx_err;
+  OMX_CONFIG_BOOLEANTYPE configBool;
+  OMX_INIT_STRUCTURE(configBool);
+  configBool.bEnabled = OMX_TRUE;
+
+  omx_err = m_omx_decoder.SetConfig(OMX_IndexConfigRefreshCodec, &configBool);
+  if (omx_err != OMX_ErrorNone)
+    CLog::Log(LOGERROR, "%s::%s - error reopen codec omx_err(0x%08x)\n", CLASSNAME, __func__, omx_err);
+
+  SendDecoderConfig();
+
+  m_first_frame   = true;
+  */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

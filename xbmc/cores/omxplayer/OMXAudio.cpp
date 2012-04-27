@@ -97,7 +97,6 @@ COMXAudio::COMXAudio() :
   m_omx_clock       (NULL   ),
   m_av_clock        (NULL   ),
   m_external_clock  (false  ),
-  m_setStartTime    (false  ),
   m_SampleSize      (0      ),
   m_first_frame     (true   ),
   m_LostSync        (true   ),
@@ -559,7 +558,6 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   }
 
   m_Initialized   = true;
-  m_setStartTime  = true;
   m_first_frame   = true;
   m_last_pts      = DVD_NOPTS_VALUE;
 
@@ -642,7 +640,6 @@ bool COMXAudio::Deinitialize()
 
   m_dllAvUtil.Unload();
 
-  m_setStartTime  = true;
   m_first_frame   = true;
   m_last_pts      = DVD_NOPTS_VALUE;
 
@@ -659,7 +656,6 @@ void COMXAudio::Flush()
   if(!m_Passthrough)
     m_omx_tunnel_mixer.Flush();
   
-  m_setStartTime  = true;
   m_last_pts      = DVD_NOPTS_VALUE;
   m_LostSync      = true;
   //m_first_frame   = true;
@@ -818,14 +814,13 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
 
     uint64_t val  = (uint64_t)(pts == DVD_NOPTS_VALUE) ? 0 : pts;
 
-    if(m_av_clock->AudioStart() /* m_setStartTime*/)
+    if(m_av_clock->AudioStart())
     {
       omx_buffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
 
-      m_setStartTime = false;
       m_last_pts = pts;
 
-      CLog::Log(LOGDEBUG, "ADec : m_setStartTime %f\n", (float)val / DVD_TIME_BASE);
+      CLog::Log(LOGDEBUG, "ADec : setStartTime %f\n", (float)val / DVD_TIME_BASE);
       m_av_clock->AudioStart(false);
     }
     else

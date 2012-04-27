@@ -82,7 +82,6 @@ protected:
   bool              m_is_open;
 
   bool              m_Pause;
-  bool              m_setStartTime;
 
   uint8_t           *m_extradata;
   int               m_extrasize;

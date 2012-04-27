@@ -113,7 +113,6 @@ private:
   COMXCoreComponent *m_omx_clock;
   OMXClock       *m_av_clock;
   bool          m_external_clock;
-  bool          m_setStartTime;
   int           m_SampleSize;
   bool          m_first_frame;
   bool          m_LostSync;
