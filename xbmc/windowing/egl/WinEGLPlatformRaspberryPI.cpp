@@ -95,8 +95,6 @@ EGLNativeWindowType CWinEGLPlatformRaspberryPI::InitWindowSystem(EGLNativeDispla
   m_dispman_element2 = DISPMANX_NO_HANDLE;
   m_dispman_display = DISPMANX_NO_HANDLE;
 
-  if(!m_DllBcmHostDisplay.Load())
-    return NULL;
   if (!m_DllBcmHost.Load())
     return NULL;
 
@@ -162,7 +160,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
     sem_destroy(&m_tv_synced);
   }
 
-  m_dispman_display = m_DllBcmHostDisplay.vc_dispmanx_display_open(0);
+  m_dispman_display = m_DllBcmHost.vc_dispmanx_display_open(0);
 
   OVERSCAN &overscan = res.Overscan;
 
@@ -195,7 +193,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
   memset(&clamp, 0x0, sizeof(DISPMANX_CLAMP_T));
 
   DISPMANX_TRANSFORM_T transform = DISPMANX_NO_ROTATE;
-  DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
+  DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHost.vc_dispmanx_update_start(0);
   CLog::Log(LOGDEBUG, "CWinEGLPlatformRaspberryPI::SetDisplayResolution %dx%d->%dx%d\n", m_fb_width, m_fb_height, dst_rect.width, dst_rect.height);
 
   // width < height => half SBS
@@ -208,7 +206,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
     */
     dst_rect.x = res.iWidth;
     dst_rect.width >>= overscan.right - dst_rect.x;
-    m_dispman_element2 = m_DllBcmHostDisplay.vc_dispmanx_element_add(dispman_update,
+    m_dispman_element2 = m_DllBcmHost.vc_dispmanx_element_add(dispman_update,
       m_dispman_display,
       1,                              // layer
       &dst_rect,
@@ -231,7 +229,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
     dst_rect.x = overscan.left;
     dst_rect.width = res.iWidth - dst_rect.x;
   }
-  m_dispman_element = m_DllBcmHostDisplay.vc_dispmanx_element_add(dispman_update,
+  m_dispman_element = m_DllBcmHost.vc_dispmanx_element_add(dispman_update,
     m_dispman_display,
     1,                              // layer
     &dst_rect,
@@ -251,8 +249,8 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
   nativeWindow->element = m_dispman_element;
   nativeWindow->width   = m_fb_width;
   nativeWindow->height  = m_fb_height;
-  m_DllBcmHostDisplay.vc_dispmanx_display_set_background(dispman_update, m_dispman_display, 0x00, 0x00, 0x00);
-  m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(dispman_update);
+  m_DllBcmHost.vc_dispmanx_display_set_background(dispman_update, m_dispman_display, 0x00, 0x00, 0x00);
+  m_DllBcmHost.vc_dispmanx_update_submit_sync(dispman_update);
 
   CLog::Log(LOGDEBUG, "CWinEGLPlatformRaspberryPI::SetDisplayResolution(%dx%d) (%dx%d)\n", nativeWindow->width, nativeWindow->height, m_width, m_height);
 
@@ -319,9 +317,6 @@ void CWinEGLPlatformRaspberryPI::DestroyWindowSystem(EGLNativeWindowType native_
 
   free(m_nativeWindow);
   m_nativeWindow = NULL;
-
-  if(m_DllBcmHostDisplay.IsLoaded())
-    m_DllBcmHostDisplay.Unload();
 
   if(m_DllBcmHost.IsLoaded())
     m_DllBcmHost.Unload();
@@ -496,23 +491,23 @@ bool CWinEGLPlatformRaspberryPI::DestroyWindow()
 {
   CLog::Log(LOGDEBUG, "CWinEGLPlatformRaspberryPI::DestroyWindow()\n");
 
-  DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHostDisplay.vc_dispmanx_update_start(0);
+  DISPMANX_UPDATE_HANDLE_T dispman_update = m_DllBcmHost.vc_dispmanx_update_start(0);
 
   if (m_dispman_element != DISPMANX_NO_HANDLE)
   {
-    m_DllBcmHostDisplay.vc_dispmanx_element_remove(dispman_update, m_dispman_element);
+    m_DllBcmHost.vc_dispmanx_element_remove(dispman_update, m_dispman_element);
     m_dispman_element = DISPMANX_NO_HANDLE;
   }
   if (m_dispman_element2 != DISPMANX_NO_HANDLE)
   {
-    m_DllBcmHostDisplay.vc_dispmanx_element_remove(dispman_update, m_dispman_element2);
+    m_DllBcmHost.vc_dispmanx_element_remove(dispman_update, m_dispman_element2);
     m_dispman_element2 = DISPMANX_NO_HANDLE;
   }
-  m_DllBcmHostDisplay.vc_dispmanx_update_submit_sync(dispman_update);
+  m_DllBcmHost.vc_dispmanx_update_submit_sync(dispman_update);
 
   if (m_dispman_display != DISPMANX_NO_HANDLE)
   {
-    m_DllBcmHostDisplay.vc_dispmanx_display_close(m_dispman_display);
+    m_DllBcmHost.vc_dispmanx_display_close(m_dispman_display);
     m_dispman_display = DISPMANX_NO_HANDLE;
   }
 

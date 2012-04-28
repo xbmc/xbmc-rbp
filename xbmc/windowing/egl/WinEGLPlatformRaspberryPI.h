@@ -71,7 +71,6 @@ protected:
   int                   m_fb_width;
   int                   m_fb_height;
   int                   m_fb_bpp;
-  DllBcmHostDisplay     m_DllBcmHostDisplay;
   DllBcmHost            m_DllBcmHost;
 
   DISPMANX_ELEMENT_HANDLE_T m_dispman_element;
