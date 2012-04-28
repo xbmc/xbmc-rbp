@@ -25,7 +25,10 @@
 #include "system.h"
 #endif
 
+#include "video/VideoReferenceClock.h"
+
 #include "OMXClock.h"
+#include "utils/MathUtils.h"
 
 int64_t OMXClock::m_systemOffset;
 int64_t OMXClock::m_systemFrequency;
@@ -39,7 +42,6 @@ OMXClock::OMXClock()
   m_audio_start = false;
   m_pause       = false;
 
-  m_systemFrequency = CurrentHostFrequency();
   m_systemUsed = m_systemFrequency;
   m_pauseClock = 0;
   m_bReset = true;
@@ -73,56 +75,23 @@ void OMXClock::UnLock()
   pthread_mutex_unlock(&m_lock);
 }
 
-double OMXClock::SystemToAbsolute(int64_t system)
+double OMXClock::GetAbsoluteClock(bool interpolated /*= true*/)
 {
-  return DVD_TIME_BASE * (double)(system - m_systemOffset) / m_systemFrequency;
-}
+  Lock();
+  CheckSystemClock();
 
-double OMXClock::SystemToPlaying(int64_t system)
-{
   int64_t current;
+  current = g_VideoReferenceClock.GetTime(interpolated);
 
-  if (m_bReset)
-  {
-    m_startClock = system;
-    m_systemUsed = m_systemFrequency;
-    m_pauseClock = 0;
-    m_iDisc = 0;
-    m_bReset = false;
-  }
-
-  if (m_pauseClock)
-    current = m_pauseClock;
-  else
-    current = system;
-
-  return DVD_TIME_BASE * (double)(current - m_startClock) / m_systemUsed + m_iDisc;
-}
-
-int64_t OMXClock::GetFrequency()
-{
-  return m_systemFrequency;
-}
-
-int64_t OMXClock::Wait(int64_t Target)
-{
-  int64_t       Now;
-  int           SleepTime;
-  int64_t       ClockOffset = m_ClockOffset;
-
-  Now = CurrentHostCounter();
-  //sleep until the timestamp has passed
-  SleepTime = (int)((Target - (Now + ClockOffset)) * 1000 / m_systemFrequency);
-  if (SleepTime > 0)
-    Sleep(SleepTime);
-
-  Now = CurrentHostCounter();
-  return Now;
+  UnLock();
+  return SystemToAbsolute(current);
 }
 
 double OMXClock::WaitAbsoluteClock(double target)
 {
   Lock();
+  CheckSystemClock();
+
   int64_t systemtarget, freq, offset;
   freq   = m_systemFrequency;
   offset = m_systemOffset;
@@ -130,53 +99,40 @@ double OMXClock::WaitAbsoluteClock(double target)
 
   systemtarget = (int64_t)(target / DVD_TIME_BASE * (double)freq);
   systemtarget += offset;
-  systemtarget = Wait(systemtarget);
+  systemtarget = g_VideoReferenceClock.Wait(systemtarget);
   systemtarget -= offset;
   return (double)systemtarget / freq * DVD_TIME_BASE;
 }
 
 // Returns the current absolute clock in units of DVD_TIME_BASE (usually microseconds).
-double OMXClock::GetAbsoluteClock(bool interpolated /*= true*/)
-{
-  Lock();
-  CheckSystemClock();
-  double current = GetTime();
-  UnLock();
-  return SystemToAbsolute(current);
-}
-
-int64_t OMXClock::GetTime(bool interpolated)
-{
-  return CurrentHostCounter() + m_ClockOffset;
-}
-
 void OMXClock::CheckSystemClock()
 {
   if(!m_systemFrequency)
-    m_systemFrequency = GetFrequency();
+    m_systemFrequency = g_VideoReferenceClock.GetFrequency();
 
   if(!m_systemOffset)
-    m_systemOffset = GetTime();
+    m_systemOffset = g_VideoReferenceClock.GetTime();
 }
 
 double OMXClock::GetClock(bool interpolated /*= true*/)
 {
   Lock();
-  double clock = GetTime(interpolated);
+  double clock = SystemToPlaying(g_VideoReferenceClock.GetTime(interpolated));
   UnLock();
-  return SystemToPlaying(clock);
+  return clock;
 }
 
 double OMXClock::GetClock(double& absolute, bool interpolated /*= true*/)
 {
-  int64_t current = GetTime(interpolated);
+  int64_t current = g_VideoReferenceClock.GetTime(interpolated);
 
   Lock();
   CheckSystemClock();
   absolute = SystemToAbsolute(current);
+  current = SystemToPlaying(current);
   UnLock();
 
-  return SystemToPlaying(current);
+  return current;
 }
 
 void OMXClock::SetPlaySpeed(int iSpeed)
@@ -187,7 +143,7 @@ void OMXClock::SetPlaySpeed(int iSpeed)
   if(iSpeed == DVD_PLAYSPEED_PAUSE)
   {
     if(!m_pauseClock)
-      m_pauseClock = GetTime();
+      m_pauseClock = g_VideoReferenceClock.GetTime();
     UnLock();
     return;
   }
@@ -195,7 +151,7 @@ void OMXClock::SetPlaySpeed(int iSpeed)
   int64_t current;
   int64_t newfreq = m_systemFrequency * DVD_PLAYSPEED_NORMAL / iSpeed;
 
-  current = GetTime();
+  current = g_VideoReferenceClock.GetTime();
   if( m_pauseClock )
   {
     m_startClock += current - m_pauseClock;
@@ -210,7 +166,7 @@ void OMXClock::SetPlaySpeed(int iSpeed)
 void OMXClock::Discontinuity(double currentPts)
 {
   Lock();
-  m_startClock = GetTime();
+  m_startClock = g_VideoReferenceClock.GetTime();
   if(m_pauseClock)
     m_pauseClock = m_startClock;
   m_iDisc = currentPts;
@@ -222,7 +178,7 @@ void OMXClock::Pause()
 {
   Lock();
   if(!m_pauseClock)
-    m_pauseClock = GetTime();
+    m_pauseClock = g_VideoReferenceClock.GetTime();
   UnLock();
 }
 
@@ -232,7 +188,7 @@ void OMXClock::Resume()
   if( m_pauseClock )
   {
     int64_t current;
-    current = GetTime();
+    current = g_VideoReferenceClock.GetTime();
 
     m_startClock += current - m_pauseClock;
     m_pauseClock = 0;
@@ -260,7 +216,57 @@ int OMXClock::UpdateFramerate(double fps, double* interval /*= NULL*/)
     return -1;
   }
 
-  return -1;
+  //check if the videoreferenceclock is running, will return -1 if not
+  int rate = g_VideoReferenceClock.GetRefreshRate(interval);
+
+  if (rate <= 0)
+    return -1;
+
+  Lock();
+
+  m_speedadjust = true;
+
+  double weight = (double)rate / (double)MathUtils::round_int(fps);
+
+  //set the speed of the videoreferenceclock based on fps, refreshrate and maximum speed adjust set by user
+  if (m_maxspeedadjust > 0.05)
+  {
+    if (weight / MathUtils::round_int(weight) < 1.0 + m_maxspeedadjust / 100.0
+    &&  weight / MathUtils::round_int(weight) > 1.0 - m_maxspeedadjust / 100.0)
+      weight = MathUtils::round_int(weight);
+  }
+  double speed = (double)rate / (fps * weight);
+  UnLock();
+
+  g_VideoReferenceClock.SetSpeed(speed);
+
+  return rate;
+}
+
+double OMXClock::SystemToAbsolute(int64_t system)
+{
+  return DVD_TIME_BASE * (double)(system - m_systemOffset) / m_systemFrequency;
+}
+
+double OMXClock::SystemToPlaying(int64_t system)
+{
+  int64_t current;
+
+  if (m_bReset)
+  {
+    m_startClock = system;
+    m_systemUsed = m_systemFrequency;
+    m_pauseClock = 0;
+    m_iDisc = 0;
+    m_bReset = false;
+  }
+
+  if (m_pauseClock)
+    current = m_pauseClock;
+  else
+    current = system;
+
+  return DVD_TIME_BASE * (double)(current - m_startClock) / m_systemUsed + m_iDisc;
 }
 
 void OMXClock::OMXSetClockPorts(OMX_TIME_CONFIG_CLOCKSTATETYPE *clock)
@@ -369,6 +375,9 @@ bool OMXClock::OMXStateExecute(bool lock /* = true */)
 
   if(m_omx_clock.GetState() != OMX_StateExecuting)
   {
+
+    OMXStateIdle(false);
+
     omx_err = m_omx_clock.SetStateForComponent(OMX_StateExecuting);
     if (omx_err != OMX_ErrorNone)
     {

@@ -97,6 +97,10 @@ protected:
   int                       m_synctype;
   int                       m_nChannels;
   bool                      m_DecoderOpen;
+
+  virtual void OnStartup();
+  virtual void OnExit();
+  virtual void Process();
 private:
 public:
   OMXPlayerAudio(OMXClock *av_clock, CDVDMessageQueue& parent);
@@ -112,7 +116,6 @@ public:
   void WaitForBuffers();
   bool CloseStream(bool bWaitForBuffers);
   bool Decode(DemuxPacket *pkt, bool bDropPacket);
-  void Process();
   void Flush();
   bool AddPacket(DemuxPacket *pkt);
   IAudioRenderer::EEncoded IsPassthrough(CDVDStreamInfo hints);

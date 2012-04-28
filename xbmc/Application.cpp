@@ -2063,7 +2063,6 @@ void CApplication::Render()
     bool extPlayerActive = m_eCurrentPlayer >= EPC_EXTPLAYER && IsPlaying() && !m_AppFocused;
 
     m_bPresentFrame = false;
-#ifndef TARGET_RASPBERRY_PI
     if (!extPlayerActive && g_graphicsContext.IsFullScreenVideo() && !IsPaused())
     {
       CSingleLock lock(m_frameMutex);
@@ -2099,25 +2098,10 @@ void CApplication::Render()
 
       decrement = true;
     }
-#else
-    decrement = false;
-    hasRendered = true;
-    limitFrames = true;
-    singleFrameTime = 40;
-#endif
   }
 
   CSingleLock lock(g_graphicsContext);
   g_infoManager.UpdateFPS();
-
-#ifdef TARGET_RASPBERRY_PI
-  if (g_graphicsContext.IsFullScreenVideo() && IsPlaying() && vsync_mode == VSYNC_VIDEO)
-    g_Windowing.SetVSync(true);
-  else if (vsync_mode == VSYNC_ALWAYS)
-    g_Windowing.SetVSync(true);
-  else if (vsync_mode != VSYNC_DRIVER)
-    g_Windowing.SetVSync(false);
-#endif
 
   if(!g_Windowing.BeginRender())
     return;

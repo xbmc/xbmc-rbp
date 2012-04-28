@@ -118,7 +118,6 @@ bool OMXPlayerVideo::OpenStream(CDVDStreamInfo &hints)
   m_hints       = hints;
   m_fFrameRate  = 25.0f;
   m_Deinterlace = ( g_settings.m_currentVideoSettings.m_DeinterlaceMode == VS_DEINTERLACEMODE_OFF ) ? false : true;
-  m_iCurrentPts = DVD_NOPTS_VALUE;
   m_flush       = false;
   m_iVideoDelay = 0;
   m_hdmi_clock_sync = g_guiSettings.GetBool("videoplayer.adjustrefreshrate");
@@ -126,13 +125,8 @@ bool OMXPlayerVideo::OpenStream(CDVDStreamInfo &hints)
   m_started     = false;
   m_stalled     = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
   m_autosync    = 1;
-  m_flipPage    = false;
-  m_clearPage   = false;
-  m_pLastOverlay  = NULL;
 
   m_audio_count = m_av_clock->HasAudio();
-
-  m_FlipTimeStamp = m_av_clock->GetAbsoluteClock();
 
   if(!OpenDecoder())
   {
@@ -205,14 +199,22 @@ bool OMXPlayerVideo::CloseStream(bool bWaitForBuffers)
   return true;
 }
 
+void OMXPlayerVideo::OnStartup()
+{
+  m_iCurrentPts = DVD_NOPTS_VALUE;
+  m_FlipTimeStamp = m_av_clock->GetAbsoluteClock();
+}
+
+void OMXPlayerVideo::OnExit()
+{
+  CLog::Log(LOGNOTICE, "thread end: video_thread");
+}
+
 void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
 {
   // remove any overlays that are out of time
   if (m_started)
     m_pOverlayContainer->CleanUp(pts - m_iSubtitleDelay);
-
-  CDVDOverlay *pCurrentOverlay = NULL;
-  double lastPts = DVD_NOPTS_VALUE;
 
   enum EOverlay
   { OVERLAY_AUTO // select mode auto
@@ -290,9 +292,6 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
       if (render == OVERLAY_GPU)
         g_renderManager.AddOverlay(*it, pts2);
 
-      pCurrentOverlay = *it;
-      lastPts = pts2;
-
       /*
       printf("subtitle : DVDOVERLAY_TYPE_SPU %d DVDOVERLAY_TYPE_IMAGE %d DVDOVERLAY_TYPE_SSA %d\n",
          m_pOverlayContainer->ContainsOverlayType(DVDOVERLAY_TYPE_SPU),
@@ -303,24 +302,6 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
       if (render == OVERLAY_BUF)
         CDVDOverlayRenderer::Render(m_pTempOverlayPicture, *it, pts2);
     }
-  }
-
-  if(pCurrentOverlay == NULL && !m_clearPage)
-  {
-    m_flipPage = true;
-    m_clearPage = true;
-  }
-  else if(m_pLastOverlay != pCurrentOverlay)
-  {
-    m_flipPage = true;
-    m_clearPage = false;
-  }
-
-  if(m_flipPage)
-  {
-    //printf("FLIP PAGE %f\n", pts / DVD_TIME_BASE);
-    g_renderManager.FlipPage(CThread::m_bStop, pts / DVD_TIME_BASE, -1, FS_TOP);
-    m_flipPage = false;
   }
 }
 
@@ -444,15 +425,14 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
   double pts_media = m_av_clock->OMXMediaTime();
   ProcessOverlays(pPacket, pts_media);
 
-
-  //g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_TOP);
-
   /*
   while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
     Sleep(1);
   */
 
-  m_av_clock->WaitAbsoluteClock((iCurrentClock + iSleepTime));
+  g_renderManager.FlipPage(CThread::m_bStop, (iCurrentClock + iSleepTime) / DVD_TIME_BASE, -1, FS_NONE);
+
+  //m_av_clock->WaitAbsoluteClock((iCurrentClock + iSleepTime));
 }
 
 void OMXPlayerVideo::Process()

@@ -61,7 +61,6 @@ protected:
   bool              m_has_audio;
   int               m_play_speed;
   pthread_mutex_t   m_lock;
-  void              CheckSystemClock();
   double            SystemToAbsolute(int64_t system);
   double            SystemToPlaying(int64_t system);
   int64_t           m_systemUsed;
@@ -80,6 +79,7 @@ protected:
   bool              m_video_start;
   bool              m_audio_start;
   bool              m_audio_buffer;
+  CDVDClock         m_clock;
   OMX_TIME_CONFIG_CLOCKSTATETYPE m_clock_state;
 private:
   COMXCoreComponent m_omx_clock;
@@ -88,13 +88,12 @@ public:
   ~OMXClock();
   void Lock();
   void UnLock();
-  int64_t GetFrequency();
-  int64_t GetTime(bool interpolated = true);
   double  GetAbsoluteClock(bool interpolated = true);
-  int64_t Wait(int64_t Target);
+  double  GetFrequency() { return (double)m_systemFrequency ; }
   double  WaitAbsoluteClock(double target);
   double GetClock(bool interpolated = true);
   double GetClock(double& absolute, bool interpolated = true);
+  void CheckSystemClock();
   void SetPlaySpeed(int iSpeed);
   void SetMasterClock(bool ismasterclock) { m_ismasterclock = ismasterclock; }
   bool IsMasterClock()                    { return m_ismasterclock;          }

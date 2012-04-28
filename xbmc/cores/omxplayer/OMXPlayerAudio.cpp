@@ -207,6 +207,17 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
   return true;
 }
 
+void OMXPlayerAudio::OnStartup()
+{
+}
+
+void OMXPlayerAudio::OnExit()
+{
+  CLog::Log(LOGNOTICE, "thread end: OMXPlayerAudio::OnExit()");
+}
+
+
+
 void OMXPlayerAudio::HandleSyncError(double duration)
 {
   double clock = m_av_clock->GetClock();

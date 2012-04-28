@@ -82,9 +82,6 @@ protected:
   unsigned int              m_video_height;
   unsigned int              m_flags;
   float                     m_fps;
-  bool                      m_flipPage;
-  bool                      m_clearPage;
-  CDVDOverlay               *m_pLastOverlay;
 
   void ProcessOverlays(double pts);
 
@@ -96,6 +93,10 @@ protected:
   DVDVideoPicture* m_pTempOverlayPicture;
 
   void ProcessOverlays(DemuxPacket* pPacket, double pts);
+
+  virtual void OnStartup();
+  virtual void OnExit();
+  virtual void Process();
 private:
 public:
   OMXPlayerVideo(OMXClock *av_clock, CDVDOverlayContainer* pOverlayContainer, CDVDMessageQueue& parent);
@@ -111,7 +112,6 @@ public:
   bool IsStalled()                                  { return m_stalled;  }
   bool CloseStream(bool bWaitForBuffers);
   void Output(DemuxPacket* pPacket, double pts, bool bDropPacket);
-  void Process();
   void Flush();
   bool OpenDecoder();
   int  GetDecoderBufferSize();

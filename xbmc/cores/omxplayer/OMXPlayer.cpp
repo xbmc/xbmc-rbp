@@ -903,8 +903,8 @@ void COMXPlayer::Process()
   if(g_guiSettings.GetBool("videoplayer.adjustrefreshrate"))
     m_av_clock.HDMIClockSync();
 
-  //m_av_clock.OMXStateExecute();
-  //m_av_clock.OMXStart();
+  m_av_clock.OMXStateExecute();
+  m_av_clock.OMXStart();
 
   //CLog::Log(LOGDEBUG, "COMXPlayer: Thread started");
 
@@ -2929,7 +2929,10 @@ void COMXPlayer::FlushBuffers(bool queued, double pts, bool accurate)
     if(m_CurrentVideo.id >= 0)
       OpenVideoStream(m_CurrentVideo.id, m_CurrentVideo.source);
     */
-    m_av_clock.OMXReset();
+    m_av_clock.Lock();
+    m_av_clock.OMXStop(false);
+    m_av_clock.OMXReset(false);
+    m_av_clock.UnLock();
   }
 }
 
