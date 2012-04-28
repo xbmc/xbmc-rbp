@@ -82,6 +82,9 @@ protected:
   unsigned int              m_video_height;
   unsigned int              m_flags;
   float                     m_fps;
+  bool                      m_flipPage;
+  bool                      m_clearPage;
+  CDVDOverlay               *m_pLastOverlay;
 
   void ProcessOverlays(double pts);
 
