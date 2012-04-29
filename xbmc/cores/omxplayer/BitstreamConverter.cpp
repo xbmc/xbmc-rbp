@@ -308,7 +308,7 @@ const uint8_t *CBitstreamConverter::avc_find_startcode(const uint8_t *p, const u
   return out;
 }
 
-const int CBitstreamConverter::avc_parse_nal_units(ByteIOContext *pb, const uint8_t *buf_in, int size)
+const int CBitstreamConverter::avc_parse_nal_units(AVIOContext *pb, const uint8_t *buf_in, int size)
 {
   const uint8_t *p = buf_in;
   const uint8_t *end = p + size;
@@ -333,7 +333,7 @@ const int CBitstreamConverter::avc_parse_nal_units(ByteIOContext *pb, const uint
 
 const int CBitstreamConverter::avc_parse_nal_units_buf(const uint8_t *buf_in, uint8_t **buf, int *size)
 {
-  ByteIOContext *pb;
+  AVIOContext *pb;
   int ret = m_dllAvFormat->avio_open_dyn_buf(&pb);
   if (ret < 0)
     return ret;
@@ -345,7 +345,7 @@ const int CBitstreamConverter::avc_parse_nal_units_buf(const uint8_t *buf_in, ui
   return 0;
 }
 
-const int CBitstreamConverter::isom_write_avcc(ByteIOContext *pb, const uint8_t *data, int len)
+const int CBitstreamConverter::isom_write_avcc(AVIOContext *pb, const uint8_t *data, int len)
 {
   // extradata from bytestream h264, convert to avcC atom data for bitstream
   if (len > 6)
@@ -484,7 +484,7 @@ bool CBitstreamConverter::Open(enum CodecID codec, uint8_t *in_extradata, int in
             if (!m_dllAvUtil->Load() || !m_dllAvFormat->Load())
               return false;
 
-            ByteIOContext *pb;
+            AVIOContext *pb;
             if (m_dllAvFormat->avio_open_dyn_buf(&pb) < 0)
               return false;
             m_convert_bytestream = true;
@@ -648,7 +648,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData, int iSize)
           m_convertSize = 0;
 
           // convert demuxer packet from bytestream (AnnexB) to bitstream
-          ByteIOContext *pb;
+          AVIOContext *pb;
   
           if(m_dllAvFormat->avio_open_dyn_buf(&pb) < 0)
           {
@@ -667,7 +667,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData, int iSize)
           m_convertSize = 0;
 
           // convert demuxer packet from 3 byte NAL sizes to 4 byte
-          ByteIOContext *pb;
+          AVIOContext *pb;
           if (m_dllAvFormat->avio_open_dyn_buf(&pb) < 0)
             return false;
 
@@ -706,7 +706,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData, int iSize)
         }
         m_convertSize = 0;
 
-        ByteIOContext *pb;
+        AVIOContext *pb;
         if (m_dllAvFormat->avio_open_dyn_buf(&pb) < 0)
           return false;
 
