@@ -597,25 +597,10 @@ void OMXPlayerAudio::Process()
     {
       CLog::Log(LOGDEBUG, "COMXlayerAudio - CDVDMsg::PLAYER_SETSPEED");
       m_speed = static_cast<CDVDMsgInt*>(pMsg)->m_value;
-      /*
-      if (m_speed == DVD_PLAYSPEED_NORMAL)
-      {
-        //m_dvdAudio.Resume();
-      }
-      else
+      if (m_speed != DVD_PLAYSPEED_NORMAL)
       {
         m_syncclock = true;
-        if (m_speed != DVD_PLAYSPEED_PAUSE)
-        {
-          m_av_clock->Lock();
-          m_av_clock->OMXStop(false);
-          m_omxAudio.Flush();
-          m_av_clock->OMXReset(false);
-          m_av_clock->UnLock();
-        }
-        //m_dvdAudio.Pause();
       }
-      */
     }
     else if (pMsg->IsType(CDVDMsg::AUDIO_SILENCE))
     {

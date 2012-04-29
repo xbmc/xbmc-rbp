@@ -2189,6 +2189,10 @@ void COMXPlayer::SetCaching(ECacheState state)
 
 void COMXPlayer::SetPlaySpeed(int speed)
 {
+  /* only pause and normal playspeeds are allowed */
+  if(speed < 0 || speed > DVD_PLAYSPEED_NORMAL)
+    return;
+
   m_messenger.Put(new CDVDMsgInt(CDVDMsg::PLAYER_SETSPEED, speed));
   SynchronizeDemuxer(100);
 }
@@ -2595,6 +2599,11 @@ void COMXPlayer::ToFFRW(int iSpeed)
   // can't rewind in menu as seeking isn't possible
   // forward is fine
   if (iSpeed < 0 && IsInMenu()) return;
+
+  /* only pause and normal playspeeds are allowed */
+  if(iSpeed > 1 || iSpeed < 0)
+    return;
+
   SetPlaySpeed(iSpeed * DVD_PLAYSPEED_NORMAL);
 }
 
