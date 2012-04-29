@@ -298,6 +298,11 @@ bool OMXClock::OMXInitialize(bool has_video, bool has_audio)
   m_has_video = has_video;
   m_has_audio = has_audio;
 
+  m_video_start = false;
+  m_audio_start = false;
+  m_pause       = false;
+  m_audio_buffer = false;
+
   componentName = "OMX.broadcom.clock";
   if(!m_omx_clock.Initialize((const std::string)componentName, OMX_IndexParamOtherInit))
     return false;
@@ -313,15 +318,21 @@ bool OMXClock::OMXInitialize(bool has_video, bool has_audio)
   omx_err = m_omx_clock.SetConfig(OMX_IndexConfigTimeActiveRefClock, &refClock);
   if(omx_err != OMX_ErrorNone)
   {
-    CLog::Log(LOGERROR, "OMXClock::Initialize error setting OMX_IndexConfigTimeCurrentAudioReference\n");
+    CLog::Log(LOGERROR, "OMXClock::OMXInitialize error setting OMX_IndexConfigTimeCurrentAudioReference\n");
     return false;
   }
 
-  OMXWaitStart(0);
+  OMX_TIME_CONFIG_CLOCKSTATETYPE clock;
+  OMX_INIT_STRUCTURE(clock);
 
-  OMXSetPlaySpeed(OMX_PLAYSPEED_NORMAL);
+  clock.eState = OMX_TIME_ClockStateWaitingForStartTime;
 
-  //OMXStart();
+  omx_err = m_omx_clock.SetConfig(OMX_IndexConfigTimeClockState, &clock);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "OMXClock::OMXInitialize error setting OMX_IndexConfigTimeClockState\n");
+    return false;
+  }
 
   return true;
 }
@@ -581,6 +592,24 @@ bool OMXClock::OMXReset(bool lock /* = true */)
   m_audio_buffer = false;
 
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
+
+  OMX_TIME_CONFIG_ACTIVEREFCLOCKTYPE refClock;
+  OMX_INIT_STRUCTURE(refClock);
+
+  if(m_has_audio)
+    refClock.eClock = OMX_TIME_RefClockAudio;
+  else
+    refClock.eClock = OMX_TIME_RefClockVideo;
+
+  omx_err = m_omx_clock.SetConfig(OMX_IndexConfigTimeActiveRefClock, &refClock);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "OMXClock::OMXReset error setting OMX_IndexConfigTimeCurrentAudioReference\n");
+    if(lock)
+      UnLock();
+    return false;
+  }
+
   OMX_TIME_CONFIG_CLOCKSTATETYPE clock;
   OMX_INIT_STRUCTURE(clock);
 
