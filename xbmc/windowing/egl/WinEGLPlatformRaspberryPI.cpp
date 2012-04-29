@@ -49,16 +49,6 @@
 #define GETFLAGS_MODE(f) (((f)>>24)&0xff)
 #define GETFLAGS_MODE3D(f) (((f)&D3DPRESENTFLAG_MODE3DSBS)!=0)
 
-static int find_mode(TV_SUPPORTED_MODE_T *supported_modes, int num_modes, int want_mode)
-{
-  int i;
-  int prefer_index = -1;
-  for (i=0; i<num_modes; i++)
-    if (supported_modes[i].code == want_mode)
-      prefer_index = i;
-  return prefer_index;
-}
-
 CWinEGLPlatformRaspberryPI::CWinEGLPlatformRaspberryPI()
 {
   m_surface = EGL_NO_SURFACE;
@@ -636,7 +626,7 @@ void CWinEGLPlatformRaspberryPI::GetSupportedModes(HDMI_RES_GROUP_T group, std::
       */
 
       // treat 3D modes as half-width SBS
-      int width = group==HDMI_RES_GROUP_CEA_3D ? tv->width>>1:tv->width;
+      unsigned int width = group==HDMI_RES_GROUP_CEA_3D ? tv->width>>1:tv->width;
       RESOLUTION_INFO res;
       CLog::Log(LOGINFO, "%d: %dx%d@%d %s%s:%x\n", i, width, tv->height, tv->frame_rate, tv->native?"N":"", tv->scan_mode?"I":"", tv->code);
 
