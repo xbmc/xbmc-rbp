@@ -378,6 +378,27 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     return false;
   }
 
+  if(m_hdmi_clock_sync)
+  {
+    OMX_CONFIG_LATENCYTARGETTYPE latencyTarget;
+    OMX_INIT_STRUCTURE(latencyTarget);
+    latencyTarget.nPortIndex = m_omx_render.GetInputPort();
+    latencyTarget.bEnabled = OMX_TRUE;
+    latencyTarget.nFilter = 2;
+    latencyTarget.nTarget = 4000;
+    latencyTarget.nShift = 3;
+    latencyTarget.nSpeedFactor = -135;
+    latencyTarget.nInterFactor = 500;
+    latencyTarget.nAdjCap = 20;
+
+    omx_err = m_omx_render.SetConfig(OMX_IndexConfigLatencyTarget, &latencyTarget);
+    if (omx_err != OMX_ErrorNone)
+    {
+      CLog::Log(LOGERROR, "COMXVideo::Open OMX_IndexConfigLatencyTarget error (0%08x)\n", omx_err);
+      return false;
+    }
+  }
+
   // Alloc buffers for the omx intput port.
   omx_err = m_omx_decoder.AllocInputBuffers();
   if (omx_err != OMX_ErrorNone)
