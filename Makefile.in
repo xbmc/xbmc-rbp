@@ -418,6 +418,10 @@ else
 	@find addons language media sounds userdata system -regextype posix-extended -type f -not -iregex ".*@ARCH@.*|.*\.vis|.*\.xbs|.*svn.*|.*\.so|.*\.dll" -exec install -D -m 0644 "{}" $(DESTDIR)$(datarootdir)/xbmc/"{}" \; -printf " -- %-75.75f\r"
 endif
 	@# Icons and links
+ifeq (@USE_OMXPLAYER@,1)
+	@rm -f $(DESTDIR)$(datarootdir)/xbmc/system/playercorefactory.xml
+	@install -m 0644 system/playercorefactory.xml.omx $(DESTDIR)$(datarootdir)/xbmc/system/playercorefactory.xml
+endif
 	@install -d $(DESTDIR)$(datarootdir)/applications
 	@install tools/Linux/xbmc.desktop $(DESTDIR)$(datarootdir)/applications/xbmc.desktop
 	@install -d $(DESTDIR)$(datadir)/icons/hicolor/48x48/apps
