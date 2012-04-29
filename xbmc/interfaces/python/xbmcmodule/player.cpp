@@ -721,6 +721,9 @@ namespace PYXBMC
     "\n"
     "core     : (optional) Use a specified playcore instead of letting xbmc decide the playercore to use.\n"
     "         : - xbmc.PLAYER_CORE_AUTO\n"
+#if defined(HAVE_OMXPLAYER)
+    "         : - xbmc.PLAYER_CORE_OMXPLAYER\n"
+#endif
     "         : - xbmc.PLAYER_CORE_DVDPLAYER\n"
     "         : - xbmc.PLAYER_CORE_MPLAYER\n"
     "         : - xbmc.PLAYER_CORE_PAPLAYER\n");

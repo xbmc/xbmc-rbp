@@ -1101,6 +1101,9 @@ namespace PYXBMC
 
     // player constants
     PyModule_AddIntConstant(pXbmcModule, (char*)"PLAYER_CORE_AUTO", EPC_NONE);
+#if defined(HAVE_OMXPLAYER)
+    PyModule_AddIntConstant(pXbmcModule, (char*)"PLAYER_CORE_OMXPLAYER", EPC_OMXPLAYER);
+#endif
     PyModule_AddIntConstant(pXbmcModule, (char*)"PLAYER_CORE_DVDPLAYER", EPC_DVDPLAYER);
     PyModule_AddIntConstant(pXbmcModule, (char*)"PLAYER_CORE_MPLAYER", EPC_MPLAYER);
     PyModule_AddIntConstant(pXbmcModule, (char*)"PLAYER_CORE_PAPLAYER", EPC_PAPLAYER);
