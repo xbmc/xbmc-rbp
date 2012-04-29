@@ -321,7 +321,7 @@ void CLinuxRendererGLES::CalculateTextureSourceRects(int source, int num_planes)
 
 void CLinuxRendererGLES::LoadPlane( YUVPLANE& plane, int type, unsigned flipindex
                                 , unsigned width, unsigned height
-                                , int stride, void* data )
+                                , unsigned stride, void* data )
 {
   if(plane.flipindex == flipindex)
     return;
@@ -336,7 +336,7 @@ void CLinuxRendererGLES::LoadPlane( YUVPLANE& plane, int type, unsigned flipinde
   if(stride != width * bps)
   {
     unsigned char* src = (unsigned char*)data;
-    for (int y = 0; y < height;++y, src += stride)
+    for (unsigned int y = 0; y < height;++y, src += stride)
       glTexSubImage2D(m_textureTarget, 0, 0, y, width, 1, type, GL_UNSIGNED_BYTE, src);
   } else {
     glTexSubImage2D(m_textureTarget, 0, 0, 0, width, height, type, GL_UNSIGNED_BYTE, pixelData);
@@ -623,26 +623,23 @@ void CLinuxRendererGLES::LoadShaders(int field)
       }
       #endif
       // Try GLSL shaders if supported and user requested auto or GLSL.
-      if (glCreateProgram)
-      {
-        // create regular progressive scan shader
-        m_pYUVShader = new YUV2RGBProgressiveShader(false, m_iFlags);
-        CLog::Log(LOGNOTICE, "GL: Selecting Single Pass YUV 2 RGB shader");
+      // create regular progressive scan shader
+      m_pYUVShader = new YUV2RGBProgressiveShader(false, m_iFlags);
+      CLog::Log(LOGNOTICE, "GL: Selecting Single Pass YUV 2 RGB shader");
 
-        if (m_pYUVShader && m_pYUVShader->CompileAndLink())
-        {
-          m_renderMethod = RENDER_GLSL;
-          UpdateVideoFilter();
-          break;
-        }
-        else
-        {
-          m_pYUVShader->Free();
-          delete m_pYUVShader;
-          m_pYUVShader = NULL;
-          CLog::Log(LOGERROR, "GL: Error enabling YUV2RGB GLSL shader");
-          // drop through and try SW
-        }
+      if (m_pYUVShader && m_pYUVShader->CompileAndLink())
+      {
+        m_renderMethod = RENDER_GLSL;
+        UpdateVideoFilter();
+        break;
+      }
+      else
+      {
+        m_pYUVShader->Free();
+        delete m_pYUVShader;
+        m_pYUVShader = NULL;
+        CLog::Log(LOGERROR, "GL: Error enabling YUV2RGB GLSL shader");
+        // drop through and try SW
       }
     case RENDER_METHOD_SOFTWARE:
     default:
@@ -1283,7 +1280,7 @@ bool CLinuxRendererGLES::RenderCapture(CRenderCapture* capture)
   // OpenGLES returns in RGBA order but CRenderCapture needs BGRA order
   // XOR Swap RGBA -> BGRA
   unsigned char* pixels = (unsigned char*)capture->GetRenderBuffer();
-  for (int i = 0; i < capture->GetWidth() * capture->GetHeight(); i++, pixels+=4)
+  for (unsigned int i = 0; i < capture->GetWidth() * capture->GetHeight(); i++, pixels+=4)
   {
     std::swap(pixels[0], pixels[2]);
   }
