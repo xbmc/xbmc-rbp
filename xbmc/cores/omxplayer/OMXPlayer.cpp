@@ -465,6 +465,13 @@ retry:
     return false;
   }
 
+  if (m_pInputStream && ( m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD)
+                       || m_pInputStream->IsStreamType(DVDSTREAM_TYPE_BLURAY) ) )
+  {
+    CLog::Log(LOGINFO, "COMXPlayer::OpenInputStream - DVD/BD not supported");
+    return false;
+  }
+
   // find any available external subtitles for non dvd files
   if (!m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD)
   &&  !m_pInputStream->IsStreamType(DVDSTREAM_TYPE_TV)
