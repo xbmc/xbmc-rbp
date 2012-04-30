@@ -94,6 +94,10 @@ OMXPlayerVideo::OMXPlayerVideo(OMXClock *av_clock,
   m_height                = 0;
   m_fps                   = 0.0f;
   m_flags                 = 0;
+  m_bAllowFullscreen      = false;
+  m_iCurrentPts           = DVD_NOPTS_VALUE;
+  m_fFrameRate            = 25.0f;
+  m_iVideoDelay           = 0;
   m_messageQueue.SetMaxDataSize(10 * 1024 * 1024);
   m_messageQueue.SetMaxTimeSize(8.0);
 
@@ -116,12 +120,9 @@ bool OMXPlayerVideo::OpenStream(CDVDStreamInfo &hints)
   */
 
   m_hints       = hints;
-  m_fFrameRate  = 25.0f;
   m_Deinterlace = ( g_settings.m_currentVideoSettings.m_DeinterlaceMode == VS_DEINTERLACEMODE_OFF ) ? false : true;
   m_flush       = false;
-  m_iVideoDelay = 0;
   m_hdmi_clock_sync = g_guiSettings.GetBool("videoplayer.adjustrefreshrate");
-  m_speed       = DVD_PLAYSPEED_NORMAL;
   m_started     = false;
   m_stalled     = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
   m_autosync    = 1;
@@ -179,7 +180,6 @@ bool OMXPlayerVideo::CloseStream(bool bWaitForBuffers)
 
   m_open          = false;
   m_stream_id     = -1;
-  m_iCurrentPts   = DVD_NOPTS_VALUE;
   m_speed         = DVD_PLAYSPEED_NORMAL;
   m_started       = false;
 
@@ -210,7 +210,7 @@ void OMXPlayerVideo::OnExit()
   CLog::Log(LOGNOTICE, "thread end: video_thread");
 }
 
-void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
+void OMXPlayerVideo::ProcessOverlays(int iGroupId, double pts)
 {
   // remove any overlays that are out of time
   if (m_started)
@@ -269,7 +269,7 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
       if(!pOverlay->bForced && !m_bRenderSubs)
         continue;
 
-      if(pOverlay->iGroupId != pPacket->iGroupId)
+      if(pOverlay->iGroupId != iGroupId)
         continue;
 
       double pts2 = pOverlay->bForced ? pts : pts - m_iSubtitleDelay;
@@ -305,7 +305,7 @@ void OMXPlayerVideo::ProcessOverlays(DemuxPacket* pPacket, double pts)
   }
 }
 
-void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
+void OMXPlayerVideo::Output(int iGroupId, double pts, bool bDropPacket)
 {
 
   if (!g_renderManager.IsConfigured()
@@ -320,7 +320,12 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
     unsigned int flags = 0;
 
     flags |= CONF_FLAGS_FORMAT_BYPASS;
-    flags |= CONF_FLAGS_FULLSCREEN;
+
+    if(m_bAllowFullscreen)
+    {
+      flags |= CONF_FLAGS_FULLSCREEN;
+      m_bAllowFullscreen = false; // only allow on first configure
+    }
 
     if(m_flags & CONF_FLAGS_FORMAT_SBS)
     {
@@ -398,6 +403,7 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
   if(bDropPacket)
     return;
 
+#if 0
   if( m_speed != DVD_PLAYSPEED_NORMAL)
   {
     // calculate frame dropping pattern to render at this speed
@@ -421,9 +427,13 @@ void OMXPlayerVideo::Output(DemuxPacket* pPacket, double pts, bool bDropPacket)
     m_droptime = 0.0f;
     m_dropbase = 0.0f;
   }
+#else
+  m_droptime = 0.0f;
+  m_dropbase = 0.0f;
+#endif
 
   double pts_media = m_av_clock->OMXMediaTime();
-  ProcessOverlays(pPacket, pts_media);
+  ProcessOverlays(iGroupId, pts_media);
 
   /*
   while(!CThread::m_bStop && m_av_clock->GetAbsoluteClock(false) < (iCurrentClock + iSleepTime + DVD_MSEC_TO_TIME(500)) )
@@ -515,9 +525,9 @@ void OMXPlayerVideo::Process()
         CLog::Log(LOGDEBUG, "CDVDPlayerVideo - CDVDMsg::GENERAL_DELAY(%f)", timeout);
 
         timeout *= (double)DVD_PLAYSPEED_NORMAL / abs(m_speed);
-        timeout += CDVDClock::GetAbsoluteClock();
+        timeout += m_av_clock->GetAbsoluteClock();
 
-        while(!m_bStop && CDVDClock::GetAbsoluteClock() < timeout)
+        while(!m_bStop && m_av_clock->GetAbsoluteClock() < timeout)
           Sleep(1);
       }
     }
@@ -593,6 +603,12 @@ void OMXPlayerVideo::Process()
           continue;
         }
   
+        if (m_stalled)
+        {
+          CLog::Log(LOGINFO, "COMXPlayerVideo - Stillframe left, switching to normal playback");
+          m_stalled = false;
+        }
+
         // validate picture timing,
         // if both dts/pts invalid, use pts calulated from picture.iDuration
         // if pts invalid use dts, else use picture.pts as passed
@@ -608,13 +624,18 @@ void OMXPlayerVideo::Process()
           pPacket->duration = frametime;
 
         m_omxVideo.Decode(pPacket->pData, pPacket->iSize, pPacket->pts, pPacket->pts);
-        Output(pPacket, pPacket->pts, bRequestDrop);
+        Output(pPacket->iGroupId, pPacket->pts, bRequestDrop);
 
-        if (m_stalled)
+        if(m_started == false)
         {
-          CLog::Log(LOGINFO, "COMXPlayerVideo - Stillframe left, switching to normal playback");
-          m_stalled = false;
+          m_codecname = m_omxVideo.GetDecoderName();
+          m_started = true;
+          m_messageParent.Put(new CDVDMsgInt(CDVDMsg::PLAYER_STARTED, DVDPLAYER_VIDEO));
         }
+
+        // guess next frame pts. iDuration is always valid
+        if (m_speed != 0)
+          pts += pPacket->duration * m_speed / abs(m_speed);
 
         break;
       }
@@ -624,6 +645,7 @@ void OMXPlayerVideo::Process()
       m_videoStats.AddSampleBytes(pPacket->iSize);
     }
     pMsg->Release();
+
   }
 }
 
@@ -715,14 +737,14 @@ int OMXPlayerVideo::GetVideoBitrate()
 
 double OMXPlayerVideo::GetOutputDelay()
 {
-    double time = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET);
-    if( m_fFrameRate )
-      time = (time * DVD_TIME_BASE) / m_fFrameRate;
-    else
-      time = 0.0;
+  double time = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET);
+  if( m_fFrameRate )
+    time = (time * DVD_TIME_BASE) / m_fFrameRate;
+  else
+    time = 0.0;
 
-    if( m_speed != 0 )
-      time = time * DVD_PLAYSPEED_NORMAL / abs(m_speed);
+  if( m_speed != 0 )
+    time = time * DVD_PLAYSPEED_NORMAL / abs(m_speed);
 
-    return time;
+  return time;
 }

@@ -44,9 +44,6 @@ static inline uint64_t FromOMXTime(OMX_TICKS ticks)
 #define ToOMXTime(x) (x)
 #endif
 
-#define OMX_PLAYSPEED_PAUSE  0
-#define OMX_PLAYSPEED_NORMAL 1
-
 enum {
   AV_SYNC_AUDIO_MASTER,
   AV_SYNC_VIDEO_MASTER,
@@ -94,7 +91,7 @@ public:
   double GetClock(bool interpolated = true);
   double GetClock(double& absolute, bool interpolated = true);
   void CheckSystemClock();
-  void SetPlaySpeed(int iSpeed);
+  void SetSpeed(int iSpeed);
   void SetMasterClock(bool ismasterclock) { m_ismasterclock = ismasterclock; }
   bool IsMasterClock()                    { return m_ismasterclock;          }
   void Discontinuity(double currentPts = 0LL);
@@ -107,6 +104,7 @@ public:
   bool   SetMaxSpeedAdjust(double speed);
 
   void OMXSetClockPorts(OMX_TIME_CONFIG_CLOCKSTATETYPE *clock);
+  bool OMXSetReferenceClock(bool lock = true);
   bool OMXInitialize(bool has_video, bool has_audio);
   void OMXDeinitialize();
   bool OMXIsPaused() { return m_pause; };
@@ -122,7 +120,7 @@ public:
   bool OMXUpdateClock(double pts, bool lock = true);
   bool OMXWaitStart(double pts, bool lock = true);
   void OMXHandleBackward(bool lock = true);
-  bool OMXSetPlaySpeed(int speed, bool lock = true);
+  bool OMXSetSpeed(int speed, bool lock = true);
   int  OMXPlaySpeed() { return m_omx_speed; };
   int  OMXGetPlaySpeed() { return m_omx_speed; };
   COMXCoreComponent *GetOMXClock();

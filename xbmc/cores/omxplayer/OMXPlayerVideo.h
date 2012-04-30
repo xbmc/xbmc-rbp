@@ -75,6 +75,7 @@ protected:
   unsigned int              m_autosync;
   double                    m_iSubtitleDelay;
   bool                      m_bRenderSubs;
+  bool                      m_bAllowFullscreen;
 
   unsigned int              m_width;
   unsigned int              m_height;
@@ -83,8 +84,6 @@ protected:
   unsigned int              m_flags;
   float                     m_fps;
 
-  void ProcessOverlays(double pts);
-
   CDVDOverlayContainer  *m_pOverlayContainer;
   CDVDMessageQueue      &m_messageParent;
 
@@ -92,7 +91,7 @@ protected:
 
   DVDVideoPicture* m_pTempOverlayPicture;
 
-  void ProcessOverlays(DemuxPacket* pPacket, double pts);
+  void ProcessOverlays(int iGroupId, double pts);
 
   virtual void OnStartup();
   virtual void OnExit();
@@ -111,7 +110,7 @@ public:
   int  GetLevel() const                             { return m_messageQueue.GetLevel(); }
   bool IsStalled()                                  { return m_stalled;  }
   bool CloseStream(bool bWaitForBuffers);
-  void Output(DemuxPacket* pPacket, double pts, bool bDropPacket);
+  void Output(int iGroupId, double pts, bool bDropPacket);
   void Flush();
   bool OpenDecoder();
   int  GetDecoderBufferSize();
@@ -129,6 +128,7 @@ public:
   void SetSubtitleDelay(double delay)               { m_iSubtitleDelay = delay; }
   void EnableSubtitle(bool bEnable)                 { m_bRenderSubs = bEnable; }
   bool IsSubtitleEnabled()                          { return m_bRenderSubs; }
+  void EnableFullscreen(bool bEnable)               { m_bAllowFullscreen = bEnable; }
   void SetFlags(unsigned int flags)                     { m_flags = flags; };
 };
 #endif

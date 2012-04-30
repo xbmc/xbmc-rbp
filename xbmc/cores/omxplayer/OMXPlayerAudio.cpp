@@ -47,6 +47,8 @@
 #include "settings/AdvancedSettings.h"
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
+#include "video/VideoReferenceClock.h"
+#include "utils/TimeUtils.h"
 
 #include "OMXPlayer.h"
 
@@ -85,6 +87,7 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
   m_buffer_empty  = false;
   m_nChannels     = 0;
   m_DecoderOpen   = false;
+  m_freq          = CurrentHostFrequency();
 
   m_av_clock->SetMasterClock(false);
 
@@ -159,9 +162,8 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
   m_syncclock       = true;
   m_passthrough     = IAudioRenderer::ENCODED_NONE;
   m_hw_decode       = false;
-  m_errortime       = m_av_clock->CurrentHostCounter();
+  m_errortime       = CurrentHostCounter();
   m_silence         = false;
-  m_freq            = m_av_clock->CurrentHostFrequency();
   m_started         = false;
   m_flush           = false;
   m_nChannels       = 0;
@@ -266,6 +268,7 @@ void OMXPlayerAudio::HandleSyncError(double duration)
     if (m_synctype == SYNC_DISCON)
     {
       double limit, error;
+
       /*
       if (m_av_clock->GetRefreshRate(&limit) > 0)
       {
@@ -285,6 +288,7 @@ void OMXPlayerAudio::HandleSyncError(double duration)
         error = m_error;
       }
       */
+
       limit = DVD_MSEC_TO_TIME(10);
       error = m_error;
 
@@ -540,7 +544,6 @@ void OMXPlayerAudio::Process()
       if (pMsgGeneralResync->m_clock)
       {
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_RESYNC(%f, 1)", m_audioClock);
-        //m_pClock->Discontinuity(m_ptsOutput.Current());
         m_av_clock->Discontinuity(m_audioClock + (GetDelay() * DVD_TIME_BASE));
         //m_av_clock->OMXUpdateClock(m_audioClock + (GetDelay() * DVD_TIME_BASE));
       }
@@ -555,7 +558,7 @@ void OMXPlayerAudio::Process()
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_FLUSH))
     {
-      CLog::Log(LOGDEBUG, "COMXlayerAudio - CDVDMsg::GENERAL_FLUSH");
+      CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_FLUSH");
       m_av_clock->Lock();
       m_av_clock->OMXStop(false);
       m_omxAudio.Flush();
@@ -587,15 +590,15 @@ void OMXPlayerAudio::Process()
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_DELAY(%f)", timeout);
 
         timeout *= (double)DVD_PLAYSPEED_NORMAL / abs(m_speed);
-        timeout += CDVDClock::GetAbsoluteClock();
+        timeout += m_av_clock->GetAbsoluteClock();
 
-        while(!m_bStop && CDVDClock::GetAbsoluteClock() < timeout)
+        while(!m_bStop && m_av_clock->GetAbsoluteClock() < timeout)
           Sleep(1);
       }
     }
     else if (pMsg->IsType(CDVDMsg::PLAYER_SETSPEED))
     {
-      CLog::Log(LOGDEBUG, "COMXlayerAudio - CDVDMsg::PLAYER_SETSPEED");
+      CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::PLAYER_SETSPEED");
       m_speed = static_cast<CDVDMsgInt*>(pMsg)->m_value;
       if (m_speed != DVD_PLAYSPEED_NORMAL)
       {
