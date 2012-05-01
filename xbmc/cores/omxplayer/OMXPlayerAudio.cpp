@@ -88,6 +88,7 @@ OMXPlayerAudio::OMXPlayerAudio(OMXClock *av_clock,
   m_nChannels     = 0;
   m_DecoderOpen   = false;
   m_freq          = CurrentHostFrequency();
+  m_hints_current.Clear();
 
   m_av_clock->SetMasterClock(false);
 
@@ -146,7 +147,6 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
 
   m_hints           = hints;
   m_pAudioCodec     = codec;
-  m_flush           = false;
 
   if(m_hints.bitspersample == 0)
     m_hints.bitspersample = 16;
@@ -353,7 +353,11 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
   {
     m_hints_current = m_hints;
 
+    CloseDecoder();
+
     m_DecoderOpen = OpenDecoder();
+    if(!m_DecoderOpen)
+      return false;
   }
 
   if(!m_passthrough && !m_hw_decode)
@@ -723,6 +727,7 @@ bool OMXPlayerAudio::OpenDecoder()
   
   if(!bAudioRenderOpen)
   {
+    CLog::Log(LOGERROR, "OMXPlayerAudio : Error open audio output");
     m_av_clock->HasAudio(false);
     m_av_clock->OMXReset(false);
     m_av_clock->UnLock();
@@ -753,6 +758,7 @@ void OMXPlayerAudio::CloseDecoder()
   m_av_clock->Lock();
   m_av_clock->OMXStop(false);
   m_omxAudio.Deinitialize();
+  m_av_clock->HasAudio(false);
   m_av_clock->OMXReset(false);
   m_av_clock->UnLock();
 
