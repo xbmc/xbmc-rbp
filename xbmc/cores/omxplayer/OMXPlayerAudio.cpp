@@ -105,7 +105,7 @@ OMXPlayerAudio::~OMXPlayerAudio()
 bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints)
 {
   /*
-  if(ThreadHandle())
+  if(IsRunning())
     CloseStream(false);
   */
 
@@ -189,7 +189,7 @@ bool OMXPlayerAudio::CloseStream(bool bWaitForBuffers)
 
   m_messageQueue.Abort();
 
-  if(ThreadHandle())
+  if(IsRunning())
     StopThread();
 
   m_messageQueue.End();

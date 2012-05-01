@@ -115,7 +115,7 @@ OMXPlayerVideo::~OMXPlayerVideo()
 bool OMXPlayerVideo::OpenStream(CDVDStreamInfo &hints)
 {
   /*
-  if(ThreadHandle())
+  if(IsRunning())
     CloseStream(false);
   */
 
@@ -176,7 +176,7 @@ bool OMXPlayerVideo::CloseStream(bool bWaitForBuffers)
 
   m_messageQueue.Abort();
 
-  if(ThreadHandle())
+  if(IsRunning())
     StopThread();
 
   m_messageQueue.End();

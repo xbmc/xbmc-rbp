@@ -324,7 +324,7 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     CLog::Log(LOGNOTICE, "COMXPlayer: Opening: %s", file.GetPath().c_str());
     // if playing a file close it first
     // this has to be changed so we won't have to close it.
-    if(ThreadHandle())
+    if(IsRunning())
       CloseFile();
 
     m_playSpeed = DVD_PLAYSPEED_NORMAL;
@@ -394,7 +394,7 @@ bool COMXPlayer::CloseFile()
   // wait for the main thread to finish up
   // since this main thread cleans up all other resources and threads
   // we are done after the StopThread call
-  if(ThreadHandle())
+  if(IsRunning())
     StopThread();
   
   CLog::Log(LOGDEBUG, "COMXPlayer: finished waiting");
@@ -884,9 +884,6 @@ bool COMXPlayer::IsBetterStream(COMXCurrentStream& current, CDemuxStream* stream
 
 void COMXPlayer::Process()
 {
-  if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
-    CLog::Log(LOGDEBUG, "COMXPlayer: SetThreadPriority failed");
-
   if(!m_av_clock.OMXInitialize(false, false))
   {
     m_bAbortRequest = true;
@@ -2662,6 +2659,9 @@ bool COMXPlayer::OpenAudioStream(int iStream, int source)
   /* we are potentially going to be waiting on this */
   m_player_audio.SendMessage(new CDVDMsg(CDVDMsg::PLAYER_STARTED), 1);
 
+  /* software decoding normaly consumes full cpu time so prio it */
+  m_player_audio.SetPriority(GetPriority()-5);
+
   return true;
 }
 
@@ -2721,6 +2721,10 @@ bool COMXPlayer::OpenVideoStream(int iStream, int source)
 
   /* we are potentially going to be waiting on this */
   m_player_video.SendMessage(new CDVDMsg(CDVDMsg::PLAYER_STARTED), 1);
+
+  /* use same priority for video thread as demuxing thread, as */
+  /* otherwise demuxer will starve if video consumes the full cpu */
+  m_player_video.SetPriority(GetPriority());
 
   return true;
 }
