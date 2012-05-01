@@ -44,6 +44,7 @@
 #ifdef HAS_LIRC
 #include "input/linux/LIRC.h"
 #endif
+#include "XbmcContext.h"
 
 #ifdef TARGET_RASPBERRY_PI
 #include "linux/RBP.h"
@@ -55,6 +56,9 @@ int main(int argc, char* argv[])
   if(!g_RBP.Initialize())
     return false;
 #endif
+
+  // set up some xbmc specific relationships
+  XBMC::Context context;
 
   int status = -1;
   //this can't be set from CAdvancedSettings::Initialize() because it will overwrite
