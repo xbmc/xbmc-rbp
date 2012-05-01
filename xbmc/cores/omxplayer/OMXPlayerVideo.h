@@ -42,6 +42,7 @@
 #include "DVDOverlayContainer.h"
 #include "DVDMessageQueue.h"
 #include "utils/BitstreamStats.h"
+#include "linux/DllBCM.h"
 
 using namespace std;
 
@@ -83,6 +84,7 @@ protected:
   unsigned int              m_video_height;
   unsigned int              m_flags;
   float                     m_fps;
+  DllBcmHost                m_DllBcmHost;
 
   CDVDOverlayContainer  *m_pOverlayContainer;
   CDVDMessageQueue      &m_messageParent;
