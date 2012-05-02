@@ -311,6 +311,7 @@ public:
 
   virtual int  OnDVDNavResult(void* pData, int iMessage);
   virtual bool OnAction(const CAction &action);
+  bool WaitForPausedThumbJobs(int timeout_ms);
 protected:
   friend class COMXSelectionStreams;
 

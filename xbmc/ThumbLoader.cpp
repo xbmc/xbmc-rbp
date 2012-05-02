@@ -131,6 +131,9 @@ bool CThumbExtractor::DoWork()
   if (URIUtils::IsRemote(m_path) && !URIUtils::IsOnLAN(m_path))
     return false;
 
+  if (CJobManager::GetInstance().IsPaused(kThumbExtractorJobType))
+    return false;
+
   bool result=false;
   if (m_thumb)
   {
@@ -241,6 +244,9 @@ bool CVideoThumbLoader::LoadItem(CFileItem* pItem)
       else if (!pItem->m_bIsFolder && pItem->IsVideo() && g_guiSettings.GetBool("myvideos.extractthumb") &&
                g_guiSettings.GetBool("myvideos.extractflags"))
       {
+        if (CJobManager::GetInstance().IsPaused(kThumbExtractorJobType))
+          return false;
+
         CFileItem item(*pItem);
         CStdString path(item.GetPath());
         if (URIUtils::IsInRAR(item.GetPath()))
@@ -261,6 +267,9 @@ bool CVideoThumbLoader::LoadItem(CFileItem* pItem)
        (!pItem->GetVideoInfoTag()->HasStreamDetails() ||
          pItem->GetVideoInfoTag()->m_streamDetails.GetVideoDuration() <= 0))
   {
+    if (CJobManager::GetInstance().IsPaused(kThumbExtractorJobType))
+      return false;
+
     CFileItem item(*pItem);
     CStdString path(item.GetPath());
     if (URIUtils::IsInRAR(item.GetPath()))
