@@ -462,7 +462,6 @@ void OMXPlayerVideo::Process()
   while(!m_bStop)
   {
     CDVDMsg* pMsg;
-
     int iQueueTimeOut = (int)(m_stalled ? frametime / 4 : frametime * 10) / 1000;
     int iPriority = (m_speed == DVD_PLAYSPEED_PAUSE && m_started) ? 1 : 0;
     MsgQueueReturnCode ret = m_messageQueue.Get(&pMsg, iQueueTimeOut, iPriority);
@@ -762,4 +761,9 @@ double OMXPlayerVideo::GetOutputDelay()
     time = time * DVD_PLAYSPEED_NORMAL / abs(m_speed);
 
   return time;
+}
+
+int OMXPlayerVideo::GetFreeSpace()
+{
+  return m_omxVideo.GetFreeSpace();
 }

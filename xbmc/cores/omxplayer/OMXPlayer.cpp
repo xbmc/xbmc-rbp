@@ -2410,14 +2410,16 @@ void COMXPlayer::GetGeneralInfo(CStdString& strGeneralInfo)
         strBuf.AppendFormat(" %d sec", DVD_TIME_TO_SEC(m_State.cache_delay));
     }
 
-    strGeneralInfo.Format("C( ad:% 6.3f, a/v:% 6.3f%s, dcpu:%2i%% acpu:%2i%% vcpu:%2i%%%s )"
+    strGeneralInfo.Format("C( ad:% 6.3f, a/v:% 6.3f%s, dcpu:%2i%% acpu:%2i%% vcpu:%2i%%%s, omx vb:%8d ad:% 6.3f )"
                          , dDelay
                          , dDiff
                          , strEDL.c_str()
                          , (int)(CThread::GetRelativeUsage()*100)
                          , (int)(m_player_audio.GetRelativeUsage()*100)
                          , (int)(m_player_video.GetRelativeUsage()*100)
-                         , strBuf.c_str());
+                         , strBuf.c_str()
+                         , m_player_video.GetFreeSpace()
+                         , m_player_audio.GetDelay());
 
   }
 }
@@ -2660,7 +2662,7 @@ bool COMXPlayer::OpenAudioStream(int iStream, int source)
   m_player_audio.SendMessage(new CDVDMsg(CDVDMsg::PLAYER_STARTED), 1);
 
   /* software decoding normaly consumes full cpu time so prio it */
-  m_player_audio.SetPriority(GetPriority()-5);
+  m_player_audio.SetPriority(GetPriority()+1);
 
   return true;
 }

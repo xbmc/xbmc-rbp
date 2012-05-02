@@ -499,7 +499,6 @@ void OMXPlayerAudio::Process()
 
   while(!m_bStop)
   {
-    
     CDVDMsg* pMsg;
     int priority = (m_speed == DVD_PLAYSPEED_PAUSE && m_started) ? 1 : 0;
     int timeout = 1000;
@@ -821,4 +820,3 @@ std::string OMXPlayerAudio::GetPlayerInfo()
 
   return s.str();
 }
-

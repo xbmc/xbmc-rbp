@@ -132,5 +132,6 @@ public:
   bool IsSubtitleEnabled()                          { return m_bRenderSubs; }
   void EnableFullscreen(bool bEnable)               { m_bAllowFullscreen = bEnable; }
   void SetFlags(unsigned int flags)                     { m_flags = flags; };
+  int GetFreeSpace();
 };
 #endif
