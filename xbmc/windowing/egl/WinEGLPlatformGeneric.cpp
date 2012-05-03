@@ -19,7 +19,7 @@
  *
  */
 
-#include "system.h"
+#include "system_gl.h"
 
 #ifdef HAS_EGL
 
