@@ -1629,7 +1629,7 @@ void COMXPlayer::CheckContinuity(COMXCurrentStream& current, DemuxPacket* pPacke
   if (m_playSpeed < DVD_PLAYSPEED_PAUSE)
     return;
 
-  if( pPacket->dts == DVD_NOPTS_VALUE )
+  if( pPacket->dts == DVD_NOPTS_VALUE || current.dts == DVD_NOPTS_VALUE)
     return;
 
   double mindts = DVD_NOPTS_VALUE, maxdts = DVD_NOPTS_VALUE;
@@ -1668,6 +1668,10 @@ void COMXPlayer::CheckContinuity(COMXCurrentStream& current, DemuxPacket* pPacke
 
   if(correction != 0.0)
   {
+    /* disable detection on next packet on other stream to avoid ping pong-ing */
+    if(m_CurrentAudio.player != current.player) m_CurrentAudio.dts = DVD_NOPTS_VALUE;
+    if(m_CurrentVideo.player != current.player) m_CurrentVideo.dts = DVD_NOPTS_VALUE;
+
     m_offset_pts += correction;
     UpdateCorrection(pPacket, correction);
   }
