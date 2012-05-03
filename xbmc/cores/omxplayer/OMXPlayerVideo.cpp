@@ -48,6 +48,7 @@
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
 #include "cores/VideoRenderers/RenderFormats.h"
+#include "cores/VideoRenderers/RenderFlags.h"
 
 #include "OMXPlayer.h"
 

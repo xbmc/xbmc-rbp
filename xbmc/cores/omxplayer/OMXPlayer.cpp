@@ -28,6 +28,7 @@
 #include "GUIInfoManager.h"
 #include "filesystem/File.h"
 #include "cores/VideoRenderers/RenderManager.h"
+#include "cores/VideoRenderers/RenderFlags.h"
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIWindowManager.h"
 #include "settings/AdvancedSettings.h"
