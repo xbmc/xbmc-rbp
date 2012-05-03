@@ -135,7 +135,7 @@ struct DVDVideoUserData
 
 class COMXStreamInfo;
 class CDVDCodecOption;
-typedef std::vector<CDVDCodecOption> CDVDCodecOptions;
+class CDVDCodecOptions;
 
 // VC_ messages, messages can be combined
 #define VC_ERROR    0x00000001  // an error occured, no other messages will be returned

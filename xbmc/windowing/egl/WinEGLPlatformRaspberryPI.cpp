@@ -19,9 +19,11 @@
  *
  */
 
-#include "system_gl.h"
+#include "system.h"
 
 #if defined(TARGET_RASPBERRY_PI)
+
+#include "system_gl.h"
 
 #ifdef HAS_EGL
 

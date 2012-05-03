@@ -346,7 +346,6 @@ bool COMXPlayer::OpenFile(const CFileItem &file, const CPlayerOptions &options)
     m_filename          = file.GetPath();
 
     m_State.Clear();
-    m_dst_rect.SetRect(0, 0, 0, 0);
 
     m_ready.Reset();
 
@@ -944,8 +943,6 @@ void COMXPlayer::Process()
 
     OpenDefaultStreams();
 
-    m_dst_rect.SetRect(0, 0, 0, 0);
-
     m_playSpeed = DVD_PLAYSPEED_NORMAL;
     m_callback.OnPlayBackSpeedChanged(m_playSpeed);
 
@@ -1016,11 +1013,6 @@ void COMXPlayer::Process()
           CLog::Log(LOGDEBUG, "%s - failed to start subtitle demuxing from: %d", __FUNCTION__, starttime);
       }
     }
-
-    unsigned int flags = 0;
-    if(m_filename.find("3DSBS") != string::npos) 
-      flags |= CONF_FLAGS_FORMAT_SBS;
-    m_player_video.SetFlags(flags);
 
     UpdateApplication(0);
     UpdatePlayState(0);
@@ -2731,6 +2723,11 @@ bool COMXPlayer::OpenVideoStream(int iStream, int source)
   else
     m_player_video.SendMessage(new CDVDMsg(CDVDMsg::GENERAL_RESET));
 
+  unsigned flags = 0;
+  if(m_filename.find("3DSBS") != string::npos) 
+    flags = CONF_FLAGS_FORMAT_SBS;
+  m_player_video.SetFlags(flags);
+
   /* store information about stream */
   m_CurrentVideo.id = iStream;
   m_CurrentVideo.source = source;
@@ -3778,41 +3775,7 @@ void COMXPlayer::GetVideoRect(CRect& SrcRect, CRect& DestRect)
 
 void COMXPlayer::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
 {
-  // check if destination rect or video view mode has changed
-  if ((m_dst_rect != DestRect) || (m_view_mode != g_settings.m_currentVideoSettings.m_ViewMode))
-  {
-    m_dst_rect  = DestRect;
-    m_view_mode = g_settings.m_currentVideoSettings.m_ViewMode;
-  }
-  else
-  {
-    return;
-  }
-
-  // might need to scale up m_dst_rect to display size as video decodes
-  // to separate video plane that is at display size.
-  CRect gui, display, dst_rect;
-  RESOLUTION res = g_graphicsContext.GetVideoResolution();
-  gui.SetRect(0, 0, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
-  display.SetRect(0, 0, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
-  
-  dst_rect = m_dst_rect;
-  if (gui != display)
-  {
-    float xscale = display.Width()  / gui.Width();
-    float yscale = display.Height() / gui.Height();
-    dst_rect.x1 *= xscale;
-    dst_rect.x2 *= xscale;
-    dst_rect.y1 *= yscale;
-    dst_rect.y2 *= yscale;
-  }
-
-  /*
-  if(m_video_decoder)
-  {
-    //xxx m_video_decoder->SetVideoRect(SrcRect, m_dst_rect);
-  }
-  */
+  m_player_video.SetVideoRect(SrcRect, DestRect);
 }
 
 void COMXPlayer::SetVolume(long nVolume)

@@ -463,9 +463,6 @@ private:
 
   double                  m_offset_pts;
 
-  CRect                   m_dst_rect;
-  int                     m_view_mode;
-
   OMXClock                m_av_clock;
   OMXPlayerVideo          m_player_video;
   OMXPlayerAudio          m_player_audio;

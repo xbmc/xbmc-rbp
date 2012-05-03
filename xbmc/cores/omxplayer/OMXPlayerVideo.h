@@ -82,8 +82,12 @@ protected:
   unsigned int              m_height;
   unsigned int              m_video_width;
   unsigned int              m_video_height;
-  unsigned int              m_flags;
+  unsigned                  m_flags;
   float                     m_fps;
+
+  CRect                     m_dst_rect;
+  int                       m_view_mode;
+
   DllBcmHost                m_DllBcmHost;
 
   CDVDOverlayContainer  *m_pOverlayContainer;
@@ -131,7 +135,8 @@ public:
   void EnableSubtitle(bool bEnable)                 { m_bRenderSubs = bEnable; }
   bool IsSubtitleEnabled()                          { return m_bRenderSubs; }
   void EnableFullscreen(bool bEnable)               { m_bAllowFullscreen = bEnable; }
-  void SetFlags(unsigned int flags)                     { m_flags = flags; };
+  void SetFlags(unsigned flags)                     { m_flags = flags; };
   int GetFreeSpace();
+  void  SetVideoRect(const CRect &SrcRect, const CRect &DestRect);
 };
 #endif

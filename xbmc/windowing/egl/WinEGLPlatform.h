@@ -20,9 +20,9 @@
  *
  */
 
-#ifdef HAS_EGL
-
 #include "system.h"
+
+#ifdef HAS_EGL
 
 #if   defined(TARGET_RASPBERRY_PI)
   #include "xbmc/windowing/egl/WinEGLPlatformRaspberryPI.h"

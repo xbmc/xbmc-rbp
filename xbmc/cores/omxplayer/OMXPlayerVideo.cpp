@@ -107,6 +107,8 @@ OMXPlayerVideo::OMXPlayerVideo(OMXClock *av_clock,
   m_video_width   = g_settings.m_ResInfo[res].iWidth;
   m_video_height  = g_settings.m_ResInfo[res].iHeight;
 
+  m_dst_rect.SetRect(0, 0, 0, 0);
+
 }
 
 OMXPlayerVideo::~OMXPlayerVideo()
@@ -325,9 +327,8 @@ void OMXPlayerVideo::Output(int iGroupId, double pts, bool bDropPacket)
     m_height  = m_video_height;
     m_fps     = m_fFrameRate;
 
-    unsigned int flags = 0;
-
-    flags |= CONF_FLAGS_FORMAT_BYPASS;
+    unsigned flags = 0;
+    ERenderFormat format = RENDER_FMT_BYPASS;
 
     if(m_bAllowFullscreen)
     {
@@ -348,7 +349,7 @@ void OMXPlayerVideo::Output(int iGroupId, double pts, bool bDropPacket)
         __FUNCTION__, m_width, m_height, m_fps);
 
     if(!g_renderManager.Configure(m_video_width, m_video_height, 
-          m_video_width, m_video_height, m_fps, flags, RENDER_FMT_BYPASS, 0))
+          m_video_width, m_video_height, m_fps, flags, format, 0))
     {
       CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
       return;
@@ -769,3 +770,38 @@ int OMXPlayerVideo::GetFreeSpace()
 {
   return m_omxVideo.GetFreeSpace();
 }
+
+void OMXPlayerVideo::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
+{
+  // check if destination rect or video view mode has changed
+  if ((m_dst_rect != DestRect) || (m_view_mode != g_settings.m_currentVideoSettings.m_ViewMode))
+  {
+    m_dst_rect  = DestRect;
+    m_view_mode = g_settings.m_currentVideoSettings.m_ViewMode;
+  }
+  else
+  {
+    return;
+  }
+
+  // might need to scale up m_dst_rect to display size as video decodes
+  // to separate video plane that is at display size.
+  CRect gui, display, dst_rect;
+  RESOLUTION res = g_graphicsContext.GetVideoResolution();
+  gui.SetRect(0, 0, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
+  display.SetRect(0, 0, g_settings.m_ResInfo[res].iWidth, g_settings.m_ResInfo[res].iHeight);
+  
+  dst_rect = m_dst_rect;
+  if (gui != display)
+  {
+    float xscale = display.Width()  / gui.Width();
+    float yscale = display.Height() / gui.Height();
+    dst_rect.x1 *= xscale;
+    dst_rect.x2 *= xscale;
+    dst_rect.y1 *= yscale;
+    dst_rect.y2 *= yscale;
+  }
+
+  //xxx m_omxVideo.SetVideoRect(SrcRect, m_dst_rect);
+}
+

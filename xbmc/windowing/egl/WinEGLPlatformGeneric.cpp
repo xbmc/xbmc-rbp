@@ -19,10 +19,9 @@
  *
  */
 
-#include "system_gl.h"
-
 #ifdef HAS_EGL
 
+#include "system_gl.h"
 #include "WinEGLPlatformGeneric.h"
 #include "utils/log.h"
 
