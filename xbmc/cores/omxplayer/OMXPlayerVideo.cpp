@@ -47,6 +47,7 @@
 #include "DVDOverlayRenderer.h"
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
+#include "cores/VideoRenderers/RenderFormats.h"
 
 #include "OMXPlayer.h"
 
@@ -253,7 +254,7 @@ void OMXPlayerVideo::ProcessOverlays(int iGroupId, double pts)
       m_pTempOverlayPicture = CDVDCodecUtils::AllocatePicture(m_width, m_height);
     if(!m_pTempOverlayPicture)
       return;
-    m_pTempOverlayPicture->format = DVDVideoPicture::FMT_YUV420P;
+    m_pTempOverlayPicture->format = RENDER_FMT_YUV420P;
   }
 
   if(render == OVERLAY_AUTO)
@@ -345,8 +346,8 @@ void OMXPlayerVideo::Output(int iGroupId, double pts, bool bDropPacket)
     CLog::Log(LOGDEBUG,"%s - change configuration. %dx%d. framerate: %4.2f. format: BYPASS",
         __FUNCTION__, m_width, m_height, m_fps);
 
-    if(!g_renderManager.Configure(m_video_width, m_video_height,
-      m_video_width, m_video_height, m_fps, flags, 0))
+    if(!g_renderManager.Configure(m_video_width, m_video_height, 
+          m_video_width, m_video_height, m_fps, flags, RENDER_FMT_BYPASS, 0))
     {
       CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
       return;
