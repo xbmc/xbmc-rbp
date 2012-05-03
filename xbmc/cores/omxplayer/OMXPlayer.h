@@ -261,9 +261,9 @@ public:
   virtual void  GetChapterName(CStdString& strChapterName);
   virtual int   SeekChapter(int iChapter);
 
-  virtual void  SeekTime(__int64 iTime = 0);
-  virtual __int64 GetTotalTimeInMsec();
-  virtual __int64 GetTime();
+  virtual void  SeekTime(int64_t iTime = 0);
+  virtual int64_t GetTotalTimeInMsec();
+  virtual int64_t GetTime();
   virtual int   GetTotalTime();
   virtual void  ToFFRW(int iSpeed = 0);
   virtual int   GetAudioBitrate();
@@ -398,7 +398,7 @@ protected:
     std::string demux_video;
     std::string demux_audio;
 
-    __int64 cache_bytes;   // number of bytes current's cached
+    int64_t cache_bytes;   // number of bytes current's cached
     double  cache_level;   // current estimated required cache level
     double  cache_delay;   // time until cache is expected to reach estimated level
     double  cache_offset;  // percentage of file ahead of current position

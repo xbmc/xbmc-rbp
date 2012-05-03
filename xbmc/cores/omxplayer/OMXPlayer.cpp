@@ -972,7 +972,7 @@ void COMXPlayer::Process()
       }
       else
       {
-        starttime = m_Edl.RestoreCutTime((__int64)m_PlayerOptions.starttime * 1000); // s to ms
+        starttime = m_Edl.RestoreCutTime((int64_t)m_PlayerOptions.starttime * 1000); // s to ms
       }
       CLog::Log(LOGDEBUG, "%s - Start position set to last stopped position: %d", __FUNCTION__, starttime);
     }
@@ -1473,7 +1473,7 @@ void COMXPlayer::HandlePlaySpeed()
       if(error > DVD_MSEC_TO_TIME(1000))
       {
         CLog::Log(LOGDEBUG, "COMXPlayer::Process - Seeking to catch up");
-        __int64 iTime = (__int64)DVD_TIME_TO_MSEC(m_av_clock.GetClock() + m_State.time_offset + 500000.0 * m_playSpeed / DVD_PLAYSPEED_NORMAL);
+        int64_t iTime = (int64_t)DVD_TIME_TO_MSEC(m_av_clock.GetClock() + m_State.time_offset + 500000.0 * m_playSpeed / DVD_PLAYSPEED_NORMAL);
         m_messenger.Put(new CDVDMsgPlayerSeek(iTime, (GetPlaySpeed() < 0), true, false, false, true));
       }
     }
@@ -1731,7 +1731,7 @@ void COMXPlayer::CheckAutoSceneSkip()
     /*
      * Seeking either goes to the start or the end of the cut depending on the play direction.
      */
-    __int64 seek = GetPlaySpeed() >= 0 ? cut.end : cut.start;
+    int64_t seek = GetPlaySpeed() >= 0 ? cut.end : cut.start;
     /*
      * Seeking is NOT flushed so any content up to the demux point is retained when playing forwards.
      */
@@ -2269,7 +2269,7 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
     return;
   }
 
-  __int64 seek;
+  int64_t seek;
   if (g_advancedSettings.m_videoUseTimeSeeking && GetTotalTime() > 2*g_advancedSettings.m_videoTimeSeekForwardBig)
   {
     if (bLargeStep)
@@ -2286,7 +2286,7 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
       percent = bPlus ? g_advancedSettings.m_videoPercentSeekForwardBig : g_advancedSettings.m_videoPercentSeekBackwardBig;
     else
       percent = bPlus ? g_advancedSettings.m_videoPercentSeekForward : g_advancedSettings.m_videoPercentSeekBackward;
-    seek = (__int64)(GetTotalTimeInMsec()*(GetPercentage()+percent)/100);
+    seek = (int64_t)(GetTotalTimeInMsec()*(GetPercentage()+percent)/100);
   }
 
   bool restore = true;
@@ -2338,7 +2338,7 @@ void COMXPlayer::Seek(bool bPlus, bool bLargeStep)
     }
   }
 
-  __int64 time = GetTime();
+  int64_t time = GetTime();
   if(g_application.CurrentFileItem().IsStack()
   && (seek > GetTotalTimeInMsec() || seek < 0))
   {
@@ -2363,7 +2363,7 @@ bool COMXPlayer::SeekScene(bool bPlus)
    * There is a 5 second grace period applied when seeking for scenes backwards. If there is no
    * grace period applied it is impossible to go backwards past a scene marker.
    */
-  __int64 clock = GetTime();
+  int64_t clock = GetTime();
   if (!bPlus && clock > 5 * 1000) // 5 seconds
     clock -= 5 * 1000;
 
@@ -2439,17 +2439,17 @@ void COMXPlayer::GetGeneralInfo(CStdString& strGeneralInfo)
 
 void COMXPlayer::SeekPercentage(float fPercent)
 {
-  __int64 iTotalTime = GetTotalTimeInMsec();
+  int64_t iTotalTime = GetTotalTimeInMsec();
 
   if (!iTotalTime)
     return;
 
-  SeekTime((__int64)(iTotalTime * fPercent / 100));
+  SeekTime((int64_t)(iTotalTime * fPercent / 100));
 }
 
 float COMXPlayer::GetPercentage()
 {
-  __int64 iTotalTime = GetTotalTimeInMsec();
+  int64_t iTotalTime = GetTotalTimeInMsec();
 
   if (!iTotalTime)
     return 0.0f;
@@ -2571,7 +2571,7 @@ void COMXPlayer::SetAudioStream(int iStream)
   SynchronizeDemuxer(100);
 }
 
-void COMXPlayer::SeekTime(__int64 iTime)
+void COMXPlayer::SeekTime(int64_t iTime)
 {
   int seekOffset = (int)(iTime - GetTime());
   m_messenger.Put(new CDVDMsgPlayerSeek((int)iTime, true, true, true));
@@ -2580,7 +2580,7 @@ void COMXPlayer::SeekTime(__int64 iTime)
 }
 
 // return the time in milliseconds
-__int64 COMXPlayer::GetTime()
+int64_t COMXPlayer::GetTime()
 {
   CSingleLock lock(m_StateSection);
   double offset = 0;
@@ -2595,7 +2595,7 @@ __int64 COMXPlayer::GetTime()
 }
 
 // return length in msec
-__int64 COMXPlayer::GetTotalTimeInMsec()
+int64_t COMXPlayer::GetTotalTimeInMsec()
 {
   CSingleLock lock(m_StateSection);
   return llrint(m_State.time_total);
