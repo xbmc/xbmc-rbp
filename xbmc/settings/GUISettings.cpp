@@ -34,7 +34,7 @@
 #include "utils/StringUtils.h"
 #include "utils/SystemInfo.h"
 #include "utils/log.h"
-#include "tinyXML/tinyxml.h"
+#include "utils/XBMCTinyXML.h"
 #include "windowing/WindowingFactory.h"
 #include "powermanagement/PowerManager.h"
 #include "cores/dvdplayer/DVDCodecs/Video/CrystalHD.h"
@@ -1440,7 +1440,7 @@ bool CGUISettings::SetLanguage(const CStdString &strLanguage)
     g_charsetConverter.reset();
 
     CStdString strLanguagePath;
-    strLanguagePath.Format("special://xbmc/language/%s/strings.xml", strNewLanguage.c_str());
+    strLanguagePath.Format("special://xbmc/language/%s", strNewLanguage.c_str());
     if (!g_localizeStrings.Load(strLanguagePath))
       return false;
 

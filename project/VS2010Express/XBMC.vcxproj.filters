@@ -196,9 +196,6 @@
     <Filter Include="libs\sqlite">
       <UniqueIdentifier>{c9d35dd5-e25d-4b76-bcbe-e8c855de58e7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="libs\tinyxml">
-      <UniqueIdentifier>{b084bece-821c-445c-951d-0aa4ea804076}</UniqueIdentifier>
-    </Filter>
     <Filter Include="windows">
       <UniqueIdentifier>{910f98b6-acfa-4b29-a589-21fd2544d142}</UniqueIdentifier>
     </Filter>
@@ -1810,18 +1807,6 @@
     <ClCompile Include="..\..\xbmc\windowing\windows\WinSystemWin32GL.cpp">
       <Filter>windowing\windows</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\lib\tinyXML\tinystr.cpp">
-      <Filter>libs\tinyxml</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\lib\tinyXML\tinyxml.cpp">
-      <Filter>libs\tinyxml</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\lib\tinyXML\tinyxmlerror.cpp">
-      <Filter>libs\tinyxml</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\lib\tinyXML\tinyxmlparser.cpp">
-      <Filter>libs\tinyxml</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\xbmc\addons\GUIViewStateAddonBrowser.cpp">
       <Filter>addons</Filter>
     </ClCompile>
@@ -2290,6 +2275,9 @@
     </ClCompile>
     <ClCompile Include="..\..\xbmc\network\httprequesthandler\HTTPVfsHandler.cpp">
       <Filter>network\httprequesthandler</Filter>
+	</ClCompile>
+    <ClCompile Include="..\..\xbmc\utils\XBMCTinyXML.cpp">
+      <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\..\xbmc\utils\Base64.cpp">
       <Filter>utils</Filter>
@@ -2619,6 +2607,9 @@
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="..\..\xbmc\XbmcContext.cpp" />
+    <ClCompile Include="..\..\xbmc\utils\POUtils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\XbmcContext.cpp" />
     <ClCompile Include="..\..\xbmc\threads\Atomics.cpp" />
     <ClCompile Include="..\..\xbmc\threads\Event.cpp" />
@@ -4457,12 +4448,6 @@
     <ClInclude Include="..\..\xbmc\windowing\windows\WinSystemWin32GL.h">
       <Filter>windowing\windows</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\lib\tinyXML\tinystr.h">
-      <Filter>libs\tinyxml</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\lib\tinyXML\tinyxml.h">
-      <Filter>libs\tinyxml</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\xbmc\addons\GUIViewStateAddonBrowser.h">
       <Filter>addons</Filter>
     </ClInclude>
@@ -5196,6 +5181,9 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\filesystem\FileCache.h">
       <Filter>filesystem</Filter>
+	</ClInclude>
+    <ClInclude Include="..\..\xbmc\utils\XBMCTinyXML.h">
+      <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="..\..\xbmc\filesystem\BlurayDirectory.h">
       <Filter>filesystem</Filter>
@@ -5253,6 +5241,9 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\network\httprequesthandler\HTTPJsonRpcHandler.h">
       <Filter>network\httprequesthandler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\utils\POUtils.h">
+      <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="..\..\xbmc\cores\AudioRenderers\IAudioRenderer.h">
       <Filter>cores\AudioRenderers</Filter>
