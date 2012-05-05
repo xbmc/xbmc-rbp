@@ -5,7 +5,7 @@ ifeq ($(USE_BUILDROOT),1)
 	SUBDIRS = libjpeg-turbo tiff jasper fribidi libass libmodplug libcdio librtmp libbluray libnfs yajl boost libplist libshairport xbmc gettext tinyxml
 else
 	BUILDTOOLS = help2man autoconf automake libtool pkg-config yasm cmake patchelf
-	SUBDIRS = liblzo2 tiff libnfs jasper libplist libshairport xbmc
+	SUBDIRS = liblzo2 tiff libnfs jasper libplist libshairport xbmc tinyxml
 endif
 
 IMAGENAME = xbmc-rbp-`date +'%y%m%d'`
