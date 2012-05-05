@@ -211,7 +211,7 @@ bool CWinEGLPlatformGeneric::CreateSurface()
   
   if (m_display == EGL_NO_DISPLAY || m_surface == EGL_NO_SURFACE || m_config == NULL)
   {
-    CLog::Log(LOGINFO, "EGL not configured correctly. Let's try to do that now...");
+    CLog::Log(LOGNOTICE, "EGL not configured correctly. Let's try to do that now...");
     if (!setConfiguration())
     {
       CLog::Log(LOGERROR, "EGL not configured correctly to create a surface");
@@ -275,7 +275,7 @@ bool CWinEGLPlatformGeneric::CreateSurface()
   // setup for vsync disabled
   eglSwapInterval(m_display, 0);
 
-  CLog::Log(LOGINFO, "EGL window and context creation complete");
+  CLog::Log(LOGNOTICE, "EGL window and context creation complete");
 
   return true;
 }

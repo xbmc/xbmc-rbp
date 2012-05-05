@@ -137,7 +137,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
 
     if (success == 0) 
     {
-      CLog::Log(LOGINFO, "CWinEGLPlatformRaspberryPI::SetDisplayResolution set HDMI mode (%d,%d,%d)=%d\n", 
+      CLog::Log(LOGNOTICE, "CWinEGLPlatformRaspberryPI::SetDisplayResolution set HDMI mode (%d,%d,%d)=%d\n", 
                           GETFLAGS_MODE3D(resSearch.dwFlags) ? HDMI_MODE_3D:HDMI_MODE_HDMI, GETFLAGS_GROUP(resSearch.dwFlags), 
                           GETFLAGS_MODE(resSearch.dwFlags), success);
       sem_wait(&m_tv_synced);
@@ -410,7 +410,7 @@ bool CWinEGLPlatformRaspberryPI::CreateSurface()
 
   if (m_display == EGL_NO_DISPLAY || m_surface == EGL_NO_SURFACE || m_config == NULL)
   {
-    CLog::Log(LOGINFO, "EGL not configured correctly. Let's try to do that now...");
+    CLog::Log(LOGNOTICE, "EGL not configured correctly. Let's try to do that now...");
     if (!setConfiguration())
     {
       CLog::Log(LOGERROR, "EGL not configured correctly to create a surface");
@@ -474,7 +474,7 @@ bool CWinEGLPlatformRaspberryPI::CreateSurface()
   // setup for vsync disabled
   eglSwapInterval(m_display, 0);
 
-  CLog::Log(LOGINFO, "EGL window and context creation complete");
+  CLog::Log(LOGNOTICE, "EGL window and context creation complete");
 
   return true;
 }
@@ -614,7 +614,7 @@ void CWinEGLPlatformRaspberryPI::GetSupportedModes(HDMI_RES_GROUP_T group, std::
                                            TV_MAX_SUPPORTED_MODES,
                                            &prefer_group,
                                            &prefer_mode);
-  CLog::Log(LOGINFO, "CWinEGLPlatformRaspberryPI::GetSupportedModes (%d) = %d, prefer_group=%x, prefer_mode=%x\n", group, num_modes, prefer_group, prefer_mode);
+  CLog::Log(LOGNOTICE, "CWinEGLPlatformRaspberryPI::GetSupportedModes (%d) = %d, prefer_group=%x, prefer_mode=%x\n", group, num_modes, prefer_group, prefer_mode);
 
   if (num_modes > 0 && prefer_group != HDMI_RES_GROUP_INVALID)
   {
@@ -630,7 +630,7 @@ void CWinEGLPlatformRaspberryPI::GetSupportedModes(HDMI_RES_GROUP_T group, std::
       // treat 3D modes as half-width SBS
       unsigned int width = group==HDMI_RES_GROUP_CEA_3D ? tv->width>>1:tv->width;
       RESOLUTION_INFO res;
-      CLog::Log(LOGINFO, "%d: %dx%d@%d %s%s:%x\n", i, width, tv->height, tv->frame_rate, tv->native?"N":"", tv->scan_mode?"I":"", tv->code);
+      CLog::Log(LOGNOTICE, "%d: %dx%d@%d %s%s:%x\n", i, width, tv->height, tv->frame_rate, tv->native?"N":"", tv->scan_mode?"I":"", tv->code);
 
       res.iScreen = 0;
       res.bFullScreen = true;

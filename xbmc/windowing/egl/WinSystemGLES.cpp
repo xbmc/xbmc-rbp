@@ -156,7 +156,7 @@ void CWinSystemGLES::UpdateResolutions()
     g_graphicsContext.ResetOverscan(resolutions[i]);
     g_settings.m_ResInfo[res_index] = resolutions[i];
 
-    CLog::Log(LOGINFO, "Found resolution for display %d with %d x %d @ %f Hz\n",
+    CLog::Log(LOGNOTICE, "Found resolution for display %d with %d x %d @ %f Hz\n",
       resolutions[i].iScreen,
       resolutions[i].iScreenWidth,
       resolutions[i].iScreenHeight,
@@ -179,7 +179,7 @@ void CWinSystemGLES::UpdateResolutions()
 
   if (ResDesktop != RES_INVALID)
   {
-    CLog::Log(LOGINFO, "Found (%dx%d@%f) at %d, setting to RES_DESKTOP at %d", 
+    CLog::Log(LOGNOTICE, "Found (%dx%d@%f) at %d, setting to RES_DESKTOP at %d", 
               resDesktop.iWidth, resDesktop.iHeight, resDesktop.fRefreshRate, (int)ResDesktop, (int)RES_DESKTOP);
 
     RESOLUTION_INFO desktop = g_settings.m_ResInfo[RES_DESKTOP];
