@@ -1,4 +1,4 @@
-export CFLAGS=-pipe -O3 -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mfloat-abi=softfp -mfpu=vfp -O3 -mabi=aapcs-linux -Wno-psabi -Wa,-mno-warn-deprecated -Wno-deprecated-declarations
+export CFLAGS=-pipe -O3 -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mfloat-abi=softfp -mfpu=vfp -mabi=aapcs-linux -Wno-psabi -Wa,-mno-warn-deprecated -Wno-deprecated-declarations
 ifeq ($(USE_BUILDROOT),1)
 	export HOST=arm-unknown-linux-gnueabi
 	export BUILD=i686-linux
