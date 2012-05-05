@@ -55,6 +55,7 @@ void CAdvancedSettings::Initialize()
   m_limiterRelease = 0.1f;
 
   m_omxHWAudioDecode = false;
+  m_omxDecodeStartWithValidFrame = false;
 
   m_karaokeSyncDelayCDG = 0.0f;
   m_karaokeSyncDelayLRC = 0.0f;
@@ -386,6 +387,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
   if (pElement)
   {
     XMLUtils::GetBoolean(pElement, "omxhwaudiodecode", m_omxHWAudioDecode);
+    XMLUtils::GetBoolean(pElement, "omxdecodestartwithvalidframe", m_omxDecodeStartWithValidFrame);
   }
 
   pElement = pRootElement->FirstChildElement("karaoke");

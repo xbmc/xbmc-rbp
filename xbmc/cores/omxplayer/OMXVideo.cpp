@@ -30,6 +30,7 @@
 #include "utils/log.h"
 #include "linux/XMemUtils.h"
 #include "DVDDemuxers/DVDDemuxUtils.h"
+#include "settings/AdvancedSettings.h"
 
 #include <sys/time.h>
 #include <inttypes.h>
@@ -369,7 +370,10 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
 
   OMX_PARAM_BRCMVIDEODECODEERRORCONCEALMENTTYPE concanParam;
   OMX_INIT_STRUCTURE(concanParam);
-  concanParam.bStartWithValidFrame = OMX_FALSE;
+  if(g_advancedSettings.m_omxDecodeStartWithValidFrame)
+    concanParam.bStartWithValidFrame = OMX_TRUE;
+  else
+    concanParam.bStartWithValidFrame = OMX_FALSE;
 
   omx_err = m_omx_decoder.SetParameter(OMX_IndexParamBrcmVideoDecodeErrorConcealment, &concanParam);
   if(omx_err != OMX_ErrorNone)

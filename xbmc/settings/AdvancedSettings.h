@@ -98,6 +98,7 @@ class CAdvancedSettings
     float m_limiterRelease;
 
     bool  m_omxHWAudioDecode;
+    bool  m_omxDecodeStartWithValidFrame;
 
     float m_videoSubsDelayRange;
     float m_videoAudioDelayRange;
