@@ -26,6 +26,7 @@
 #endif
 
 #include "video/VideoReferenceClock.h"
+#include "settings/GUISettings.h"
 
 #include "OMXClock.h"
 #include "utils/MathUtils.h"
@@ -303,15 +304,19 @@ bool OMXClock::OMXSetReferenceClock(bool lock /* = true */)
   OMX_TIME_CONFIG_ACTIVEREFCLOCKTYPE refClock;
   OMX_INIT_STRUCTURE(refClock);
 
-  if(m_has_audio)
+  if(g_guiSettings.GetBool("videoplayer.usedisplayasclock") && m_has_video)
+    refClock.eClock = OMX_TIME_RefClockVideo;
+  else if(m_has_audio)
     refClock.eClock = OMX_TIME_RefClockAudio;
   else
     refClock.eClock = OMX_TIME_RefClockVideo;
 
+  CLog::Log(LOGNOTICE, "OMXClock using %s as reference\n", refClock.eClock == OMX_TIME_RefClockVideo ? "video" : "audio");
+
   omx_err = m_omx_clock.SetConfig(OMX_IndexConfigTimeActiveRefClock, &refClock);
   if(omx_err != OMX_ErrorNone)
   {
-    CLog::Log(LOGERROR, "OMXClock::OMXSetReferenceClock error setting OMX_IndexConfigTimeCurrentAudioReference\n");
+    CLog::Log(LOGERROR, "OMXClock::OMXSetReferenceClock error setting OMX_IndexConfigTimeActiveRefClock\n");
     ret = false;
   }
 
