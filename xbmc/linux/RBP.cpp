@@ -54,6 +54,13 @@ bool CRBP::Initialize()
   return true;
 }
 
+void CRBP::LogFirmwareVerison()
+{
+  char  response[80];
+  m_DllBcmHost->vc_gencmd(response, sizeof response, "version");
+  CLog::Log(LOGNOTICE, "Raspberry PI firmware version: %s\n", response);
+}
+
 void CRBP::Deinitialize()
 {
   m_DllBcmHost->bcm_host_deinit();

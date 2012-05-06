@@ -46,6 +46,7 @@ public:
   ~CRBP();
 
   bool Initialize();
+  void LogFirmwareVerison();
   void Deinitialize();
 
 private:

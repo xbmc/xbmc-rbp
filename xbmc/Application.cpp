@@ -316,6 +316,10 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
+#ifdef TARGET_RASPBERRY_PI
+  #include "linux/RBP.h"
+#endif
+
 using namespace std;
 using namespace ADDON;
 using namespace XFILE;
@@ -609,6 +613,10 @@ bool CApplication::Create()
 
   CStdString strExecutablePath;
   CUtil::GetHomePath(strExecutablePath);
+
+#ifdef TARGET_RASPBERRY_PI
+  g_RBP.LogFirmwareVerison();
+#endif
 
   // if we are running from DVD our UserData location will be TDATA
   if (URIUtils::IsDVD(strExecutablePath))
