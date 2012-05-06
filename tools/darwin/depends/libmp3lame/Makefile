@@ -1,29 +1,33 @@
 include ../Makefile.include
 
 # lib name, version
-LIBNAME=libcec
-VERSION=1.5.2
+LIBNAME=lame
+VERSION=3.99.5
 SOURCE=$(LIBNAME)-$(VERSION)
-ARCHIVE=$(SOURCE).tar.gz
+ARCHIVE=$(LIBNAME)-$(VERSION).tar.gz
+BASE_URL=http://voxel.dl.sourceforge.net/project/lame/lame/3.99
 
 # configuration settings
-CONFIGURE=./configure --prefix=$(PREFIX)
+CONFIGURE=./configure --prefix=$(PREFIX) \
+  --disable-gtktest --disable-frontend
 
-LIBDYLIB=$(SOURCE)/lib/.libs/$(LIBNAME).dylib
+LIBDYLIB=$(SOURCE)/.libs/libmp3lame.dylib
+
+CLEAN_FILES=$(ARCHIVE) $(SOURCE)
 
 all: $(LIBDYLIB) .installed
 
 $(TARBALLS_LOCATION)/$(ARCHIVE):
 	$(RETRIEVE_TOOL) $(RETRIEVE_TOOL_FLAGS) $(BASE_URL)/$(ARCHIVE)
 
-$(LIBNAME): $(TARBALLS_LOCATION)/$(ARCHIVE)
+$(SOURCE): $(TARBALLS_LOCATION)/$(ARCHIVE)
 	rm -rf $(SOURCE)
 	$(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
 	echo $(SOURCE) > .gitignore
-	cd $(SOURCE); $(TOOLCHAIN)/bin/autoreconf -vif
+	#cd $(SOURCE); autoreconf -vif
 	cd $(SOURCE); $(CONFIGURE)
 
-$(LIBDYLIB): $(LIBNAME)
+$(LIBDYLIB): $(SOURCE)
 	make -j 1 -C $(SOURCE)
 
 .installed:
@@ -31,8 +35,8 @@ $(LIBDYLIB): $(LIBNAME)
 	touch $@
 
 clean:
-	rm -rf $(SOURCE) .installed
+	make -C $(SOURCE) clean
+	rm -f .installed
 
 distclean::
 	rm -rf $(SOURCE) .installed
-
