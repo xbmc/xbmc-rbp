@@ -28,11 +28,7 @@
 
 #include "OMXClock.h"
 #include "OMXImage.h"
-#ifdef STANDALONE
-#include "File.h"
-#else
 #include "xbmc/filesystem/File.h"
-#endif
 
 using namespace XFILE;
 using namespace std;

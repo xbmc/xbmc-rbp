@@ -27,14 +27,7 @@
 #include <IL/OMX_Video.h>
 
 #include "OMXClock.h"
-#ifdef STANDALONE
-#include "File.h"
-#else
 #include "xbmc/filesystem/File.h"
-#endif
-
-//#define CLASSNAME "COMXImage"
-//typedef void *EGLImageKHR;
 
 using namespace XFILE;
 using namespace std;

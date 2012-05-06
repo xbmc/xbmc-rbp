@@ -76,6 +76,8 @@ public:
   virtual int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T * pinfo ) = 0;
   virtual int vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
                                                   uint8_t red, uint8_t green, uint8_t blue ) = 0;
+  virtual int vc_tv_hdmi_audio_supported(uint32_t audio_format, uint32_t num_channels,
+                                                  EDID_AudioSampleRate fs, uint32_t bitrate) = 0;
 };
 
 #if (defined USE_EXTERNAL_LIBBCM_HOST)
@@ -135,6 +137,9 @@ public:
   virtual int vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
                                                   uint8_t red, uint8_t green, uint8_t blue )
     { return ::vc_dispmanx_display_set_background(update, display, red, green, blue); };
+  virtual int vc_tv_hdmi_audio_supported(uint32_t audio_format, uint32_t num_channels,
+                                                  EDID_AudioSampleRate fs, uint32_t bitrate)
+  { return ::vc_tv_hdmi_audio_supported(audio_format, num_channels, fs, bitrate); };
   virtual bool ResolveExports() 
     { return true; }
   virtual bool Load() 
@@ -181,6 +186,7 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
   DEFINE_METHOD2(int, vc_dispmanx_display_get_info, (DISPMANX_DISPLAY_HANDLE_T p1, DISPMANX_MODEINFO_T *p2))
   DEFINE_METHOD5(int, vc_dispmanx_display_set_background, ( DISPMANX_UPDATE_HANDLE_T p1, DISPMANX_DISPLAY_HANDLE_T p2,
                                                             uint8_t p3, uint8_t p4, uint8_t p5 ))
+  DEFINE_METHOD4(int, vc_tv_hdmi_audio_supported, (uint32_t p1, uint32_t p2, EDID_AudioSampleRate p3, uint32_t p4))
 
   BEGIN_METHOD_RESOLVE()
     RESOLVE_METHOD(bcm_host_init)
@@ -205,6 +211,7 @@ class DllBcmHost : public DllDynamic, DllBcmHostInterface
     RESOLVE_METHOD(vc_dispmanx_display_close)
     RESOLVE_METHOD(vc_dispmanx_display_get_info)
     RESOLVE_METHOD(vc_dispmanx_display_set_background)
+    RESOLVE_METHOD(vc_tv_hdmi_audio_supported)
   END_METHOD_RESOLVE()
 
 public:

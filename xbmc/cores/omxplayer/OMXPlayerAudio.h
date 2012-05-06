@@ -30,27 +30,19 @@
 #include "DVDStreamInfo.h"
 #include "OMXAudio.h"
 #include "OMXAudioCodecOMX.h"
-//#ifdef STANDALONE
-//#include "OMXThread.h"
-//#else
 #include "threads/Thread.h"
-//#endif
 
 #include <deque>
 #include <sys/types.h>
 
 #include "DVDDemuxers/DVDDemux.h"
 #include "DVDMessageQueue.h"
-
 #include "utils/BitstreamStats.h"
+#include "xbmc/linux/DllBCM.h"
 
 using namespace std;
 
-//#ifdef STANDALONE
-//class OMXPlayerAudio : public OMXThread
-//#else
 class OMXPlayerAudio : public CThread
-//#endif
 {
 protected:
   CDVDMessageQueue      m_messageQueue;
@@ -97,6 +89,8 @@ protected:
   int                       m_synctype;
   int                       m_nChannels;
   bool                      m_DecoderOpen;
+
+  DllBcmHost                m_DllBcmHost;
 
   virtual void OnStartup();
   virtual void OnExit();

@@ -27,11 +27,7 @@
 #include "OMXClock.h"
 #include "DVDStreamInfo.h"
 #include "OMXVideo.h"
-//#ifdef STANDALONE
-//#include "OMXThread.h"
-//#else
 #include "threads/Thread.h"
-//#endif
 
 #include <deque>
 #include <sys/types.h>
@@ -46,11 +42,7 @@
 
 using namespace std;
 
-//#ifdef STANDALONE
-//class OMXPlayerVideo : public OMXThread
-//#else
 class OMXPlayerVideo : public CThread
-//#endif
 {
 protected:
   CDVDMessageQueue          m_messageQueue;

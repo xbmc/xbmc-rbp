@@ -32,14 +32,9 @@
 #include <sys/time.h>
 #include <iomanip>
 
-#ifndef STANDALONE
 #include "FileItem.h"
-#endif
-
 #include "linux/XMemUtils.h"
-#ifndef STANDALONE
 #include "utils/BitstreamStats.h"
-#endif
 
 #include "DVDDemuxers/DVDDemuxUtils.h"
 #include "DVDCodecs/DVDCodecUtils.h"
