@@ -124,6 +124,7 @@ public:
 typedef struct
 {
   StreamType   type;
+  int          type_index;
   std::string  filename;
   std::string  filename2;  // for vobsub subtitles, 2 files are necessary (idx/sub) 
   std::string  language;
@@ -134,6 +135,8 @@ typedef struct
   std::string  codec;
   int          channels;
 } OMXSelectionStream;
+
+typedef std::vector<OMXSelectionStream> OMXSelectionStreams;
 
 class COMXSelectionStreams
 {
@@ -153,6 +156,14 @@ public:
   int              Count   (StreamType type) const { return IndexOf(type, STREAM_SOURCE_NONE, -1) + 1; }
   OMXSelectionStream& Get     (StreamType type, int index);
   bool             Get     (StreamType type, CDemuxStream::EFlags flag, OMXSelectionStream& out);
+
+  OMXSelectionStreams Get(StreamType type);
+  template<typename Compare> OMXSelectionStreams Get(StreamType type, Compare compare)
+  {
+    OMXSelectionStreams streams = Get(type);
+    std::stable_sort(streams.begin(), streams.end(), compare);
+    return streams;
+  }
 
   void             Clear   (StreamType type, StreamSource source);
   int              Source  (StreamSource source, std::string filename);
