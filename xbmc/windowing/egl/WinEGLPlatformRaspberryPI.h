@@ -87,6 +87,8 @@ protected:
   RESOLUTION_INFO m_desktopRes;
 
   TV_GET_STATE_RESP_T m_tv_state;
+
+  bool                  m_sdMode;
 };
 
 #endif
