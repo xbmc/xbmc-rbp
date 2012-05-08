@@ -218,8 +218,8 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   m_output_channels[1] = OMX_AUDIO_ChannelRF;
   m_output_channels[2] = OMX_AUDIO_ChannelMax;
 
+  m_input_channels[0] = OMX_AUDIO_ChannelLF;
   m_input_channels[1] = OMX_AUDIO_ChannelRF;
-  m_input_channels[2] = OMX_AUDIO_ChannelMax;
   m_input_channels[2] = OMX_AUDIO_ChannelMax;
 
   m_wave_header.Format.nChannels  = m_OutputChannels;
@@ -277,7 +277,6 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   OMX_INIT_STRUCTURE(m_pcm_input);
   m_pcm_input.nChannels = m_OutputChannels;
 
-  m_input_channels[0] = OMX_AUDIO_ChannelLF;
   memcpy(m_pcm_output.eChannelMapping, m_output_channels, sizeof(m_output_channels));
   memcpy(m_pcm_input.eChannelMapping, m_input_channels, sizeof(m_input_channels));
 
