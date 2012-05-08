@@ -131,6 +131,9 @@ protected:
   COMXCoreTunel     m_omx_tunnel_mixer;
   COMXCoreTunel     m_omx_tunnel_decoder;
   DllAvUtil         m_dllAvUtil;
+
+  OMX_AUDIO_CHANNELTYPE m_input_channels[OMX_AUDIO_MAXCHANNELS];
+  OMX_AUDIO_CHANNELTYPE m_output_channels[OMX_AUDIO_MAXCHANNELS];
 };
 #endif
 

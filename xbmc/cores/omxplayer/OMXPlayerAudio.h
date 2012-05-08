@@ -109,6 +109,7 @@ public:
   bool IsStalled()                                  { return m_stalled;  }
   void WaitForBuffers();
   bool CloseStream(bool bWaitForBuffers);
+  bool CodecChange();
   bool Decode(DemuxPacket *pkt, bool bDropPacket);
   void Flush();
   bool AddPacket(DemuxPacket *pkt);

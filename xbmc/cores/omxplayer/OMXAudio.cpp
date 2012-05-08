@@ -209,18 +209,18 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
   m_InputChannels = iChannels;
   m_remap.Reset();
 
-  OMX_INIT_STRUCTURE(m_pcm_output);
   m_OutputChannels = 2;
-  m_pcm_output.nChannels = m_OutputChannels;
-  m_pcm_output.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
-  m_pcm_output.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
-  m_pcm_output.eChannelMapping[2] = OMX_AUDIO_ChannelMax;
 
-  OMX_INIT_STRUCTURE(m_pcm_input);
-  m_pcm_input.nChannels = m_OutputChannels;
-  m_pcm_input.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
-  m_pcm_input.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
-  m_pcm_input.eChannelMapping[2] = OMX_AUDIO_ChannelMax;
+  memset(m_input_channels, 0x0, sizeof(m_input_channels));
+  memset(m_output_channels, 0x0, sizeof(m_output_channels));
+
+  m_output_channels[0] = OMX_AUDIO_ChannelLF;
+  m_output_channels[1] = OMX_AUDIO_ChannelRF;
+  m_output_channels[2] = OMX_AUDIO_ChannelMax;
+
+  m_input_channels[1] = OMX_AUDIO_ChannelRF;
+  m_input_channels[2] = OMX_AUDIO_ChannelMax;
+  m_input_channels[2] = OMX_AUDIO_ChannelMax;
 
   m_wave_header.Format.nChannels  = m_OutputChannels;
   m_wave_header.dwChannelMask     = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
@@ -240,7 +240,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
       {
         if (outLayout[ch] == OMXChannelMap[map])
         {
-          m_pcm_output.eChannelMapping[chan] = OMXChannels[map]; 
+          m_output_channels[chan] = OMXChannels[map]; 
           chan++;
           break;
         }
@@ -261,7 +261,7 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
       {
         if (channelMap[ch] == OMXChannelMap[map])
         {
-          m_pcm_input.eChannelMapping[chan] = OMXChannels[map]; 
+          m_input_channels[chan] = OMXChannels[map]; 
           m_wave_header.dwChannelMask |= WAVEChannels[map];
           chan++;
           break;
@@ -270,6 +270,16 @@ bool COMXAudio::Initialize(IAudioCallback* pCallback, const CStdString& device, 
       ++ch;
     }
   }
+
+  OMX_INIT_STRUCTURE(m_pcm_output);
+  m_pcm_output.nChannels = m_OutputChannels;
+
+  OMX_INIT_STRUCTURE(m_pcm_input);
+  m_pcm_input.nChannels = m_OutputChannels;
+
+  m_input_channels[0] = OMX_AUDIO_ChannelLF;
+  memcpy(m_pcm_output.eChannelMapping, m_output_channels, sizeof(m_output_channels));
+  memcpy(m_pcm_input.eChannelMapping, m_input_channels, sizeof(m_input_channels));
 
   // set the m_pcm_output parameters
   m_pcm_output.eNumData            = OMX_NumericalDataSigned;
@@ -888,6 +898,7 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
           CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 1 omx_err(0x%08x)\n", omx_err);
         }
 
+        memcpy(m_pcm_input.eChannelMapping, m_input_channels, sizeof(m_input_channels));
         m_pcm_input.nSamplingRate = m_uiSamplesPerSec;
 
         /* setup mixer input */

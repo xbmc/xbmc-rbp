@@ -218,22 +218,27 @@ int COMXAudioCodecOMX::GetData(BYTE** dst)
     int16_t *pDst = (int16_t *)m_pBuffer2;
     const int16_t *pSrc = (const int16_t *)m_pFrame1->data[0];
 
-    memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
+    //memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
 
     m_iBufferSize2 = 0;
     int size = m_iBufferSize1 / 2;
-    int gap = 8 - m_pCodecContext->channels;
     int samples = 0;
 
-    for(int i = 0; i < size; pDst++, pSrc++, i++, samples++)
+    for(int i = 0; i < size; i += m_pCodecContext->channels)
     {
-      if( (i%m_pCodecContext->channels) == 0)
-      {
-        pDst    +=  gap;
-        samples +=  gap;
-      }
+      pDst[0] = pSrc[0];
+      pDst[1] = pSrc[1];
+      pDst[2] = pSrc[2];
+      pDst[3] = pSrc[3];
+      pDst[4] = pSrc[4];
+      pDst[5] = pSrc[5];
+      pDst[6] = 0;
+      pDst[7] = 0;
 
-      *pDst = *pSrc;
+      pSrc += m_pCodecContext->channels;
+      pDst += 8;
+
+      samples += 8;
     }
 
     m_iBufferSize2 = samples * 2;

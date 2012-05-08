@@ -322,21 +322,8 @@ void OMXPlayerAudio::HandleSyncError(double duration)
   }
 }
 
-bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
+bool OMXPlayerAudio::CodecChange()
 {
-  if(!pkt)
-    return false;
-
-  /* last decoder reinit went wrong */
-  if(!m_pAudioCodec)
-    return true;
-
-  if(pkt->dts != DVD_NOPTS_VALUE)
-    m_audioClock = pkt->dts;
-
-  const uint8_t *data_dec = pkt->pData;
-  int            data_len = pkt->iSize;
-
   unsigned int old_bitrate = m_hints.bitrate;
   unsigned int new_bitrate = m_hints_current.bitrate;
 
@@ -352,13 +339,26 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
      !m_DecoderOpen)
   {
     m_hints_current = m_hints;
-
-    CloseDecoder();
-
-    m_DecoderOpen = OpenDecoder();
-    if(!m_DecoderOpen)
-      return false;
+    return true;
   }
+
+  return false;
+}
+
+bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
+{
+  if(!pkt)
+    return false;
+
+  /* last decoder reinit went wrong */
+  if(!m_pAudioCodec)
+    return true;
+
+  if(pkt->dts != DVD_NOPTS_VALUE)
+    m_audioClock = pkt->dts;
+
+  const uint8_t *data_dec = pkt->pData;
+  int            data_len = pkt->iSize;
 
   if(!m_passthrough && !m_hw_decode)
   {
@@ -383,6 +383,15 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
       int ret = 0;
 
       m_audioStats.AddSampleBytes(decoded_size);
+
+      if(CodecChange())
+      {
+        CloseDecoder();
+
+        m_DecoderOpen = OpenDecoder();
+        if(!m_DecoderOpen)
+          return false;
+      }
 
       while(!m_bStop)
       {
@@ -425,6 +434,15 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
   }
   else
   {
+    if(CodecChange())
+    {
+      CloseDecoder();
+
+      m_DecoderOpen = OpenDecoder();
+      if(!m_DecoderOpen)
+        return false;
+    }
+
     while(!m_bStop)
     {
       if(m_flush)
