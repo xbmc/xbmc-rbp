@@ -70,6 +70,7 @@ CWinEGLPlatformRaspberryPI::CWinEGLPlatformRaspberryPI()
   m_desktopRes.dwFlags = D3DPRESENTFLAG_PROGRESSIVE | D3DPRESENTFLAG_WIDESCREEN;
   m_desktopRes.fPixelRatio = 1.0f;
   m_desktopRes.strMode = "720p 16:9";
+  m_sdMode = false;
 }
 
 CWinEGLPlatformRaspberryPI::~CWinEGLPlatformRaspberryPI()
@@ -128,7 +129,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
     }
   }
 
-  if(bFound)
+  if(bFound && !m_sdMode)
   {
     sem_init(&m_tv_synced, 0, 0);
     m_DllBcmHost.vc_tv_register_callback(CallbackTvServiceCallback, this);
@@ -272,6 +273,36 @@ bool CWinEGLPlatformRaspberryPI::ProbeDisplayResolutions(std::vector<RESOLUTION_
   GetSupportedModes(HDMI_RES_GROUP_CEA, resolutions);
   GetSupportedModes(HDMI_RES_GROUP_DMT, resolutions);
   GetSupportedModes(HDMI_RES_GROUP_CEA_3D, resolutions);
+
+  if(resolutions.size() == 0)
+  {
+    m_sdMode = true;
+
+    TV_GET_STATE_RESP_T tv;
+    m_DllBcmHost.vc_tv_get_state(&tv);
+
+    RESOLUTION_INFO res;
+    CLog::Log(LOGNOTICE, "%dx%d@%d %s:%x\n", tv.width, tv.height, tv.frame_rate, tv.scan_mode?"I":"");
+
+    res.iScreen = 0;
+    res.bFullScreen = true;
+    res.iSubtitles = (int)(0.965 * tv.height);
+    res.dwFlags = tv.scan_mode ? D3DPRESENTFLAG_INTERLACED : D3DPRESENTFLAG_PROGRESSIVE;
+    res.fRefreshRate = (float)tv.frame_rate;
+    res.fPixelRatio = 1.0f;
+    res.iWidth = tv.width;
+    res.iHeight = tv.height;
+    res.iScreenWidth = tv.width;
+    res.iScreenHeight = tv.height;
+    res.strMode.Format("%dx%d", tv.width, tv.height);
+    if ((float)tv.frame_rate > 1)
+        res.strMode.Format("%s @ %.2f%s - Full Screen", res.strMode, (float)tv.frame_rate, res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
+
+    CStdString resolution;
+    resolutions.push_back(res);
+    m_desktopRes = res;
+    m_res.push_back(res);
+  }
 
   return true;
 }
@@ -660,7 +691,6 @@ void CWinEGLPlatformRaspberryPI::GetSupportedModes(HDMI_RES_GROUP_T group, std::
       m_res.push_back(res);
     }
   }
-
 }
 
 #endif
