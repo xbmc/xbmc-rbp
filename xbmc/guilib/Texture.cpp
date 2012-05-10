@@ -34,29 +34,22 @@
 #endif
 
 #ifdef TARGET_RASPBERRY_PI
-#include "ApplicationMessenger.h"
-#include "Application.h"
+#include "xbmc/cores/omxplayer/OMXImage.h"
 #include "xbmc/cores/omxplayer/OMXTexture.h"
 #endif
 
 /************************************************************************/
 /*                                                                      */
 /************************************************************************/
-CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format, bool allocate)
+CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format)
  : m_hasAlpha( true )
 {
-#ifndef HAS_DX
-  m_texture = 0;
+#ifndef HAS_DX 
+  m_texture = 0; 
 #endif
   m_pixels = NULL;
-#ifdef TARGET_RASPBERRY_PI
-  m_egl_image = 0;
-  m_accelerated = false;
-  m_omx_image = NULL;
-  m_omx_texture = NULL;
-#endif
   m_loadedToGPU = false;
-  Allocate(width, height, format, allocate);
+  Allocate(width, height, format);
 }
 
 CBaseTexture::CBaseTexture(const CBaseTexture &copy)
@@ -73,9 +66,7 @@ CBaseTexture::CBaseTexture(const CBaseTexture &copy)
 #endif
   m_pixels = NULL;
   m_loadedToGPU = false;
-  m_omx_texture = NULL;
-  m_omx_image = NULL;
-  if (copy.m_pixels && m_pixels)
+  if (copy.m_pixels)
   {
     m_pixels = new unsigned char[GetPitch() * GetRows()];
     memcpy(m_pixels, copy.m_pixels, GetPitch() * GetRows());
@@ -85,17 +76,9 @@ CBaseTexture::CBaseTexture(const CBaseTexture &copy)
 CBaseTexture::~CBaseTexture()
 {
   delete[] m_pixels;
-#ifdef TARGET_RASPBERRY_PI
-  if(m_omx_texture)
-    delete m_omx_texture;
-  m_omx_texture = NULL;
-  if(m_omx_image)
-    delete m_omx_image;
-  m_omx_image = NULL;
-#endif
 }
 
-void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format, bool allocate)
+void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned int format)
 {
   m_imageWidth = width;
   m_imageHeight = height;
@@ -105,9 +88,6 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   m_textureWidth = m_imageWidth;
   m_textureHeight = m_imageHeight;
 
-#ifdef TARGET_RASPBERRY_PI
-  if (m_accelerated) { assert(m_pixels == 0); return; }
-#endif
   if (m_format & XB_FMT_DXT_MASK)
     while (GetPitch() < g_Windowing.GetMinDXTPitch())
       m_textureWidth += GetBlockSize();
@@ -129,23 +109,12 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   CLAMP(m_textureHeight, g_Windowing.GetMaxTextureSize());
   CLAMP(m_imageWidth, m_textureWidth);
   CLAMP(m_imageHeight, m_textureHeight);
-  if (m_pixels)
-    delete[] m_pixels;
-  m_pixels = NULL;
-  if (GetPitch() * GetRows() > 0 && allocate)
-    m_pixels = new unsigned char[GetPitch() * GetRows()];
+  delete[] m_pixels;
+  m_pixels = new unsigned char[GetPitch() * GetRows()];
 }
 
 void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU)
 {
-#ifdef TARGET_RASPBERRY_PI
-  if (m_accelerated)
-  {
-    if (loadToGPU)
-      LoadToGPU();
-     return;
-  }
-#endif
   if (pixels == NULL)
     return;
 
@@ -185,9 +154,6 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
 
 void CBaseTexture::ClampToEdge()
 {
-#ifdef TARGET_RASPBERRY_PI
-  assert(!m_accelerated);
-#endif
   unsigned int imagePitch = GetPitch(m_imageWidth);
   unsigned int imageRows = GetRows(m_imageHeight);
   unsigned int texturePitch = GetPitch(m_textureWidth);
@@ -224,36 +190,54 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
       URIUtils::GetExtension(texturePath).Equals(".tbn") 
       /*|| URIUtils::GetExtension(texturePath).Equals(".png")*/)
   {
-    m_omx_image = new COMXImage();
+    COMXImage omx_image;
 
-    if(!m_omx_image || !m_omx_image->ReadFile(texturePath) || m_omx_image->IsProgressive() || 
-        (m_omx_image->GetCompressionFormat() == OMX_IMAGE_CodingMax))
+    if(!omx_image.ReadFile(texturePath) || omx_image.IsProgressive() || 
+        (omx_image.GetCompressionFormat() == OMX_IMAGE_CodingMax))
     {
       /* progressive mages can't be hw decoded */
       CLog::Log(LOGERROR, "Texture manager (OMX) unable to hw decode file : %s (%dx%d) progressive=%d", 
-          texturePath.c_str(), (int)m_omx_image->GetWidth(), (int)m_omx_image->GetHeight(), 
-          m_omx_image->IsProgressive());
-      delete m_omx_image;
-      m_omx_image   = NULL;
-      m_accelerated = false;
+          texturePath.c_str(), (int)omx_image.GetWidth(), (int)omx_image.GetHeight(), 
+          omx_image.IsProgressive());
     }
     else
     {
-      m_textureWidth  = m_omx_image->GetWidth();
-      m_textureHeight = m_omx_image->GetHeight();
-      m_hasAlpha      = m_omx_image->IsAlpha();
+      COMXTexture omx_texture;
+      if(!omx_texture.Open() || !omx_texture.Decode(&omx_image, omx_image.GetWidth(), omx_image.GetHeight()))
+        return false;
+
+      m_textureWidth  = omx_texture.GetWidth();
+      m_textureHeight = omx_texture.GetHeight();
+      m_imageWidth    = omx_texture.GetWidth();
+      m_imageHeight   = omx_texture.GetHeight();
+      m_hasAlpha      = omx_image.IsAlpha();
 
       if (originalWidth)
-        *originalWidth  = m_omx_image->GetOriginalWidth();
+        *originalWidth  = omx_image.GetOriginalWidth();
       if (originalHeight)
-        *originalHeight = m_omx_image->GetOriginalHeight();
+        *originalHeight = omx_image.GetOriginalHeight();
 
-      m_accelerated = true;
+      Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
 
-      Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8, false);
+      if(!m_pixels)
+      {
+        CLog::Log(LOGERROR, "Texture manager (OMX) out of memory");
+        return false;
+      }
 
       if(autoRotate)
-        m_orientation = m_omx_image->GetOrientation();
+        m_orientation = omx_image.GetOrientation();
+
+      if(omx_texture.GetData())
+      {
+        memcpy(m_pixels, (unsigned char *)omx_texture.GetData(), ( (GetPitch() * GetRows() * 4 ) < omx_texture.GetSize() ) ?
+               GetPitch() * GetRows() * 4 : omx_texture.GetSize());
+
+        SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
+      }
+
+      omx_texture.Close();
+      omx_image.Close();
 
       return true;
     }
@@ -408,9 +392,6 @@ unsigned int CBaseTexture::PadPow2(unsigned int x)
 
 bool CBaseTexture::SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, unsigned int elements, unsigned int offset)
 {
-#ifdef TARGET_RASPBERRY_PI
-  assert(!m_accelerated);
-#endif
   if (!pixels) return false;
   unsigned char *dst = pixels;
   for (unsigned int y = 0; y < height; y++)

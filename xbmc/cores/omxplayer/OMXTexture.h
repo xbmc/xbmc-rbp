@@ -28,7 +28,7 @@
 
 #include "OMXClock.h"
 #include "OMXImage.h"
-#include "xbmc/filesystem/File.h"
+#include "filesystem/File.h"
 
 using namespace XFILE;
 using namespace std;
@@ -44,19 +44,23 @@ public:
   // Required overrides
   bool Open(void);
   void Close(void);
-  int  Decode(COMXImage *omx_image, void *egl_image, void *egl_display, unsigned width, unsigned height);
+  int  Decode(COMXImage *omx_image, unsigned width, unsigned height);
   void Reset(void);
+  OMX_BUFFERHEADERTYPE *GetOutputBuffer() { return m_output_buffer; };
+  int GetWidth() { return (int)m_output_format.format.image.nFrameWidth; };
+  int GetHeight() { return (int)m_output_format.format.image.nFrameHeight; };
+  int GetStride() { return (int)m_output_format.format.image.nStride; };
+  unsigned char *GetData();
+  unsigned int GetSize();
 protected:
 
   // Components
-  COMXCoreComponent m_omx_image_decode;
-  COMXCoreComponent m_omx_resize;
-  COMXCoreComponent m_omx_egl_render;
+  COMXCoreComponent             m_omx_decoder;
+  COMXCoreComponent             m_omx_resize;
+  COMXCoreTunel                 m_omx_tunnel_decode;
+  OMX_BUFFERHEADERTYPE          *m_output_buffer;
+  OMX_PARAM_PORTDEFINITIONTYPE  m_output_format;
 
-  COMXCoreTunel     m_omx_tunnel_decode;
-  COMXCoreTunel     m_omx_tunnel_egl;
-
-  OMX_BUFFERHEADERTYPE *m_egl_buffer;
   bool              m_is_open;
 };
 

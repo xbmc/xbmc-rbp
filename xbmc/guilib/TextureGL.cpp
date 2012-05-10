@@ -27,22 +27,13 @@
 
 #if defined(HAS_GL) || defined(HAS_GLES)
 
-#if TARGET_RASPBERRY_PI
-// EGL extension functions
-#define GETEXTENSION(type, ext) \
-do \
-{ \
-    ext = (type) eglGetProcAddress(#ext); \
-} while (0);
-#endif
-
 using namespace std;
 
 /************************************************************************/
 /*    CGLTexture                                                       */
 /************************************************************************/
-CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format, bool allocate)
-: CBaseTexture(width, height, format, allocate)
+CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format)
+: CBaseTexture(width, height, format)
 {
 }
 
@@ -54,107 +45,16 @@ CGLTexture::~CGLTexture()
 void CGLTexture::CreateTextureObject()
 {
   glGenTextures(1, (GLuint*) &m_texture);
-
-#if defined(TARGET_RASPBERRY_PI)
-  PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-  GETEXTENSION(PFNEGLCREATEIMAGEKHRPROC, eglCreateImageKHR);
-
-  if (m_accelerated && !m_egl_image && m_texture)
-  {
-    EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
-    EGLContext egl_context = g_Windowing.GetEGLContext();
-
-    glBindTexture(GL_TEXTURE_2D, m_texture);
-    if (m_hasAlpha)
-    {
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_textureWidth, m_textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    }
-    else
-    {
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_textureWidth, m_textureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 0);
-    }
-    m_egl_image = eglCreateImageKHR(egl_display, egl_context, EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)m_texture, NULL);
-  }
-#endif
 }
 
 void CGLTexture::DestroyTextureObject()
 {
-#ifdef TARGET_RASPBERRY_PI  
-  PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-  GETEXTENSION(PFNEGLDESTROYIMAGEKHRPROC, eglDestroyImageKHR);
-
-  if (m_accelerated)
-  {
-    if (m_egl_image)
-    {
-      EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
-      eglDestroyImageKHR(egl_display, m_egl_image);
-      m_egl_image = 0;
-    }
-  }
-  if(m_omx_texture)
-    delete m_omx_texture;
-  m_omx_texture = NULL;
-  if(m_omx_image)
-    delete m_omx_image;
-  m_omx_image = NULL;
-#endif
   if (m_texture)
     glDeleteTextures(1, (GLuint*) &m_texture);
 }
 
 void CGLTexture::LoadToGPU()
 {
-#ifdef TARGET_RASPBERRY_PI
-  if (m_accelerated && m_omx_image)
-  {
-    if (m_loadedToGPU)
-    {
-      // nothing to load - probably same image (no change)
-      return;
-    }
-    if(m_egl_image == 0 && m_texture == 0)
-    {
-      CreateTextureObject();
-      
-      if(m_egl_image && m_texture)
-      {
-        m_omx_texture = new COMXTexture();
-
-        EGLDisplay egl_display = g_Windowing.GetEGLDisplay();
-        if(!m_omx_texture->Open() || !m_omx_texture->Decode(m_omx_image, m_egl_image, egl_display, m_textureWidth, m_textureHeight))
-        {
-          CLog::Log(LOGERROR, "GL: OMX Error decode Image into Texture");
-        }
-
-        delete m_omx_texture;
-        m_omx_texture = NULL;
-        delete m_omx_image;
-        m_omx_image = NULL;
-      }
-    }
-
-    if(m_egl_image == 0 || m_texture == 0)
-    {
-      CLog::Log(LOGERROR, "GL: OMX Image Error");
-      return;
-    }
-
-    // Bind the texture object
-    glBindTexture(GL_TEXTURE_2D, m_texture);
-
-    // Set the texture's stretching properties
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    VerifyGLState();
-    m_loadedToGPU = true;
-    return;
-  }
-#endif
   if (!m_pixels)
   {
     // nothing to load - probably same image (no change)
@@ -273,6 +173,7 @@ void CGLTexture::LoadToGPU()
   }
   glTexImage2D(GL_TEXTURE_2D, 0, internalformat, m_textureWidth, m_textureHeight, 0,
     pixelformat, GL_UNSIGNED_BYTE, m_pixels);
+
 #endif
   VerifyGLState();
 

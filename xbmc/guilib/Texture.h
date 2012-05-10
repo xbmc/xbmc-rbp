@@ -31,11 +31,6 @@
 #include "system_gl.h"
 #endif
 
-#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
-#include "config.h"
-#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
-#endif
-
 #include "gui3d.h"
 #include "utils/StdString.h"
 #include "XBTF.h"
@@ -46,14 +41,6 @@ struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
 
 #ifdef HAS_DX
 #include "D3DResource.h"
-#endif
-
-#ifdef TARGET_RASPBERRY_PI
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include "xbmc/filesystem/File.h"
-#include "xbmc/cores/omxplayer/OMXImage.h"
-#include "xbmc/cores/omxplayer/OMXTexture.h"
 #endif
 
 class CTexture;
@@ -70,7 +57,7 @@ class CBaseTexture
 {
 
 public:
-  CBaseTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8, bool allocate = true);
+  CBaseTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8);
   CBaseTexture(const CBaseTexture &copy);
 
   virtual ~CBaseTexture();
@@ -109,20 +96,18 @@ public:
   void SetOrientation(int orientation) { m_orientation = orientation; }
 
   void Update(unsigned int width, unsigned int height, unsigned int pitch, unsigned int format, const unsigned char *pixels, bool loadToGPU);
-  void Allocate(unsigned int width, unsigned int height, unsigned int format, bool allocate = true);
+  void Allocate(unsigned int width, unsigned int height, unsigned int format);
   void ClampToEdge();
 
   static unsigned int PadPow2(unsigned int x);
   bool SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, unsigned int elements = 4, unsigned int offset=0);
-#ifdef TARGET_RASPBERRY_PI
-  bool IsAccelerated() { return m_accelerated; }
-#endif
 
 protected:
   // helpers for computation of texture parameters for compressed textures
   unsigned int GetPitch(unsigned int width) const;
   unsigned int GetRows(unsigned int height) const;
   unsigned int GetBlockSize() const;
+
   unsigned int m_imageWidth;
   unsigned int m_imageHeight;
   unsigned int m_textureWidth;
@@ -133,12 +118,6 @@ protected:
   GLuint m_texture;
 #endif
   unsigned char* m_pixels;
-#ifdef TARGET_RASPBERRY_PI
-  EGLImageKHR  m_egl_image;
-  bool         m_accelerated;
-  COMXImage    *m_omx_image;
-  COMXTexture  *m_omx_texture;
-#endif
   bool m_loadedToGPU;
   unsigned int m_format;
   int m_orientation;

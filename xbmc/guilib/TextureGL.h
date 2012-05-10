@@ -27,16 +27,7 @@
 #ifndef GUILIB_TEXTUREGL_H
 #define GUILIB_TEXTUREGL_H
 
-#if defined(HAVE_CONFIG_H) && !defined(TARGET_WINDOWS)
-#include "config.h"
-#define DECLARE_UNUSED(a,b) a __attribute__((unused)) b;
-#endif
-
 #include "Texture.h"
-
-#ifdef TARGET_RASPBERRY_PI
-#include "xbmc/cores/omxplayer/OMXTexture.h"
-#endif
 
 #pragma once
 
@@ -48,7 +39,7 @@
 class CGLTexture : public CBaseTexture
 {
 public:
-  CGLTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8, bool allocate = true);
+  CGLTexture(unsigned int width = 0, unsigned int height = 0, unsigned int format = XB_FMT_A8R8G8B8);
   virtual ~CGLTexture();
 
   void CreateTextureObject();
