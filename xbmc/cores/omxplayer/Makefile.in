@@ -10,7 +10,6 @@ SRCS=	\
 	OMXPlayerAudio.cpp \
 	OMXPlayerVideo.cpp \
 	OMXImage.cpp \
-	OMXTexture.cpp \
 	OMXThread.cpp \
 	BitstreamConverter.cpp
 

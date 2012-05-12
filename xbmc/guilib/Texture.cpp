@@ -35,7 +35,6 @@
 
 #ifdef TARGET_RASPBERRY_PI
 #include "xbmc/cores/omxplayer/OMXImage.h"
-#include "xbmc/cores/omxplayer/OMXTexture.h"
 #endif
 
 /************************************************************************/
@@ -195,21 +194,21 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     if(!omx_image.ReadFile(texturePath) || omx_image.IsProgressive() || 
         (omx_image.GetCompressionFormat() == OMX_IMAGE_CodingMax))
     {
-      /* progressive mages can't be hw decoded */
+      /* progressive images can't be hw decoded */
       CLog::Log(LOGERROR, "Texture manager (OMX) unable to hw decode file : %s (%dx%d) progressive=%d", 
           texturePath.c_str(), (int)omx_image.GetWidth(), (int)omx_image.GetHeight(), 
           omx_image.IsProgressive());
     }
     else
     {
-      COMXTexture omx_texture;
-      if(!omx_texture.Open() || !omx_texture.Decode(&omx_image, omx_image.GetWidth(), omx_image.GetHeight()))
+      if(!omx_image.Decode(omx_image.GetWidth(), omx_image.GetHeight()))
+      //if(!omx_image.Decode(maxWidth, maxHeight))
         return false;
 
-      m_textureWidth  = omx_texture.GetWidth();
-      m_textureHeight = omx_texture.GetHeight();
-      m_imageWidth    = omx_texture.GetWidth();
-      m_imageHeight   = omx_texture.GetHeight();
+      m_textureWidth  = omx_image.GetDecodedWidth();
+      m_textureHeight = omx_image.GetDecodedHeight();
+      m_imageWidth    = omx_image.GetDecodedWidth();
+      m_imageHeight   = omx_image.GetDecodedHeight();
       m_hasAlpha      = omx_image.IsAlpha();
 
       if (originalWidth)
@@ -228,15 +227,16 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
       if(autoRotate)
         m_orientation = omx_image.GetOrientation();
 
-      if(omx_texture.GetData())
+      if(omx_image.GetDecodedData())
       {
-        memcpy(m_pixels, (unsigned char *)omx_texture.GetData(), ( (GetPitch() * GetRows() * 4 ) < omx_texture.GetSize() ) ?
-               GetPitch() * GetRows() * 4 : omx_texture.GetSize());
+        int size = ( (GetPitch() * GetRows() * 4 ) < omx_image.GetDecodedSize() ) ?
+                         GetPitch() * GetRows() * 4 : omx_image.GetDecodedSize();
 
-        SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
+        memcpy(m_pixels, (unsigned char *)omx_image.GetDecodedData(), size);
+
+        omx_image.SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
       }
 
-      omx_texture.Close();
       omx_image.Close();
 
       return true;

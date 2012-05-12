@@ -19,6 +19,11 @@
  *
  */
 
+#include "system.h"
+#if (defined HAVE_CONFIG_H) && (!defined WIN32)
+  #include "config.h"
+#endif
+
 #include "Picture.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/GUISettings.h"
@@ -31,6 +36,9 @@
 #include "DllSwScale.h"
 #include "guilib/JpegIO.h"
 #include "guilib/Texture.h"
+#if defined(HAVE_OMXLIB)
+#include "cores/omxplayer/OMXImage.h"
+#endif
 
 using namespace XFILE;
 
@@ -50,6 +58,10 @@ bool CPicture::CacheImage(const CStdString& sourceUrl, const CStdString& destFil
     CLog::Log(LOGINFO, "Caching image from: %s to %s with width %i and height %i", sourceUrl.c_str(), destFile.c_str(), width, height);
     
     CJpegIO jpegImage;
+#if defined(HAVE_OMXLIB)
+    COMXImage omxImage;
+#endif
+
     DllImageLib dll;
 
     if (URIUtils::IsInternetStream(sourceUrl, true))
@@ -60,6 +72,10 @@ bool CPicture::CacheImage(const CStdString& sourceUrl, const CStdString& destFil
       {
         if (URIUtils::GetExtension(sourceUrl).Equals(".jpg") || URIUtils::GetExtension(sourceUrl).Equals(".tbn"))
         {
+#if defined(HAVE_OMXLIB)
+          if (omxImage.CreateThumbnailFromMemory((unsigned char *)data.c_str(), data.GetLength(), destFile.c_str(), width, height))
+            return true;
+#endif
           if (jpegImage.CreateThumbnailFromMemory((unsigned char *)data.c_str(), data.GetLength(), destFile.c_str(), width, height))
             return true;
         }
@@ -76,6 +92,10 @@ bool CPicture::CacheImage(const CStdString& sourceUrl, const CStdString& destFil
 
     if (URIUtils::GetExtension(sourceUrl).Equals(".jpg") || URIUtils::GetExtension(sourceUrl).Equals(".tbn"))
     {
+#if defined(HAVE_OMXLIB)
+      if (omxImage.CreateThumbnail(sourceUrl, destFile, width, height, g_guiSettings.GetBool("pictures.useexifrotation")))
+        return true;
+#endif
       if (jpegImage.CreateThumbnail(sourceUrl, destFile, width, height, g_guiSettings.GetBool("pictures.useexifrotation")))
         return true;
     }
@@ -113,6 +133,11 @@ bool CPicture::CreateThumbnailFromMemory(const unsigned char* buffer, int bufSiz
   CLog::Log(LOGINFO, "Creating album thumb from memory: %s", thumbFile.c_str());
   if (extension.Equals("jpg") || extension.Equals("tbn"))
   {
+#if defined(HAVE_OMXLIB)
+    COMXImage omxImage;
+    if (omxImage.CreateThumbnailFromMemory((unsigned char*)buffer, bufSize, thumbFile.c_str(), g_advancedSettings.m_thumbSize, g_advancedSettings.m_thumbSize))
+      return true;
+#endif
     CJpegIO jpegImage;
     if (jpegImage.CreateThumbnailFromMemory((unsigned char*)buffer, bufSize, thumbFile.c_str(), g_advancedSettings.m_thumbSize, g_advancedSettings.m_thumbSize))
       return true;
@@ -145,6 +170,11 @@ bool CPicture::CreateThumbnailFromSurface(const unsigned char *buffer, int width
 {
   if (URIUtils::GetExtension(thumbFile).Equals(".jpg"))
   {
+#if defined(HAVE_OMXLIB)
+    COMXImage omxImage;
+    if (omxImage.CreateThumbnailFromSurface((BYTE *)buffer, width, height, XB_FMT_A8R8G8B8, stride, thumbFile.c_str()))
+      return true;
+#endif
     CJpegIO jpegImage;
     if (jpegImage.CreateThumbnailFromSurface((BYTE *)buffer, width, height, XB_FMT_A8R8G8B8, stride, thumbFile.c_str()))
       return true;
@@ -211,6 +241,7 @@ bool CPicture::CacheTexture(uint8_t *pixels, uint32_t width, uint32_t height, ui
 
     dest_width = std::min(width, dest_width);
     dest_height = std::min(height, dest_height);
+
     // create a buffer large enough for the resulting image
     GetScale(width, height, dest_width, dest_height);
     uint32_t *buffer = new uint32_t[dest_width * dest_height];

@@ -27,7 +27,13 @@
 #include <IL/OMX_Video.h>
 
 #include "OMXClock.h"
-#include "xbmc/filesystem/File.h"
+#if defined(STANDALONE)
+#define XB_FMT_A8R8G8B8 1
+#include "File.h"
+#else
+#include "filesystem/File.h"
+#include "guilib/XBTF.h"
+#endif
 
 using namespace XFILE;
 using namespace std;
@@ -40,18 +46,38 @@ public:
 
   // Required overrides
   void Close(void);
-  bool ReadFile(const std::string &inputFile);
+  bool ReadFile(const CStdString& inputFile);
   bool IsProgressive() { return m_progressive; };
   bool IsAlpha() { return m_alpha; };
   int  GetOrientation() { return m_orientation; };
-  OMX_U32 GetOriginalWidth()  { return m_omx_image.nFrameWidth; };
-  OMX_U32 GetOriginalHeight() { return m_omx_image.nFrameHeight; };
-  OMX_U32 GetWidth()  { return m_width; };
-  OMX_U32 GetHeight() { return m_height; };
+  unsigned int GetOriginalWidth()  { return m_omx_image.nFrameWidth; };
+  unsigned int GetOriginalHeight() { return m_omx_image.nFrameHeight; };
+  unsigned int GetWidth()  { return m_width; };
+  unsigned int GetHeight() { return m_height; };
   OMX_IMAGE_CODINGTYPE GetCodingType();
   const uint8_t *GetImageBuffer() { return (const uint8_t *)m_image_buffer; };
   unsigned long GetImageSize() { return m_image_size; };
   OMX_IMAGE_CODINGTYPE GetCompressionFormat() { return m_omx_image.eCompressionFormat; };
+  bool Decode(unsigned width, unsigned height);
+  bool Encode(unsigned char *buffer, int size, unsigned width, unsigned height);
+  int GetDecodedWidth() { return (int)m_decoded_format.format.image.nFrameWidth; };
+  int GetDecodedHeight() { return (int)m_decoded_format.format.image.nFrameHeight; };
+  int GetDecodedStride() { return (int)m_decoded_format.format.image.nStride; };
+  unsigned char *GetDecodedData();
+  unsigned int GetDecodedSize();
+  int GetEncodedWidth() { return (int)m_encoded_format.format.image.nFrameWidth; };
+  int GetEncodedHeight() { return (int)m_encoded_format.format.image.nFrameHeight; };
+  int GetEncodedStride() { return (int)m_encoded_format.format.image.nStride; };
+  unsigned char *GetEncodedData();
+  unsigned int GetEncodedSize();
+  bool SwapBlueRed(unsigned char *pixels, unsigned int height, unsigned int pitch, 
+      unsigned int elements = 4, unsigned int offset=0);
+  bool CreateThumbnail(const CStdString& sourceFile, const CStdString& destFile, 
+      int minx, int miny, bool rotateExif);
+  bool CreateThumbnailFromMemory(unsigned char* buffer, unsigned int bufSize, 
+      const CStdString& destFile, unsigned int minx, unsigned int miny);
+  bool CreateThumbnailFromSurface(unsigned char* buffer, unsigned int width, unsigned int height, 
+      unsigned int format, unsigned int pitch, const CStdString& destFile, bool swap = true);
 protected:
   uint8_t           *m_image_buffer;
   bool              m_is_open;
@@ -62,7 +88,20 @@ protected:
   bool              m_alpha;
   int               m_orientation;
   XFILE::CFile      m_pFile;
-  OMX_IMAGE_PORTDEFINITIONTYPE m_omx_image;
+  OMX_IMAGE_PORTDEFINITIONTYPE  m_omx_image;
+
+  // Components
+  COMXCoreComponent             m_omx_decoder;
+  COMXCoreComponent             m_omx_encoder;
+  COMXCoreComponent             m_omx_resize;
+  COMXCoreTunel                 m_omx_tunnel_decode;
+  OMX_BUFFERHEADERTYPE          *m_decoded_buffer;
+  OMX_BUFFERHEADERTYPE          *m_encoded_buffer;
+  OMX_PARAM_PORTDEFINITIONTYPE  m_decoded_format;
+  OMX_PARAM_PORTDEFINITIONTYPE  m_encoded_format;
+
+  bool                          m_decoder_open;
+  bool                          m_encoder_open;
 };
 
 #endif
