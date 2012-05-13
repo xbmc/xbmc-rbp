@@ -46,6 +46,8 @@ OMXClock::OMXClock()
   m_systemOffset = 0;
   m_systemFrequency = 0;
 
+  CheckSystemClock();
+
   m_systemUsed = m_systemFrequency;
   m_pauseClock = 0;
   m_bReset = true;
@@ -59,8 +61,6 @@ OMXClock::OMXClock()
   m_audio_buffer = false;
 
   pthread_mutex_init(&m_lock, NULL);
-
-  CheckSystemClock();
 }
 
 OMXClock::~OMXClock()

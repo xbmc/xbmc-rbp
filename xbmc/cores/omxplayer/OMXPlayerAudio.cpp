@@ -565,8 +565,8 @@ void OMXPlayerAudio::Process()
       if (pMsgGeneralResync->m_clock)
       {
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_RESYNC(%f, 1)", m_audioClock);
-        m_av_clock->Discontinuity(m_audioClock + (GetDelay() * DVD_TIME_BASE));
-        //m_av_clock->OMXUpdateClock(m_audioClock + (GetDelay() * DVD_TIME_BASE));
+        m_av_clock->Discontinuity(m_audioClock);
+        //m_av_clock->OMXUpdateClock(m_audioClock);
       }
       else
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_RESYNC(%f, 0)", m_audioClock);

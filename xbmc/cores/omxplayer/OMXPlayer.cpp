@@ -935,9 +935,6 @@ void COMXPlayer::Process()
 
     OpenDefaultStreams();
 
-    m_playSpeed = DVD_PLAYSPEED_NORMAL;
-    m_callback.OnPlayBackSpeedChanged(m_playSpeed);
-
     // look for any EDL files
     m_Edl.Clear();
     m_EdlAutoSkipMarkers.Clear();
@@ -989,13 +986,11 @@ void COMXPlayer::Process()
       double startpts = DVD_NOPTS_VALUE;
       if(m_pDemuxer)
       {
-        m_messenger.Put(new CDVDMsgPlayerSeek((int)starttime, true, true, true));
-        /*
+        //m_messenger.Put(new CDVDMsgPlayerSeek((int)starttime, true, true, true));
         if (m_pDemuxer->SeekTime(starttime, false, &startpts))
           CLog::Log(LOGDEBUG, "%s - starting demuxer from: %d", __FUNCTION__, starttime);
         else
           CLog::Log(LOGDEBUG, "%s - failed to start demuxing from: %d", __FUNCTION__, starttime);
-        */
       }
       if(m_pSubtitleDemuxer)
       {
@@ -1641,21 +1636,18 @@ void COMXPlayer::CheckContinuity(COMXCurrentStream& current, DemuxPacket* pPacke
                             , current.type, current.dts, pPacket->dts, pPacket->dts - maxdts);
     correction = pPacket->dts - maxdts;
   }
-  if(current.dts != DVD_NOPTS_VALUE)
-  {
-    /* if it's large scale jump, correct for it */
-    if(pPacket->dts + DVD_MSEC_TO_TIME(100) < current.dts_end())
-    {
-      CLog::Log(LOGDEBUG, "COMXPlayer::CheckContinuity - resync backward :%d, prev:%f, curr:%f, diff:%f"
-                              , current.type, current.dts, pPacket->dts, pPacket->dts - current.dts);
-      correction = pPacket->dts - current.dts_end();
-    }
-    else if(pPacket->dts < current.dts)
-    {
-      CLog::Log(LOGDEBUG, "COMXPlayer::CheckContinuity - wrapback :%d, prev:%f, curr:%f, diff:%f"
-                              , current.type, current.dts, pPacket->dts, pPacket->dts - current.dts);
-    }
 
+  /* if it's large scale jump, correct for it */
+  if(pPacket->dts + DVD_MSEC_TO_TIME(100) < current.dts_end())
+  {
+    CLog::Log(LOGDEBUG, "COMXPlayer::CheckContinuity - resync backward :%d, prev:%f, curr:%f, diff:%f"
+                            , current.type, current.dts, pPacket->dts, pPacket->dts - current.dts);
+    correction = pPacket->dts - current.dts_end();
+  }
+  else if(pPacket->dts < current.dts)
+  {
+    CLog::Log(LOGDEBUG, "COMXPlayer::CheckContinuity - wrapback :%d, prev:%f, curr:%f, diff:%f"
+                            , current.type, current.dts, pPacket->dts, pPacket->dts - current.dts);
   }
 
   if(correction != 0.0)
@@ -2199,6 +2191,8 @@ void COMXPlayer::SetPlaySpeed(int speed)
     return;
 
   m_messenger.Put(new CDVDMsgInt(CDVDMsg::PLAYER_SETSPEED, speed));
+  m_player_audio.SetSpeed(speed);
+  m_player_video.SetSpeed(speed);
   SynchronizeDemuxer(100);
 }
 
@@ -2583,6 +2577,7 @@ int64_t COMXPlayer::GetTime()
     if(offset >  1000) offset =  1000;
     if(offset < -1000) offset = -1000;
   }
+  //printf("COMXPlayer::GetTime %Lf offset %Lf %Lf\n", m_State.time, offset, m_av_clock.GetClock());
   return llrint(m_State.time + DVD_TIME_TO_MSEC(offset));
 }
 
