@@ -201,45 +201,49 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
     }
     else
     {
-      if(!omx_image.Decode(omx_image.GetWidth(), omx_image.GetHeight()))
-      //if(!omx_image.Decode(maxWidth, maxHeight))
-        return false;
-
-      m_textureWidth  = omx_image.GetDecodedWidth();
-      m_textureHeight = omx_image.GetDecodedHeight();
-      m_imageWidth    = omx_image.GetDecodedWidth();
-      m_imageHeight   = omx_image.GetDecodedHeight();
-      m_hasAlpha      = omx_image.IsAlpha();
-
-      if (originalWidth)
-        *originalWidth  = omx_image.GetOriginalWidth();
-      if (originalHeight)
-        *originalHeight = omx_image.GetOriginalHeight();
-
-      Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
-
-      if(!m_pixels)
+      //if(omx_image.Decode(maxWidth, maxHeight))
+      if(omx_image.Decode(omx_image.GetWidth(), omx_image.GetHeight()))
       {
-        CLog::Log(LOGERROR, "Texture manager (OMX) out of memory");
-        return false;
+        m_textureWidth  = omx_image.GetDecodedWidth();
+        m_textureHeight = omx_image.GetDecodedHeight();
+        m_imageWidth    = omx_image.GetDecodedWidth();
+        m_imageHeight   = omx_image.GetDecodedHeight();
+        m_hasAlpha      = omx_image.IsAlpha();
+
+        if (originalWidth)
+          *originalWidth  = omx_image.GetOriginalWidth();
+        if (originalHeight)
+          *originalHeight = omx_image.GetOriginalHeight();
+
+        Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
+
+        if(!m_pixels)
+        {
+          CLog::Log(LOGERROR, "Texture manager (OMX) out of memory");
+          return false;
+        }
+
+        if(autoRotate)
+          m_orientation = omx_image.GetOrientation();
+
+        if(omx_image.GetDecodedData())
+        {
+          int size = ( (GetPitch() * GetRows() * 4 ) < omx_image.GetDecodedSize() ) ?
+                           GetPitch() * GetRows() * 4 : omx_image.GetDecodedSize();
+
+          memcpy(m_pixels, (unsigned char *)omx_image.GetDecodedData(), size);
+  
+          omx_image.SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
+        }
+
+        omx_image.Close();
+
+        return true;
       }
-
-      if(autoRotate)
-        m_orientation = omx_image.GetOrientation();
-
-      if(omx_image.GetDecodedData())
+      else
       {
-        int size = ( (GetPitch() * GetRows() * 4 ) < omx_image.GetDecodedSize() ) ?
-                         GetPitch() * GetRows() * 4 : omx_image.GetDecodedSize();
-
-        memcpy(m_pixels, (unsigned char *)omx_image.GetDecodedData(), size);
-
-        omx_image.SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
+        omx_image.Close();
       }
-
-      omx_image.Close();
-
-      return true;
     }
   }
 #endif
