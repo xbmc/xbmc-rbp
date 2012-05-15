@@ -461,7 +461,6 @@ bool COMXImage::ReadFile(const CStdString& inputFile)
   if(!m_image_buffer)
     return false;
   
-  memset(m_image_buffer, 0x0, m_image_size);
   m_pFile.Read(m_image_buffer, m_image_size);
 
   GetCodingType();
@@ -973,14 +972,17 @@ bool COMXImage::CreateThumbnail(const CStdString& sourceFile, const CStdString& 
 bool COMXImage::CreateThumbnailFromMemory(unsigned char* buffer, unsigned int bufSize, const CStdString& destFile, 
     unsigned int minx, unsigned int miny)
 {
+  if(!bufSize || !buffer)
+    return false;
+
   if(!m_is_open)
   {
-    m_image_buffer = (uint8_t *)malloc(bufSize);
+    m_image_size = bufSize;
+    m_image_buffer = (uint8_t *)malloc(m_image_size);
     if(!m_image_buffer)
       return false;
 
-    m_image_size = bufSize;
-    memcpy(m_image_buffer, buffer, bufSize);
+    memcpy(m_image_buffer, buffer, m_image_size);
 
     GetCodingType();
 
@@ -1003,56 +1005,53 @@ bool COMXImage::CreateThumbnailFromMemory(unsigned char* buffer, unsigned int bu
   if(!Decode(minx, miny))
     return false;
 
-  unsigned int pitch = GetDecodedWidth() * 4;
-
-  return CreateThumbnailFromSurface(m_image_buffer, GetDecodedWidth(), GetDecodedWidth(), 
-      XB_FMT_A8R8G8B8, pitch, destFile, false);
+  return CreateThumbnailFromSurface(GetDecodedData(), GetDecodedWidth(), GetDecodedHeight(), 
+      XB_FMT_A8R8G8B8, GetDecodedWidth() * 4, destFile, false);
 }
 
 bool COMXImage::CreateThumbnailFromSurface(unsigned char* buffer, unsigned int width, unsigned int height, 
     unsigned int format, unsigned int pitch, const CStdString& destFile, bool swap)
 {
-  if(format != XB_FMT_A8R8G8B8)
+  if(format != XB_FMT_A8R8G8B8 || !buffer)
     return false;
 
-  bool bFree = false;
-  unsigned char *dstBuffer = buffer;
-  int new_width = width;
-  int new_height = height;
-  int new_pitch = pitch;
-  int size = height * pitch;
+  if(swap)
+    SwapBlueRed(buffer, height, pitch);
 
   // the omx encoder needs alligned sizes
-  if((((width + 15)&~15) > width) || (((height + 15)&~15) > height))
+  if(width%16 || height%16)
   {
-    new_width = (width + 15)&~15;
-    new_height = (height + 15)&~15;
-    new_pitch = new_width * 4;
+    unsigned int new_width = (width + 15)&~15;
+    unsigned int new_height = (height + 15)&~15;
+    unsigned int new_pitch = new_width * 4;
 
-    unsigned char *src = buffer;
-    size = new_height * new_pitch;
-    dstBuffer = (unsigned char *)malloc(size);
+    unsigned int size = new_height * new_pitch;
+    unsigned char *dstBuffer = (unsigned char *)malloc(size);
     unsigned char *dst = dstBuffer;
+    unsigned char *src = buffer;
+
+    if(!dstBuffer)
+      return false;
 
     memset(dst, 0x0, size);
 
-    for(int y = 0; y < height; y++)
+    for(unsigned int y = 0; y < height; y++)
     {
       memcpy(dst, src, pitch);
       src += pitch;
       dst += new_pitch;
     }
-    bFree = true;
-  }
-
-  if(swap)
-    SwapBlueRed(dstBuffer, new_height, new_pitch);
-
-  if(!Encode(dstBuffer, size, new_width, new_height))
-  {
-    if(bFree)
+    if(!Encode(dstBuffer, size, new_width, new_height))
+    {
       free(dstBuffer);
-    return false;
+      return false;
+    }
+    free(dstBuffer);
+  }
+  else
+  {
+    if(!Encode(buffer, height * pitch, width, height))
+      return false;
   }
 
   XFILE::CFile file;
@@ -1062,12 +1061,8 @@ bool COMXImage::CreateThumbnailFromSurface(unsigned char* buffer, unsigned int w
 
     file.Write(GetEncodedData(), GetEncodedSize());
     file.Close();
-    if(bFree)
-      free(dstBuffer);
     return true;
   }
 
-  if(bFree)
-    free(dstBuffer);
   return false;
 }
