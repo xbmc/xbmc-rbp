@@ -1672,11 +1672,10 @@ CUPnPRenderer::UpdateState()
     int volume;
     if (g_settings.m_bMute) {
         rct->SetStateVariable("Mute", "1");
-        volume = g_settings.m_iPreMuteVolumeLevel;
     } else {
         rct->SetStateVariable("Mute", "0");
-        volume = g_application.GetVolume();
     }
+    volume = g_application.GetVolume();
 
     buffer.Format("%d", volume);
     rct->SetStateVariable("Volume", buffer.c_str());
@@ -1991,7 +1990,7 @@ CUPnPRenderer::OnSetVolume(PLT_ActionReference& action)
 {
     NPT_String volume;
     NPT_CHECK_SEVERE(action->GetArgumentValue("DesiredVolume", volume));
-    g_application.SetVolume(atoi((const char*)volume));
+    g_application.SetVolume((float)strtod((const char*)volume, NULL));
     return NPT_SUCCESS;
 }
 
@@ -2420,7 +2419,7 @@ int CUPnP::PopulateTagFromObject(CVideoInfoTag&         tag,
         int episode;
         int season;
         int title = object.m_Recorded.program_title.Find(" : ");
-        if(sscanf(object.m_Recorded.program_title, "S%2dE%2d", &episode, &season) == 2 && title >= 0) {
+        if(sscanf(object.m_Recorded.program_title, "S%2dE%2d", &season, &episode) == 2 && title >= 0) {
             tag.m_strTitle = object.m_Recorded.program_title.SubString(title + 3);
             tag.m_iEpisode = episode;
             tag.m_iSeason  = season;

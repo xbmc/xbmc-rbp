@@ -79,16 +79,6 @@
    (field_pic_flag: 1 would indicate a normal interlaced frame).
 */
 
-// missing in 10.4 SDK
-#if (MAC_OS_X_VERSION_MAX_ALLOWED < 1050)
-#include "dlfcn.h"
-enum {
-  // component Y'CbCr 8-bit 4:2:2, ordered Cb Y'0 Cr Y'1 .
-  kCVPixelFormatType_422YpCbCr8 = FourCharCode('2vuy'),
-  kCVPixelFormatType_32BGRA = FourCharCode('BGRA')
-};
-const CFStringRef kCVPixelBufferIOSurfacePropertiesKey = CFSTR("IOSurfaceProperties");
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // http://developer.apple.com/mac/library/technotes/tn2010/tn2267.html
@@ -1057,7 +1047,8 @@ void CDVDVideoCodecVDA::VDADecoderCallback(
     return;
   }
   OSType format_type = CVPixelBufferGetPixelFormatType(imageBuffer);
-  if ((format_type != kCVPixelFormatType_422YpCbCr8) && (format_type != kCVPixelFormatType_32BGRA) )
+  if ((format_type != kCVPixelFormatType_422YpCbCr8) &&
+      (format_type != kCVPixelFormatType_32BGRA) )
   {
     CLog::Log(LOGERROR, "%s - imageBuffer format is not '2vuy' or 'BGRA',is reporting 0x%x",
       __FUNCTION__, (unsigned int)format_type);

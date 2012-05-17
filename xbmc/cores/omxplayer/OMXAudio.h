@@ -27,7 +27,8 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include "../AudioRenderers/IAudioRenderer.h"
+#include "cores/AudioEngine/AEAudioFormat.h"
+#include "cores/AudioEngine/Utils/AEUtil.h"
 #include "cores/IAudioCallback.h"
 #include "linux/PlatformDefs.h"
 #include "DllAvCodec.h"
@@ -40,7 +41,13 @@
 #define AUDIO_BUFFER_SECONDS 2
 #define VIS_PACKET_SIZE 3840
 
-class COMXAudio : public IAudioRenderer
+#define OMX_IS_RAW(x)       \
+(                           \
+  (x) == AE_FMT_AC3   ||    \
+  (x) == AE_FMT_DTS         \
+)
+
+class COMXAudio
 {
 public:
   void UnRegisterAudioCallback();
@@ -50,9 +57,8 @@ public:
   float GetCacheTime();
   float GetCacheTotal();
   COMXAudio();
-  bool Initialize(IAudioCallback* pCallback, const CStdString& device, enum PCMChannels *channelMap,
-                           CDVDStreamInfo &hints, OMXClock *clock, EEncoded bPassthrough, bool bUseHWDecode);
-  bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, EEncoded bPassthrough = IAudioRenderer::ENCODED_NONE);
+  bool Initialize(AEAudioFormat format, std::string& device, OMXClock *clock, CDVDStreamInfo &hints, bool bUseHWDecode);
+  bool Initialize(AEAudioFormat format, std::string& device);
   ~COMXAudio();
 
   unsigned int AddPackets(const void* data, unsigned int len);
@@ -73,7 +79,6 @@ public:
 
   void Flush();
   void DoAudioWork();
-  static void EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool passthrough);
 
   void Process();
 
@@ -83,7 +88,7 @@ public:
   static bool HWDecode(CodecID codec);
 
   void PrintChannels(OMX_AUDIO_CHANNELTYPE eChannelMapping[]);
-  void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm);
+  void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm, std::string direction);
   void PrintDDP(OMX_AUDIO_PARAM_DDPTYPE *ddparm);
   void PrintDTS(OMX_AUDIO_PARAM_DTSTYPE *dtsparam);
   unsigned int SyncDTS(BYTE* pData, unsigned int iSize);
@@ -101,13 +106,11 @@ private:
   unsigned int  m_BytesPerSec;
   unsigned int  m_BufferLen;
   unsigned int  m_ChunkLen;
-  unsigned int  m_InputChannels;
   unsigned int  m_OutputChannels;
   unsigned int  m_BitsPerSample;
   COMXCoreComponent *m_omx_clock;
   OMXClock       *m_av_clock;
   bool          m_external_clock;
-  int           m_SampleSize;
   bool          m_first_frame;
   bool          m_LostSync;
   int           m_SampleRate;
@@ -122,7 +125,7 @@ private:
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_input;
   OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;
   WAVEFORMATEXTENSIBLE        m_wave_header;
-  unsigned int  m_uiSamplesPerSec;
+  AEAudioFormat m_format;
 protected:
   COMXCoreComponent m_omx_render;
   COMXCoreComponent m_omx_mixer;
@@ -134,6 +137,10 @@ protected:
 
   OMX_AUDIO_CHANNELTYPE m_input_channels[OMX_AUDIO_MAXCHANNELS];
   OMX_AUDIO_CHANNELTYPE m_output_channels[OMX_AUDIO_MAXCHANNELS];
+
+  CAEChannelInfo    m_channelLayout;
+
+  CAEChannelInfo    GetChannelLayout(AEAudioFormat format);
 };
 #endif
 

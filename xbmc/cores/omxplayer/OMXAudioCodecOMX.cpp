@@ -38,7 +38,6 @@ COMXAudioCodecOMX::COMXAudioCodecOMX()
   m_pConvert = NULL;
   m_bOpenedCodec = false;
 
-  m_channelMap[0] = PCM_INVALID;
   m_channels = 0;
   m_layout = 0;
   m_pFrame1 = NULL;
@@ -317,42 +316,37 @@ void COMXAudioCodecOMX::BuildChannelMap()
     layout = m_dllAvUtil.av_get_default_channel_layout(m_pCodecContext->channels);
   }
 
-  int index = 0;
-  if (layout & AV_CH_FRONT_LEFT           ) m_channelMap[index++] = PCM_FRONT_LEFT           ;
-  if (layout & AV_CH_FRONT_RIGHT          ) m_channelMap[index++] = PCM_FRONT_RIGHT          ;
-  if (layout & AV_CH_FRONT_CENTER         ) m_channelMap[index++] = PCM_FRONT_CENTER         ;
-  if (layout & AV_CH_LOW_FREQUENCY        ) m_channelMap[index++] = PCM_LOW_FREQUENCY        ;
-  if (layout & AV_CH_BACK_LEFT            ) m_channelMap[index++] = PCM_BACK_LEFT            ;
-  if (layout & AV_CH_BACK_RIGHT           ) m_channelMap[index++] = PCM_BACK_RIGHT           ;
-  if (layout & AV_CH_FRONT_LEFT_OF_CENTER ) m_channelMap[index++] = PCM_FRONT_LEFT_OF_CENTER ;
-  if (layout & AV_CH_FRONT_RIGHT_OF_CENTER) m_channelMap[index++] = PCM_FRONT_RIGHT_OF_CENTER;
-  if (layout & AV_CH_BACK_CENTER          ) m_channelMap[index++] = PCM_BACK_CENTER          ;
-  if (layout & AV_CH_SIDE_LEFT            ) m_channelMap[index++] = PCM_SIDE_LEFT            ;
-  if (layout & AV_CH_SIDE_RIGHT           ) m_channelMap[index++] = PCM_SIDE_RIGHT           ;
-  if (layout & AV_CH_TOP_CENTER           ) m_channelMap[index++] = PCM_TOP_CENTER           ;
-  if (layout & AV_CH_TOP_FRONT_LEFT       ) m_channelMap[index++] = PCM_TOP_FRONT_LEFT       ;
-  if (layout & AV_CH_TOP_FRONT_CENTER     ) m_channelMap[index++] = PCM_TOP_FRONT_CENTER     ;
-  if (layout & AV_CH_TOP_FRONT_RIGHT      ) m_channelMap[index++] = PCM_TOP_FRONT_RIGHT      ;
-  if (layout & AV_CH_TOP_BACK_LEFT        ) m_channelMap[index++] = PCM_TOP_BACK_LEFT        ;
-  if (layout & AV_CH_TOP_BACK_CENTER      ) m_channelMap[index++] = PCM_TOP_BACK_CENTER      ;
-  if (layout & AV_CH_TOP_BACK_RIGHT       ) m_channelMap[index++] = PCM_TOP_BACK_RIGHT       ;
+  m_channelLayout.Reset();
+
+  if (layout & AV_CH_FRONT_LEFT           ) m_channelLayout += AE_CH_FL  ;
+  if (layout & AV_CH_FRONT_RIGHT          ) m_channelLayout += AE_CH_FR  ;
+  if (layout & AV_CH_FRONT_CENTER         ) m_channelLayout += AE_CH_FC  ;
+  if (layout & AV_CH_LOW_FREQUENCY        ) m_channelLayout += AE_CH_LFE ;
+  if (layout & AV_CH_BACK_LEFT            ) m_channelLayout += AE_CH_BL  ;
+  if (layout & AV_CH_BACK_RIGHT           ) m_channelLayout += AE_CH_BR  ;
+  if (layout & AV_CH_FRONT_LEFT_OF_CENTER ) m_channelLayout += AE_CH_FLOC;
+  if (layout & AV_CH_FRONT_RIGHT_OF_CENTER) m_channelLayout += AE_CH_FROC;
+  if (layout & AV_CH_BACK_CENTER          ) m_channelLayout += AE_CH_BC  ;
+  if (layout & AV_CH_SIDE_LEFT            ) m_channelLayout += AE_CH_SL  ;
+  if (layout & AV_CH_SIDE_RIGHT           ) m_channelLayout += AE_CH_SR  ;
+  if (layout & AV_CH_TOP_CENTER           ) m_channelLayout += AE_CH_TC  ;
+  if (layout & AV_CH_TOP_FRONT_LEFT       ) m_channelLayout += AE_CH_TFL ;
+  if (layout & AV_CH_TOP_FRONT_CENTER     ) m_channelLayout += AE_CH_TFC ;
+  if (layout & AV_CH_TOP_FRONT_RIGHT      ) m_channelLayout += AE_CH_TFR ;
+  if (layout & AV_CH_TOP_BACK_LEFT        ) m_channelLayout += AE_CH_BL  ;
+  if (layout & AV_CH_TOP_BACK_CENTER      ) m_channelLayout += AE_CH_BC  ;
+  if (layout & AV_CH_TOP_BACK_RIGHT       ) m_channelLayout += AE_CH_BR  ;
 
   //terminate the channel map
-  m_channelMap[index] = PCM_INVALID;
   if(m_pCodecContext->channels == 6)
   {
-    m_channelMap[6] = PCM_INVALID;
-    m_channelMap[7] = PCM_INVALID;
-    m_channelMap[8] = PCM_INVALID;
+    m_channelLayout += AE_CH_RAW;
+    m_channelLayout += AE_CH_RAW;
   }
 }
 
-enum PCMChannels* COMXAudioCodecOMX::GetChannelMap()
+CAEChannelInfo COMXAudioCodecOMX::GetChannelMap()
 {
   BuildChannelMap();
-
-  if (m_channelMap[0] == PCM_INVALID)
-    return NULL;
-
-  return m_channelMap;
+  return m_channelLayout;
 }

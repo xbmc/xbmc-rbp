@@ -24,8 +24,6 @@
 
 #include "utils/StdString.h"
 
-#include "utils/PCMRemap.h"
-
 #include "OMXClock.h"
 #include "DVDStreamInfo.h"
 #include "OMXAudio.h"
@@ -56,9 +54,9 @@ protected:
   std::string               m_device;
   bool                      m_use_passthrough;
   bool                      m_use_hw_decode;
-  IAudioRenderer::EEncoded  m_passthrough;
+  AEAudioFormat             m_format;
   bool                      m_hw_decode;
-  enum PCMChannels          *m_pChannelMap;
+  CAEChannelInfo            m_channelLayout;
   COMXAudioCodecOMX         *m_pAudioCodec;
   int                       m_speed;
   bool                      m_silence;
@@ -113,7 +111,7 @@ public:
   bool Decode(DemuxPacket *pkt, bool bDropPacket);
   void Flush();
   bool AddPacket(DemuxPacket *pkt);
-  IAudioRenderer::EEncoded IsPassthrough(CDVDStreamInfo hints);
+  AEDataFormat GetDataFormat(CDVDStreamInfo hints);
   bool Passthrough() const;
   bool OpenDecoder();
   void CloseDecoder();

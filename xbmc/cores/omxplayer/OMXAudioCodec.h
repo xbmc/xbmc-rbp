@@ -22,7 +22,6 @@
  */
 
 #include "system.h"
-#include "utils/PCMRemap.h"
 
 #if (defined HAVE_CONFIG_H) && (!defined WIN32)
   #include "config.h"

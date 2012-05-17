@@ -24,7 +24,11 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
-#include <stdio.h>
+
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
+
 /*! \brief Math utility class.
  Note that the test() routine should return true for all implementations
 
@@ -52,8 +56,11 @@ namespace MathUtils
     assert(x < static_cast <double>(INT_MAX / 2) + 1.0);
     const float round_to_nearest = 0.5f;
     int i;
-    
-#ifndef _LINUX
+
+#if defined(__SSE2__)
+        const float round_dn_to_nearest = 0.4999999f;
+        i = (x > 0) ? _mm_cvttsd_si32(_mm_set_sd(x + round_to_nearest)) : _mm_cvttsd_si32(_mm_set_sd(x - round_dn_to_nearest));
+#elif !defined(_LINUX)    
     __asm
     {
       fld x
@@ -63,7 +70,7 @@ namespace MathUtils
       sar i, 1
     }
 #else
-#if defined(__powerpc__) || defined(__ppc__) || defined(__ARM_PCS_VFP) || defined(TARGET_RASPBERRY_PI)
+#if defined(__powerpc__) || defined(__ppc__) || defined(__ARM_PCS_VFP) || defined(TARGET_DARWIN) || defined(TARGET_RASPBERRY_PI)
     i = floor(x + round_to_nearest);
 #elif defined(__arm__)
     // From 'ARM®v7-M Architecture Reference Manual' page A7-569:
@@ -128,7 +135,7 @@ namespace MathUtils
     assert(x > static_cast<double>(INT_MIN / 2) - 1.0);
     assert(x < static_cast <double>(INT_MAX / 2) + 1.0);
 
-#if !defined(__powerpc__) && !defined(__ppc__) && !defined(__arm__)
+#if !defined(__powerpc__) && !defined(__ppc__) && !defined(__arm__) && !defined(TARGET_DARWIN)
     const float round_towards_m_i = -0.5f;
 #endif
     int i;
@@ -144,18 +151,15 @@ namespace MathUtils
       sar i, 1
     }
 #else
-#if defined(__powerpc__) || defined(__ppc__)
+#if defined(__powerpc__) || defined(__ppc__) || defined(TARGET_DARWIN) || defined(TARGET_RASPBERRY_PI)
     return (int)x;
 #elif defined(__arm__)
-/*
     __asm__ __volatile__ (
                           "vcvt.S32.F64 %[result],%P[value]   \n\t" // Truncate(round towards zero) and store the result
                           : [result] "=w"(i)                        // Outputs
                           : [value] "w"(x)                          // Inputs
                           );
     return i;
-*/
-    return (int)x;
 #else
     __asm__ __volatile__ (
                           "fadd %%st\n\t"

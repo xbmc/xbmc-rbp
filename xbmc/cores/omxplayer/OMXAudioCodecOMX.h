@@ -21,12 +21,12 @@
  *
  */
 
+#include "cores/AudioEngine/AEAudioFormat.h"
 #include "DllAvCodec.h"
 #include "DllAvFormat.h"
 #include "DllAvUtil.h"
 
 #include "DVDStreamInfo.h"
-#include "utils/PCMRemap.h"
 #include "linux/PlatformDefs.h"
 
 class COMXAudioCodecOMX
@@ -40,7 +40,7 @@ public:
   int GetData(BYTE** dst);
   void Reset();
   int GetChannels();
-  enum PCMChannels *GetChannelMap();
+  virtual CAEChannelInfo GetChannelMap();
   int GetSampleRate();
   int GetBitsPerSample();
   const char* GetName() { return "FFmpeg"; }
@@ -51,7 +51,7 @@ protected:
   AVCodecContext* m_pCodecContext;
   AVAudioConvert* m_pConvert;;
   enum AVSampleFormat m_iSampleFormat;
-  enum PCMChannels m_channelMap[PCM_MAX_CH + 1];
+  CAEChannelInfo      m_channelLayout;
 
   AVFrame* m_pFrame1;
   int   m_iBufferSize1;

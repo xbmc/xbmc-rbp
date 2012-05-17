@@ -117,6 +117,7 @@ bool CGUIDialogVideoInfo::OnMessage(CGUIMessage& message)
       else
         CONTROL_DISABLE(CONTROL_BTN_GET_FANART);
 
+      Update();
       return true;
     }
     break;
@@ -255,7 +256,7 @@ void CGUIDialogVideoInfo::SetMovie(const CFileItem *item)
       CFileItemPtr item(new CFileItem(it->strName));
       if (!it->thumb.IsEmpty())
         item->SetThumbnailImage(it->thumb);
-      else
+      else if (g_guiSettings.GetBool("videolibrary.actorthumbs"))
       { // backward compatibility
         CStdString thumb = CScraperUrl::GetThumbURL(it->thumbUrl.GetFirstThumb());
         if (!thumb.IsEmpty())

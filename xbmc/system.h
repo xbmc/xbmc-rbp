@@ -130,7 +130,6 @@
   #if defined(TARGET_DARWIN_OSX)
     #define HAS_GL
     #define HAS_SDL
-    #define HAS_SDL_AUDIO
     #define HAS_SDL_OPENGL
     #define HAS_SDL_WIN_EVENTS
   #endif
@@ -142,47 +141,39 @@
  * Linux Specific
  *****************/
 
-#if defined(TARGET_LINUX)
-
+#if defined(TARGET_LINUX) || defined(TARGET_FREEBSD)
 #if defined(HAVE_LIBAVAHI_COMMON) && defined(HAVE_LIBAVAHI_CLIENT)
 #define HAS_ZEROCONF
 #define HAS_AVAHI
 #endif
 #define HAS_LCD
-
 #ifdef HAVE_DBUS
 #define HAS_DBUS
 #endif
-
 #define HAS_GL
 #ifdef HAVE_X11
 #define HAS_GLX
 #endif
-
 #ifdef HAVE_SDL
 #define HAS_SDL
 #ifndef HAS_SDL_OPENGL
 #define HAS_SDL_OPENGL
-#define HAS_SDL_AUDIO
-#define HAS_SDL_WIN_EVENTS
 #endif
+#define HAS_SDL_WIN_EVENTS
 #else
 #define HAS_LINUX_EVENTS
 #endif
-
 #define HAS_LINUX_NETWORK
 #define HAS_LIRC
-
 #ifdef HAVE_LIBPULSE
 #define HAS_PULSEAUDIO
 #endif
-
 #ifdef HAVE_LIBXRANDR
 #define HAS_XRANDR
 #endif
-
-#define HAS_AIRPLAY
-
+#ifdef HAVE_ALSA
+#define HAS_ALSA
+#endif
 #endif
 
 #ifdef HAVE_LIBSSH
