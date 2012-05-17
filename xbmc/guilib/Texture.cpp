@@ -191,15 +191,7 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
   {
     COMXImage omx_image;
 
-    if(!omx_image.ReadFile(texturePath) || omx_image.IsProgressive() || 
-        (omx_image.GetCompressionFormat() == OMX_IMAGE_CodingMax))
-    {
-      /* progressive images can't be hw decoded */
-      CLog::Log(LOGERROR, "Texture manager (OMX) unable to hw decode file : %s (%dx%d) progressive=%d", 
-          texturePath.c_str(), (int)omx_image.GetWidth(), (int)omx_image.GetHeight(), 
-          omx_image.IsProgressive());
-    }
-    else
+    if(omx_image.ReadFile(texturePath))
     {
       //if(omx_image.Decode(maxWidth, maxHeight))
       if(omx_image.Decode(omx_image.GetWidth(), omx_image.GetHeight()))
@@ -220,6 +212,7 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
         if(!m_pixels)
         {
           CLog::Log(LOGERROR, "Texture manager (OMX) out of memory");
+          omx_image.Close();
           return false;
         }
 

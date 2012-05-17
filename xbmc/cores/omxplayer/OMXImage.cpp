@@ -446,7 +446,10 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
 bool COMXImage::ReadFile(const CStdString& inputFile)
 {
   if(!m_pFile.Open(inputFile, 0))
+  {
+    CLog::Log(LOGERROR, "%s::%s %s not found\n", CLASSNAME, __func__, inputFile.c_str());
     return false;
+  }
 
   if(m_image_buffer)
     free(m_image_buffer);
@@ -503,6 +506,12 @@ bool COMXImage::Decode(unsigned width, unsigned height)
   if(GetCompressionFormat() == OMX_IMAGE_CodingMax)
   {
     CLog::Log(LOGERROR, "%s::%s error unsupported image format\n", CLASSNAME, __func__);
+    return false;
+  }
+
+  if(IsProgressive())
+  {
+    CLog::Log(LOGWARNING, "%s::%s progressive images not supported by decoder\n", CLASSNAME, __func__);
     return false;
   }
 
