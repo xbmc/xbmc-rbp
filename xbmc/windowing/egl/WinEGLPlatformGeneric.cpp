@@ -19,6 +19,8 @@
  *
  */
 
+#include "system.h"
+
 #ifdef HAS_EGL
 
 #include "system_gl.h"
