@@ -5172,6 +5172,10 @@ void CApplication::SetHardwareVolume(float hardwareVolume)
     value = 1.0f;
 
   CAEFactory::AE->SetVolume(value);
+
+  /* for platforms where we do not have AE */
+  if (m_pPlayer)
+    m_pPlayer->SetVolume(g_settings.m_fVolumeLevel);
 }
 
 int CApplication::GetVolume() const
