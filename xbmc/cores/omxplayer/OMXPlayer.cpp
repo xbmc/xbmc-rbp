@@ -22,6 +22,8 @@
 #include "system.h"
 
 #if defined (HAVE_OMXPLAYER)
+#include "OMXPlayerAudio.h"
+#include "OMXPlayerVideo.h"
 #include "OMXPlayer.h"
 #include "Application.h"
 #include "FileItem.h"

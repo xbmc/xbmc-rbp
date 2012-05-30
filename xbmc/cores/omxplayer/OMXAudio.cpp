@@ -103,15 +103,20 @@ COMXAudio::COMXAudio() :
   m_eEncoding       (OMX_AUDIO_CodingPCM),
   m_extradata       (NULL   ),
   m_extrasize       (0      ),
-  m_visBufferSamples (0      ),
   m_last_pts        (DVD_NOPTS_VALUE)
 {
+  m_vizBufferSize   = m_vizRemapBufferSize = 4096;
+  m_vizRemapBuffer  = (uint8_t *)_aligned_malloc(m_vizRemapBufferSize,16);
+  m_vizBuffer       = (uint8_t *)_aligned_malloc(m_vizBufferSize,16);
 }
 
 COMXAudio::~COMXAudio()
 {
   if(m_Initialized)
     Deinitialize();
+
+  _aligned_free(m_vizRemapBuffer);
+  _aligned_free(m_vizBuffer);
 }
 
 
@@ -280,6 +285,8 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
         }
       }
     }
+
+    m_vizRemap.Initialize(m_format.m_channelLayout, CAEChannelInfo(AE_CH_LAYOUT_2_0), false, true);
   }
 
   OMX_INIT_STRUCTURE(m_pcm_output);
@@ -757,22 +764,37 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
     return len;
   }
 
-  m_visBufferSamples = 0;
+  m_vizBufferSamples = 0;
 
-  if (!m_Passthrough && m_pCallback)
+  if (!m_Passthrough && m_pCallback && len)
   {
-    // TODO: remap vis data
-    m_visBufferSamples = std::min(len / (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3), 
-                                  (unsigned int)(VIS_PACKET_SIZE/(CAEUtil::DataFormatToBits(AE_FMT_FLOAT) >> 3)));
-    if(m_visBufferSamples > 512)
-      m_visBufferSamples = 512;
-
+    /* unput samples */
+    m_vizBufferSamples = len / (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3);
     CAEConvert::AEConvertToFn m_convertFn = CAEConvert::ToFloat(AE_FMT_S16LE);
+    /* input frames */
+    unsigned int frames = m_vizBufferSamples / m_format.m_channelLayout.Count();
 
-    m_convertFn((uint8_t *)data, m_visBufferSamples, m_visBuffer);
+    /* check convert buffer */
+    CheckOutputBufferSize((void **)&m_vizBuffer, &m_vizBufferSize, m_vizBufferSamples * (CAEUtil::DataFormatToBits(AE_FMT_FLOAT) >> 3));
+
+    /* convert to float */
+    m_convertFn((uint8_t *)data, m_vizBufferSamples, (float *)m_vizBuffer);
+
+    /* check remap buffer */
+    CheckOutputBufferSize((void **)&m_vizRemapBuffer, &m_vizRemapBufferSize, frames * 2 * (CAEUtil::DataFormatToBits(AE_FMT_FLOAT) >> 3));
+
+    /* remap */
+    m_vizRemap.Remap((float *)m_vizBuffer, (float*)m_vizRemapBuffer, frames);
+
+    /* output samples */
+    m_vizBufferSamples = m_vizBufferSamples / m_format.m_channelLayout.Count() * 2;
+
+    /* viz size is limited */
+    if(m_vizBufferSamples > VIS_PACKET_SIZE)
+      m_vizBufferSamples = VIS_PACKET_SIZE;
 
     if(m_pCallback)
-      m_pCallback->OnAudioData(m_visBuffer, m_visBufferSamples);
+      m_pCallback->OnAudioData((float *)m_vizRemapBuffer, m_vizBufferSamples);
   }
 
   if(m_eEncoding == OMX_AUDIO_CodingDTS && m_LostSync && m_Passthrough)
@@ -1080,10 +1102,10 @@ void COMXAudio::UnRegisterAudioCallback()
 
 void COMXAudio::DoAudioWork()
 {
-  if (m_pCallback && m_visBufferSamples)
+  if (m_pCallback && m_vizBufferSamples)
   {
-    m_pCallback->OnAudioData((float*)m_visBuffer, m_visBufferSamples);
-    m_visBufferSamples = 0;
+    m_pCallback->OnAudioData((float*)m_vizBuffer, m_vizBufferSamples);
+    m_vizBufferSamples = 0;
   }
 }
 
@@ -1490,5 +1512,17 @@ unsigned int COMXAudio::SyncAC3(BYTE* pData, unsigned int iSize)
   /* if we get here, the entire packet is invalid and we have lost sync */
   m_LostSync = true;
   return iSize;
+}
+
+void COMXAudio::CheckOutputBufferSize(void **buffer, int *oldSize, int newSize)
+{
+  if (newSize > *oldSize)
+  {
+    if (*buffer)
+      _aligned_free(*buffer);
+    *buffer = _aligned_malloc(newSize, 16);
+    *oldSize = newSize;
+  }
+  memset(*buffer, 0x0, *oldSize);
 }
 

@@ -29,6 +29,7 @@
 
 #include "cores/AudioEngine/AEAudioFormat.h"
 #include "cores/AudioEngine/Utils/AEUtil.h"
+#include "cores/AudioEngine/Utils/AERemap.h"
 #include "cores/IAudioCallback.h"
 #include "linux/PlatformDefs.h"
 #include "DllAvCodec.h"
@@ -39,13 +40,15 @@
 #include "BitstreamConverter.h"
 
 #define AUDIO_BUFFER_SECONDS 2
-#define VIS_PACKET_SIZE 3840
+#define VIS_PACKET_SIZE 512
 
 #define OMX_IS_RAW(x)       \
 (                           \
   (x) == AE_FMT_AC3   ||    \
   (x) == AE_FMT_DTS         \
 )
+
+class CAERemap;
 
 class COMXAudio
 {
@@ -118,9 +121,14 @@ private:
   uint8_t       *m_extradata;
   int           m_extrasize;
   // stuff for visualisation
-  unsigned int  m_visBufferSamples;
+  unsigned int  m_vizBufferSamples;
   double        m_last_pts;
-  float         m_visBuffer[VIS_PACKET_SIZE+4];
+  int           m_vizBufferSize;
+  uint8_t       *m_vizBuffer;
+  int           m_vizRemapBufferSize;
+  uint8_t       *m_vizRemapBuffer;
+  CAERemap      m_vizRemap;
+
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_output;
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_input;
   OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;
@@ -141,6 +149,8 @@ protected:
   CAEChannelInfo    m_channelLayout;
 
   CAEChannelInfo    GetChannelLayout(AEAudioFormat format);
+
+  void CheckOutputBufferSize(void **buffer, int *oldSize, int newSize);
 };
 #endif
 

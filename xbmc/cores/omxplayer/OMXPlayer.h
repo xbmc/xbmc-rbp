@@ -70,6 +70,8 @@
 #define DVDSTATE_SEEK             0x00000004 // we are finishing a seek request
 
 class COMXPlayer;
+class OMXPlayerVideo;
+class OMXPlayerAudio;
 
 class COMXCurrentStream
 {
