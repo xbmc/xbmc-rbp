@@ -5166,8 +5166,10 @@ void CApplication::SetHardwareVolume(float hardwareVolume)
 
   float value = 0.0f;
   if (hardwareVolume > VOLUME_MINIMUM)
-    value = CAEUtil::LinToLog(VOLUME_DYNAMIC_RANGE, hardwareVolume);
-
+  {
+    float dB = CAEUtil::PercentToGain(hardwareVolume);
+    value = CAEUtil::GainToScale(dB);
+  }
   if (value >= 0.99f)
     value = 1.0f;
 
