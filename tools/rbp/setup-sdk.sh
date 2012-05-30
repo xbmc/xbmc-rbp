@@ -38,4 +38,4 @@ echo "RETRIEVE_TOOL=/usr/bin/curl"                                     >> $SCRIP
 echo "RETRIEVE_TOOL_FLAGS=-Ls --create-dirs --output \$(TARBALLS_LOCATION)/\$(ARCHIVE)" >> $SCRIPT_PATH/Makefile.include
 echo "ARCHIVE_TOOL=/bin/tar"                                           >> $SCRIPT_PATH/Makefile.include
 echo "ARCHIVE_TOOL_FLAGS=xf"                                           >> $SCRIPT_PATH/Makefile.include
-echo "JOBS=$((`grep -c processor /proc/cpuinfo` -1))"                  >> $SCRIPT_PATH/Makefile.include
+echo "JOBS=$((`grep -c processor /proc/cpuinfo -1`))"                  >> $SCRIPT_PATH/Makefile.include
