@@ -225,8 +225,6 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
                            GetPitch() * GetRows() * 4 : omx_image.GetDecodedSize();
 
           memcpy(m_pixels, (unsigned char *)omx_image.GetDecodedData(), size);
-  
-          omx_image.SwapBlueRed(m_pixels, m_textureHeight, GetPitch());
         }
 
         omx_image.Close();

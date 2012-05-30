@@ -754,6 +754,8 @@ bool COMXImage::Decode(unsigned width, unsigned height)
 
   m_omx_tunnel_decode.Deestablish();
 
+  SwapBlueRed(m_decoded_buffer->pBuffer, GetDecodedHeight(), GetDecodedWidth() * 4);
+  
   return true;
 }
 
@@ -762,6 +764,7 @@ bool COMXImage::Encode(unsigned char *buffer, int size, unsigned width, unsigned
   std::string componentName = "";
   unsigned int demuxer_bytes = 0;
   const uint8_t *demuxer_content = NULL;
+  uint8_t *internalBuffer = NULL;
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   OMX_BUFFERHEADERTYPE *omx_buffer = NULL;
   OMX_INIT_STRUCTURE(m_encoded_format);
@@ -865,8 +868,12 @@ bool COMXImage::Encode(unsigned char *buffer, int size, unsigned width, unsigned
     return false;
   }
 
+  internalBuffer = (uint8_t *)malloc(size);
+  memcpy(internalBuffer, buffer, size);
   demuxer_bytes   = size;
-  demuxer_content = buffer;
+  demuxer_content = internalBuffer;
+  SwapBlueRed(internalBuffer, height, width * 4);
+  
   if(!demuxer_bytes || !demuxer_content)
     return false;
 
@@ -874,7 +881,10 @@ bool COMXImage::Encode(unsigned char *buffer, int size, unsigned width, unsigned
   {
     omx_buffer = m_omx_encoder.GetInputBuffer(1000);
     if(omx_buffer == NULL)
+    {
+      if(internalBuffer) free(internalBuffer);
       return false;
+    }
 
     omx_buffer->nOffset = omx_buffer->nFlags  = 0;
 
@@ -894,6 +904,8 @@ bool COMXImage::Encode(unsigned char *buffer, int size, unsigned width, unsigned
       break;
     }
   }
+
+  if(internalBuffer) free(internalBuffer);
 
   m_encoded_buffer = m_omx_encoder.GetOutputBuffer(2000);
 
@@ -1015,17 +1027,14 @@ bool COMXImage::CreateThumbnailFromMemory(unsigned char* buffer, unsigned int bu
     return false;
 
   return CreateThumbnailFromSurface(GetDecodedData(), GetDecodedWidth(), GetDecodedHeight(), 
-      XB_FMT_A8R8G8B8, GetDecodedWidth() * 4, destFile, false);
+    XB_FMT_A8R8G8B8, GetDecodedWidth() * 4, destFile);
 }
 
 bool COMXImage::CreateThumbnailFromSurface(unsigned char* buffer, unsigned int width, unsigned int height, 
-    unsigned int format, unsigned int pitch, const CStdString& destFile, bool swap)
+    unsigned int format, unsigned int pitch, const CStdString& destFile)
 {
   if(format != XB_FMT_A8R8G8B8 || !buffer)
     return false;
-
-  if(swap)
-    SwapBlueRed(buffer, height, pitch);
 
   // the omx encoder needs alligned sizes
   if(width%16 || height%16)

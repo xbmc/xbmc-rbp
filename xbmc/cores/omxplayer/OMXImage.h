@@ -77,7 +77,7 @@ public:
   bool CreateThumbnailFromMemory(unsigned char* buffer, unsigned int bufSize, 
       const CStdString& destFile, unsigned int minx, unsigned int miny);
   bool CreateThumbnailFromSurface(unsigned char* buffer, unsigned int width, unsigned int height, 
-      unsigned int format, unsigned int pitch, const CStdString& destFile, bool swap = true);
+      unsigned int format, unsigned int pitch, const CStdString& destFile);
 protected:
   uint8_t           *m_image_buffer;
   bool              m_is_open;
