@@ -71,7 +71,7 @@ public:
 
   long GetCurrentVolume() const;
   void Mute(bool bMute);
-  bool SetCurrentVolume(long nVolume);
+  bool SetCurrentVolume(float fVolume);
   void SetDynamicRangeCompression(long drc) { m_drc = drc; }
   int SetPlaySpeed(int iSpeed);
   void WaitCompletion();
@@ -99,7 +99,7 @@ private:
   bool          m_Initialized;
   bool          m_Pause;
   bool          m_CanPause;
-  long          m_CurrentVolume;
+  float         m_CurrentVolume;
   long          m_drc;
   bool          m_Passthrough;
   bool          m_HWDecode;
@@ -118,9 +118,9 @@ private:
   uint8_t       *m_extradata;
   int           m_extrasize;
   // stuff for visualisation
-  unsigned int  m_visBufferLength;
+  unsigned int  m_visBufferSamples;
   double        m_last_pts;
-  short            m_visBuffer[VIS_PACKET_SIZE+2];
+  float         m_visBuffer[VIS_PACKET_SIZE+4];
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_output;
   OMX_AUDIO_PARAM_PCMMODETYPE m_pcm_input;
   OMX_AUDIO_PARAM_DTSTYPE     m_dtsParam;

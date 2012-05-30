@@ -3769,10 +3769,9 @@ void COMXPlayer::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   m_player_video.SetVideoRect(SrcRect, DestRect);
 }
 
-void COMXPlayer::SetVolume(long nVolume)
+void COMXPlayer::SetVolume(float fVolume)
 {
-  // nVolume is a milliBels from -6000 (-60dB or mute) to 0 (0dB or full volume)
-  m_current_volume = nVolume;
+  m_current_volume = fVolume;
   m_change_volume = true;
 }
 

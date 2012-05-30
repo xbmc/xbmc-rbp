@@ -25,13 +25,56 @@
 #endif
 #include "utils/log.h"
 
-#define MAX_AUDIO_FRAME_SIZE (AVCODEC_MAX_AUDIO_FRAME_SIZE*1.5)
+#include "cores/AudioEngine/Utils/AEUtil.h"
+
+#define MAX_AUDIO_FRAME_SIZE (AVCODEC_MAX_AUDIO_FRAME_SIZE*2)
+
+template <class AudioDataType>
+static inline void _Upmix(AudioDataType *input,
+  unsigned int channelsInput, AudioDataType *output,
+  unsigned int channelsOutput, unsigned int frames)
+{
+  unsigned int unused = channelsOutput - channelsInput;
+  AudioDataType *_input  = input;
+  AudioDataType *_output = output;
+
+  for (unsigned int i = 0; i < frames; i++)
+  {
+    // get input channels
+    for(unsigned int j = 0; j < channelsInput; j++)
+      *_output++ = *_input++;
+    // set unused channels
+    for(unsigned int j = 0; j < unused; j++)
+      *_output++ = 0;
+  }
+}
+
+void COMXAudioCodecOMX::Upmix(void *input,
+  unsigned int channelsInput,  void *output,
+  unsigned int channelsOutput, unsigned int frames, AEDataFormat dataFormat)
+{
+  // input channels must be less than output channels
+  if (channelsInput >= channelsOutput)
+    return;
+
+  switch (CAEUtil::DataFormatToBits(dataFormat))
+  {
+    case 8:  _Upmix ( (unsigned char *) input, channelsInput, (unsigned char *) output, channelsOutput, frames ); break;
+    case 16: _Upmix ( (short         *) input, channelsInput, (short         *) output, channelsOutput, frames ); break;
+    case 32: _Upmix ( (float         *) input, channelsInput, (float         *) output, channelsOutput, frames ); break;
+    default: _Upmix ( (int           *) input, channelsInput, (int           *) output, channelsOutput, frames ); break;
+  }
+}
 
 COMXAudioCodecOMX::COMXAudioCodecOMX()
 {
   m_iBufferSize2 = 0;
   m_pBuffer2     = (BYTE*)_aligned_malloc(MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE, 16);
   memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
+
+  m_iBufferUpmixSize = 0;
+  m_pBufferUpmix = (BYTE*)_aligned_malloc(MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE, 16);
+  memset(m_pBufferUpmix, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
 
   m_iBuffered = 0;
   m_pCodecContext = NULL;
@@ -46,6 +89,7 @@ COMXAudioCodecOMX::COMXAudioCodecOMX()
 COMXAudioCodecOMX::~COMXAudioCodecOMX()
 {
   _aligned_free(m_pBuffer2);
+  _aligned_free(m_pBufferUpmix);
   Dispose();
 }
 
@@ -192,7 +236,7 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
     const void *ibuf[6] = { m_pFrame1->data[0] };
     void       *obuf[6] = { m_pBuffer2 };
     int         istr[6] = { m_dllAvUtil.av_get_bytes_per_sample(m_pCodecContext->sample_fmt) };
-    int         ostr[6] = { 2 };
+    int         ostr[6] = { (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3) };
     int         len     = m_iBufferSize1 / istr[0];
     if(m_dllAvCodec.av_audio_convert(m_pConvert, obuf, ostr, ibuf, istr, len) < 0)
     {
@@ -211,52 +255,38 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
 
 int COMXAudioCodecOMX::GetData(BYTE** dst)
 {
-  // TODO: Use a third buffer and decide which is our source data
-  if(m_pCodecContext->channels == 6 && m_iBufferSize1)
-  {
-    int16_t *pDst = (int16_t *)m_pBuffer2;
-    const int16_t *pSrc = (const int16_t *)m_pFrame1->data[0];
-
-    //memset(m_pBuffer2, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
-
-    m_iBufferSize2 = 0;
-    int size = m_iBufferSize1 / (16>>3) /* framesize (16>>3) */;
-    int frames = 0;
-
-    for(int i = 0; i < size; i += m_pCodecContext->channels)
-    {
-      pDst[0] = pSrc[0];
-      pDst[1] = pSrc[1];
-      pDst[2] = pSrc[2];
-      pDst[3] = pSrc[3];
-      pDst[4] = pSrc[4];
-      pDst[5] = pSrc[5];
-      pDst[6] = 0;
-      pDst[7] = 0;
-
-      pSrc += m_pCodecContext->channels;
-      pDst += 8;
-
-      frames += 8;
-    }
-
-    m_iBufferSize2 = frames * 2;
-
-    *dst = m_pBuffer2;
-    return m_iBufferSize2;
-  }
+  unsigned int size = 0;
+  BYTE *src = NULL;
 
   if(m_iBufferSize1)
   {
     *dst = m_pFrame1->data[0];
-    return m_iBufferSize1;
+    src = m_pFrame1->data[0];
+    size = m_iBufferSize1;
   }
   if(m_iBufferSize2)
   {
     *dst = m_pBuffer2;
-    return m_iBufferSize2;
+    src = m_pBuffer2;
+    size = m_iBufferSize2;
   }
-  return 0;
+
+  if(m_pCodecContext->channels > 4 && size)
+  {
+    unsigned int m_frameSize = (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3) * m_pCodecContext->channels;
+    unsigned int frames = size / m_frameSize;
+
+    memset(m_pBufferUpmix, 0, MAX_AUDIO_FRAME_SIZE + FF_INPUT_BUFFER_PADDING_SIZE);
+
+    Upmix(src, m_pCodecContext->channels, m_pBufferUpmix, 8, frames, AE_FMT_S16LE);
+
+    m_iBufferUpmixSize = frames * 8 * (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3);
+
+    *dst = m_pBufferUpmix;
+    size = m_iBufferUpmixSize;
+  }
+
+  return size;
 }
 
 void COMXAudioCodecOMX::Reset()
@@ -269,7 +299,7 @@ void COMXAudioCodecOMX::Reset()
 
 int COMXAudioCodecOMX::GetChannels()
 {
-  return (m_pCodecContext->channels == 6) ? 8 : m_pCodecContext->channels;
+  return (m_pCodecContext->channels > 4) ? 8 : m_pCodecContext->channels;
 }
 
 int COMXAudioCodecOMX::GetSampleRate()
@@ -338,10 +368,10 @@ void COMXAudioCodecOMX::BuildChannelMap()
   if (layout & AV_CH_TOP_BACK_RIGHT       ) m_channelLayout += AE_CH_BR  ;
 
   //terminate the channel map
-  if(m_pCodecContext->channels == 6)
+  if(m_pCodecContext->channels > 4)
   {
-    m_channelLayout += AE_CH_RAW;
-    m_channelLayout += AE_CH_RAW;
+    for(int i = m_pCodecContext->channels; i < 8; i++)
+      m_channelLayout += AE_CH_RAW;
   }
 }
 

@@ -32,6 +32,8 @@
 class COMXAudioCodecOMX
 {
 public:
+  void Upmix(void *input, unsigned int channelsInput,  void *output,
+    unsigned int channelsOutput, unsigned int frames, AEDataFormat dataFormat);
   COMXAudioCodecOMX();
   ~COMXAudioCodecOMX();
   bool Open(CDVDStreamInfo &hints);
@@ -58,6 +60,9 @@ protected:
 
   BYTE *m_pBuffer2;
   int   m_iBufferSize2;
+
+  BYTE *m_pBufferUpmix;
+  int   m_iBufferUpmixSize;
 
   bool m_bOpenedCodec;
   int m_iBuffered;

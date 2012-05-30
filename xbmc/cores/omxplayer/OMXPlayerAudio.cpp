@@ -167,17 +167,9 @@ bool OMXPlayerAudio::OpenStream(CDVDStreamInfo &hints, COMXAudioCodecOMX *codec)
   m_nChannels       = 0;
   m_synctype        = SYNC_DISCON;
   m_stalled         = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
-  //m_use_passthrough = (g_guiSettings.GetInt("audiooutput.mode") == AUDIO_HDMI) ? false : true ;
+  m_use_passthrough = (g_guiSettings.GetInt("audiooutput.mode") == AUDIO_HDMI) ? true : false ;
   m_use_passthrough = false;
   m_use_hw_decode   = g_advancedSettings.m_omxHWAudioDecode;
-
-  /*
-  if(m_use_passthrough)
-    m_device = g_guiSettings.GetString("audiooutput.passthroughdevice");
-  else
-    m_device = g_guiSettings.GetString("audiooutput.audiodevice");
-  */
-  m_device = "omx:analog";
 
   return true /*OpenDecoder()*/;
 }
@@ -671,8 +663,6 @@ bool OMXPlayerAudio::Passthrough() const
 
 AEDataFormat OMXPlayerAudio::GetDataFormat(CDVDStreamInfo hints)
 {
-  int  m_outputmode = 0;
-  bool bitstream = false;
   AEDataFormat dataFormat = AE_FMT_S16NE;
   bool hdmi_audio = false;
   bool hdmi_passthrough_dts = false;
@@ -687,22 +677,7 @@ AEDataFormat OMXPlayerAudio::GetDataFormat(CDVDStreamInfo hints)
   printf("Audio support hdmi=%d, AC3=%d, DTS=%d\n", hdmi_audio, hdmi_passthrough_ac3, hdmi_passthrough_dts);
 
 
-  m_outputmode = g_guiSettings.GetInt("audiooutput.mode");
-
-  switch(m_outputmode)
-  {
-    case 0:
-      dataFormat = AE_FMT_S16NE;
-      break;
-    case 1:
-      bitstream = true;
-      break;
-    case 2:
-      bitstream = true;
-      break;
-  }
-
-  if(bitstream)
+  if(AUDIO_IS_BITSTREAM(g_guiSettings.GetInt("audiooutput.mode")))
   {
     if(hints.codec == CODEC_ID_AC3 && g_guiSettings.GetBool("audiooutput.ac3passthrough"))
     {
@@ -739,8 +714,13 @@ bool OMXPlayerAudio::OpenDecoder()
 
   m_format.m_sampleRate    = m_hints.samplerate;
   m_format.m_channelLayout = m_pAudioCodec->GetChannelMap(); 
+
+  std::string device = "";
   
-  std::string device = m_device.substr(4);
+  if(g_guiSettings.GetInt("audiooutput.mode") == AUDIO_HDMI)
+    device = "hdmi";
+  else
+    device = "local";
 
   if(OMX_IS_RAW(m_format.m_dataFormat) || m_use_hw_decode)
   {
@@ -752,7 +732,7 @@ bool OMXPlayerAudio::OpenDecoder()
   else
   {
     /* 6 channel have to be mapped to 8 for PCM */
-    if(m_nChannels == 6)
+    if(m_nChannels > 4)
       m_nChannels = 8;
 
     bAudioRenderOpen = m_omxAudio.Initialize(m_format, device);
@@ -818,8 +798,8 @@ void OMXPlayerAudio::WaitCompletion()
 void OMXPlayerAudio::RegisterAudioCallback(IAudioCallback *pCallback)
 {
   m_omxAudio.RegisterAudioCallback(pCallback);
-
 }
+
 void OMXPlayerAudio::UnRegisterAudioCallback()
 {
   m_omxAudio.UnRegisterAudioCallback();
@@ -830,9 +810,9 @@ void OMXPlayerAudio::DoAudioWork()
   m_omxAudio.DoAudioWork();
 }
 
-void OMXPlayerAudio::SetCurrentVolume(long nVolume)
+void OMXPlayerAudio::SetCurrentVolume(float fVolume)
 {
-  m_omxAudio.SetCurrentVolume(nVolume);
+  m_omxAudio.SetCurrentVolume(fVolume);
 }
 
 void OMXPlayerAudio::SetSpeed(int speed)

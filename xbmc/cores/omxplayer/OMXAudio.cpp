@@ -35,6 +35,7 @@
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
 #include "guilib/LocalizeStrings.h"
+#include "cores/AudioEngine/Utils/AEConvert.h"
 
 #ifndef VOLUME_MINIMUM
 #define VOLUME_MINIMUM -6000  // -60dB
@@ -42,22 +43,24 @@
 
 using namespace std;
 
-#define OMX_MAX_CHANNELS 8
+#define OMX_MAX_CHANNELS 9
 
 static enum AEChannel OMXChannelMap[OMX_MAX_CHANNELS] = 
 {
-  AE_CH_FL      , AE_CH_FR      , 
-  AE_CH_FC      , AE_CH_LFE     , 
-  AE_CH_BL      , AE_CH_BR      ,
-  AE_CH_SL      , AE_CH_SR
+  AE_CH_FL      , AE_CH_FR, 
+  AE_CH_FC      , AE_CH_LFE, 
+  AE_CH_BL      , AE_CH_BR,
+  AE_CH_SL      , AE_CH_SR,
+  AE_CH_RAW
 };
 
 static enum OMX_AUDIO_CHANNELTYPE OMXChannels[OMX_MAX_CHANNELS] =
 {
   OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF,
   OMX_AUDIO_ChannelCF, OMX_AUDIO_ChannelLFE,
-  OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR ,
-  OMX_AUDIO_ChannelLS, OMX_AUDIO_ChannelRS
+  OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR,
+  OMX_AUDIO_ChannelLS, OMX_AUDIO_ChannelRS,
+  OMX_AUDIO_ChannelNone
 };
 
 static unsigned int WAVEChannels[OMX_MAX_CHANNELS] =
@@ -65,7 +68,8 @@ static unsigned int WAVEChannels[OMX_MAX_CHANNELS] =
   SPEAKER_FRONT_LEFT,       SPEAKER_FRONT_RIGHT,
   SPEAKER_TOP_FRONT_CENTER, SPEAKER_LOW_FREQUENCY,
   SPEAKER_BACK_LEFT,        SPEAKER_BACK_RIGHT,
-  SPEAKER_SIDE_LEFT,        SPEAKER_SIDE_RIGHT
+  SPEAKER_SIDE_LEFT,        SPEAKER_SIDE_RIGHT,
+  SPEAKER_SIDE_RIGHT
 };
 
 static const uint16_t AC3Bitrates[] = {32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512, 576, 640};
@@ -99,7 +103,7 @@ COMXAudio::COMXAudio() :
   m_eEncoding       (OMX_AUDIO_CodingPCM),
   m_extradata       (NULL   ),
   m_extrasize       (0      ),
-  m_visBufferLength (0      ),
+  m_visBufferSamples (0      ),
   m_last_pts        (DVD_NOPTS_VALUE)
 {
 }
@@ -187,13 +191,6 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
   if(m_format.m_channelLayout.Count() == 0)
     return false;
 
-  std::string deviceuse;
-  if(device == "hdmi") {
-    deviceuse = "hdmi";
-  } else {
-    deviceuse = "local";
-  }
-
   if(!m_dllAvUtil.Load())
     return false;
 
@@ -222,7 +219,7 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
 
   m_drc         = 0;
 
-  //m_CurrentVolume = g_settings.m_nVolumeLevel; 
+  m_CurrentVolume = g_settings.m_fVolumeLevel; 
 
   memset(m_input_channels, 0x0, sizeof(m_input_channels));
   memset(m_output_channels, 0x0, sizeof(m_output_channels));
@@ -570,7 +567,7 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
   CLog::Log(LOGDEBUG, "COMXAudio::Initialize Input bps %d samplerate %d channels %d buffer size %d bytes per second %d", 
       (int)m_pcm_input.nBitPerSample, (int)m_pcm_input.nSamplingRate, (int)m_pcm_input.nChannels, m_BufferLen, m_BytesPerSec);
   CLog::Log(LOGDEBUG, "COMXAudio::Initialize device %s passthrough %d hwdecode %d external clock %d", 
-      deviceuse.c_str(), m_Passthrough, m_HWDecode, m_external_clock);
+      device.c_str(), m_Passthrough, m_HWDecode, m_external_clock);
 
   m_av_clock->OMXStateExecute(false);
 
@@ -723,18 +720,21 @@ void COMXAudio::Mute(bool bMute)
 }
 
 //***********************************************************************************************
-bool COMXAudio::SetCurrentVolume(long nVolume)
+bool COMXAudio::SetCurrentVolume(float fVolume)
 {
   if(!m_Initialized || m_Passthrough)
     return -1;
 
-  m_CurrentVolume = nVolume;
+  m_CurrentVolume = fVolume;
 
   OMX_AUDIO_CONFIG_VOLUMETYPE volume;
   OMX_INIT_STRUCTURE(volume);
   volume.nPortIndex = m_omx_render.GetInputPort();
 
-  volume.sVolume.nValue = nVolume;
+  volume.bLinear    = OMX_TRUE;
+  float hardwareVolume = std::max(VOLUME_MINIMUM, std::min(VOLUME_MAXIMUM, fVolume)) * 100.0f;
+  printf("volume %d %f\n", (int)hardwareVolume, fVolume);
+  volume.sVolume.nValue = (int)hardwareVolume;
 
   m_omx_render.SetConfig(OMX_IndexConfigAudioVolume, &volume);
 
@@ -757,11 +757,22 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
     return len;
   }
 
+  m_visBufferSamples = 0;
+
   if (!m_Passthrough && m_pCallback)
   {
-    unsigned int mylen = std::min(len, sizeof m_visBuffer);
-    memcpy(m_visBuffer, data, mylen);
-    m_visBufferLength = mylen;
+    // TODO: remap vis data
+    m_visBufferSamples = std::min(len / (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3), 
+                                  (unsigned int)(VIS_PACKET_SIZE/(CAEUtil::DataFormatToBits(AE_FMT_FLOAT) >> 3)));
+    if(m_visBufferSamples > 512)
+      m_visBufferSamples = 512;
+
+    CAEConvert::AEConvertToFn m_convertFn = CAEConvert::ToFloat(AE_FMT_S16LE);
+
+    m_convertFn((uint8_t *)data, m_visBufferSamples, m_visBuffer);
+
+    if(m_pCallback)
+      m_pCallback->OnAudioData(m_visBuffer, m_visBufferSamples);
   }
 
   if(m_eEncoding == OMX_AUDIO_CodingDTS && m_LostSync && m_Passthrough)
@@ -1069,13 +1080,11 @@ void COMXAudio::UnRegisterAudioCallback()
 
 void COMXAudio::DoAudioWork()
 {
-  /*
-  if (m_pCallback && m_visBufferLength)
+  if (m_pCallback && m_visBufferSamples)
   {
-    m_pCallback->OnAudioData((BYTE*)m_visBuffer, m_visBufferLength);
-    m_visBufferLength = 0;
+    m_pCallback->OnAudioData((float*)m_visBuffer, m_visBufferSamples);
+    m_visBufferSamples = 0;
   }
-  */
 }
 
 void COMXAudio::WaitCompletion()

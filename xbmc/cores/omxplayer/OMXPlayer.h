@@ -230,7 +230,7 @@ public:
   virtual float GetPercentage();
   virtual float GetCachePercentage();
 
-  virtual void  SetVolume(long nVolume);
+  virtual void  SetVolume(float fVolume);
   virtual void  SetDynamicRangeCompression(long drc)              {}
   virtual void  GetAudioInfo(CStdString &strAudioInfo);
   virtual void  GetVideoInfo(CStdString &strVideoInfo);
@@ -481,7 +481,7 @@ private:
 
   CDVDMessageQueue        m_messenger;
 
-  long                    m_current_volume;
+  float                   m_current_volume;
   bool                    m_change_volume;
   bool                    m_stats;
   CDVDOverlayContainer    m_overlayContainer;

@@ -51,7 +51,6 @@ protected:
   OMXClock                  *m_av_clock;
   COMXAudio                 m_omxAudio;
   std::string               m_codec_name;
-  std::string               m_device;
   bool                      m_use_passthrough;
   bool                      m_use_hw_decode;
   AEAudioFormat             m_format;
@@ -122,7 +121,7 @@ public:
   void  RegisterAudioCallback(IAudioCallback* pCallback);
   void  UnRegisterAudioCallback();
   void  DoAudioWork();
-  void SetCurrentVolume(long nVolume);
+  void SetCurrentVolume(float fVolume);
   void SetSpeed(int iSpeed);
   int  GetAudioBitrate();
   std::string GetPlayerInfo();
