@@ -70,7 +70,11 @@ void CAdvancedSettings::Initialize()
   m_karaokeAlwaysEmptyOnCdgs = 1;
   m_karaokeUseSongSpecificBackground = 0;
 
+#if defined(HAVE_OMXPLAYER)
+  m_audioDefaultPlayer = "omxplayer";
+#else
   m_audioDefaultPlayer = "paplayer";
+#endif
   m_audioPlayCountMinimumPercent = 90.0f;
   m_audioHost = "default";
 
