@@ -319,6 +319,12 @@ bool OMXPlayerAudio::CodecChange()
   unsigned int old_bitrate = m_hints.bitrate;
   unsigned int new_bitrate = m_hints_current.bitrate;
 
+  if(m_pAudioCodec)
+  {
+    m_hints.channels = m_pAudioCodec->GetChannels();
+    m_hints.samplerate = m_pAudioCodec->GetSampleRate();
+  }
+
   /* only check bitrate changes on CODEC_ID_DTS, CODEC_ID_AC3, CODEC_ID_EAC3 */
   if(m_hints.codec != CODEC_ID_DTS && m_hints.codec != CODEC_ID_AC3 && m_hints.codec != CODEC_ID_EAC3)
     new_bitrate = old_bitrate = 0;

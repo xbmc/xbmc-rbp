@@ -289,6 +289,33 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
       return false;
   }
 
+  OMX_VIDEO_PARAM_PORTFORMATTYPE formatType;
+  OMX_INIT_STRUCTURE(formatType);
+  formatType.nPortIndex = m_omx_decoder.GetInputPort();
+  OMX_U32 nIndex = 1;
+  bool bFound = false;
+
+  omx_err = OMX_ErrorNone;
+  do
+  {
+    formatType.nIndex = nIndex;
+    omx_err = m_omx_decoder.GetParameter(OMX_IndexParamVideoPortFormat, &formatType);
+    if(formatType.eCompressionFormat == m_codingType)
+    {
+      bFound = true;
+      break;
+    }
+    nIndex++;
+  }
+  while(omx_err == OMX_ErrorNone);
+
+  if(!bFound)
+  {
+    CLog::Log(LOGINFO, "COMXVideo::Open coding : %s supported\n", m_video_codec_name.c_str());
+    printf("COMXVideo::Open coding : %s supported\n", m_video_codec_name.c_str());
+    return false;
+  }
+
   if(clock == NULL)
     return false;
 
@@ -329,7 +356,6 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
     return false;
   }
 
-  OMX_VIDEO_PARAM_PORTFORMATTYPE formatType;
   OMX_INIT_STRUCTURE(formatType);
   formatType.nPortIndex = m_omx_decoder.GetInputPort();
   formatType.eCompressionFormat = m_codingType;

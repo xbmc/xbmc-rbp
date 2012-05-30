@@ -160,6 +160,9 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device, OMXClock *
 
   m_format = format;
 
+  if(hints.samplerate == 0)
+    return false;
+
   if(OMX_IS_RAW(m_format.m_dataFormat))
   {
     m_Passthrough = true;
