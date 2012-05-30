@@ -740,7 +740,6 @@ bool COMXAudio::SetCurrentVolume(float fVolume)
 
   volume.bLinear    = OMX_TRUE;
   float hardwareVolume = std::max(VOLUME_MINIMUM, std::min(VOLUME_MAXIMUM, fVolume)) * 100.0f;
-  printf("volume %d %f\n", (int)hardwareVolume, fVolume);
   volume.sVolume.nValue = (int)hardwareVolume;
 
   m_omx_render.SetConfig(OMX_IndexConfigAudioVolume, &volume);
