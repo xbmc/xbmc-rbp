@@ -567,7 +567,7 @@ case $use_platform in
      use_texturepacker_native=yes
      use_arch="arm"
      use_cpu=arm1176jzf-s
-     use_armv5te="no"
+     use_armv5te="yes"
      use_armv6t2="no"
      use_armv6="yes"
      use_armvfp="yes"
