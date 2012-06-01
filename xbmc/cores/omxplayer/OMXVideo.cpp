@@ -290,6 +290,7 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
   }
 
   OMX_VIDEO_PARAM_PORTFORMATTYPE formatType;
+  /*
   OMX_INIT_STRUCTURE(formatType);
   formatType.nPortIndex = m_omx_decoder.GetInputPort();
   OMX_U32 nIndex = 1;
@@ -311,10 +312,10 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
 
   if(!bFound)
   {
-    CLog::Log(LOGINFO, "COMXVideo::Open coding : %s supported\n", m_video_codec_name.c_str());
-    printf("COMXVideo::Open coding : %s supported\n", m_video_codec_name.c_str());
+    CLog::Log(LOGINFO, "COMXVideo::Open coding : %s not supported\n", m_video_codec_name.c_str());
     return false;
   }
+  */
 
   if(clock == NULL)
     return false;
