@@ -990,7 +990,7 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForEvent(OMX_EVENTTYPE eventType, long time
       CLog::Log(LOGERROR, "COMXCoreComponent::WaitForEvent %s wait event 0x%08x timeout %ld\n",
                           m_componentName.c_str(), (int)eventType, timeout);
       pthread_mutex_unlock(&m_omx_event_mutex);
-      return OMX_ErrorHardware;
+      return OMX_ErrorMax;
     }
   }
   pthread_mutex_unlock(&m_omx_event_mutex);
@@ -1051,7 +1051,7 @@ OMX_ERRORTYPE COMXCoreComponent::WaitForCommand(OMX_U32 command, OMX_U32 nData2,
         m_componentName.c_str(), (int)OMX_EventCmdComplete, (int)command, (int)nData2);
       
       pthread_mutex_unlock(&m_omx_event_mutex);
-      return OMX_ErrorHardware;
+      return OMX_ErrorMax;
     }
   }
   pthread_mutex_unlock(&m_omx_event_mutex);
