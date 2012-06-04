@@ -48,6 +48,8 @@
 
 #define EXIF_TAG_ORIENTATION    0x0112
 
+static CCriticalSection g_OMXSection;
+
 COMXImage::COMXImage()
 {
   m_is_open       = false;
@@ -497,6 +499,8 @@ bool COMXImage::Decode(unsigned width, unsigned height)
 
   OMX_INIT_STRUCTURE(m_decoded_format);
 
+  CSingleLock lock(g_OMXSection);
+
   if(!m_image_buffer)
   {
     CLog::Log(LOGERROR, "%s::%s no input buffer\n", CLASSNAME, __func__);
@@ -768,6 +772,8 @@ bool COMXImage::Encode(unsigned char *buffer, int size, unsigned width, unsigned
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   OMX_BUFFERHEADERTYPE *omx_buffer = NULL;
   OMX_INIT_STRUCTURE(m_encoded_format);
+
+  CSingleLock lock(g_OMXSection);
 
   if (!buffer || !size) 
   {
