@@ -319,6 +319,12 @@
   #include "input/windows/IRServerSuite.h"
 #endif
 
+#if defined(TARGET_WINDOWS)
+#include "input/windows/WINJoystick.h"
+#elif defined(HAS_SDL_JOYSTICK) || defined(HAS_EVENT_SERVER)
+#include "input/SDLJoystick.h"
+#endif
+
 #ifdef TARGET_RASPBERRY_PI
   #include "linux/RBP.h"
 #endif
@@ -660,7 +666,7 @@ bool CApplication::Create()
   sdlFlags |= SDL_INIT_VIDEO;
 #endif
 
-#ifdef HAS_SDL_JOYSTICK
+#if defined(HAS_SDL_JOYSTICK) && !defined(TARGET_WINDOWS)
   sdlFlags |= SDL_INIT_JOYSTICK;
 #endif
 
@@ -786,9 +792,6 @@ bool CApplication::Create()
 #if defined(HAS_LIRC) || defined(HAS_IRSERVERSUITE)
   g_RemoteControl.Initialize();
 #endif
-#ifdef HAS_SDL_JOYSTICK
-  g_Joystick.Initialize();
-#endif
 
 #if defined(__APPLE__) && !defined(__arm__)
   // Configure and possible manually start the helper.
@@ -864,6 +867,10 @@ bool CApplication::Create()
   g_windowManager.Initialize();
 
   CUtil::InitRandomSeed();
+
+#ifdef HAS_SDL_JOYSTICK
+  g_Joystick.Initialize();
+#endif
 
   g_mediaManager.Initialize();
 
@@ -1329,9 +1336,9 @@ bool CApplication::StartWebServer()
     int webPort = atoi(g_guiSettings.GetString("services.webserverport"));
     CLog::Log(LOGNOTICE, "Webserver: Starting...");
 #ifdef _LINUX
-    if (webPort < 1024 && geteuid() != 0)
+    if (webPort < 1024 && !CUtil::CanBindPrivileged())
     {
-        CLog::Log(LOGERROR, "Cannot start Web Server as port is smaller than 1024 and user is not root");
+        CLog::Log(LOGERROR, "Cannot start Web Server on port %i, no permission to bind to ports below 1024", webPort);
         return false;
     }
 #endif
@@ -3948,7 +3955,8 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
 #endif
   }
   m_bPlaybackStarting = false;
-  if(bResult)
+
+  if (bResult)
   {
     // we must have started, otherwise player might send this later
     if(IsPlaying())
@@ -3973,6 +3981,9 @@ void CApplication::OnPlayBackEnded()
 {
   if(m_bPlaybackStarting)
     return;
+
+  if (CJobManager::GetInstance().IsPaused(kJobTypeMediaFlags))
+    CJobManager::GetInstance().UnPause(kJobTypeMediaFlags);
 
   // informs python script currently running playback has ended
   // (does nothing if python is not loaded)
@@ -4002,6 +4013,9 @@ void CApplication::OnPlayBackStarted()
 {
   if(m_bPlaybackStarting)
     return;
+
+  if (!CJobManager::GetInstance().IsPaused(kJobTypeMediaFlags))
+    CJobManager::GetInstance().Pause(kJobTypeMediaFlags);
 
 #ifdef HAS_PYTHON
   // informs python script currently running playback has started
@@ -4047,6 +4061,9 @@ void CApplication::OnPlayBackStopped()
 {
   if(m_bPlaybackStarting)
     return;
+
+  if (CJobManager::GetInstance().IsPaused(kJobTypeMediaFlags))
+    CJobManager::GetInstance().UnPause(kJobTypeMediaFlags);
 
   // informs python script currently running playback has ended
   // (does nothing if python is not loaded)
@@ -5336,13 +5353,6 @@ float CApplication::GetPercentage() const
 {
   if (IsPlaying() && m_pPlayer)
   {
-    if (IsPlayingAudio() && m_itemCurrentFile->HasMusicInfoTag())
-    {
-      const CMusicInfoTag& tag = *m_itemCurrentFile->GetMusicInfoTag();
-      if (tag.GetDuration() > 0)
-        return (float)(GetTime() / tag.GetDuration() * 100);
-    }
-
     if (m_itemCurrentFile->IsStack() && m_currentStack->Size() > 0)
       return (float)(GetTime() / GetTotalTime() * 100);
     else

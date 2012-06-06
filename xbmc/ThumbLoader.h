@@ -25,7 +25,7 @@
 #include "utils/JobManager.h"
 #include "FileItem.h"
 
-#define kThumbExtractorJobType "mediaflags"
+#define kJobTypeMediaFlags "mediaflags"
 
 class CStreamDetails;
 class IStreamDetailsObserver;
@@ -52,7 +52,7 @@ public:
 
   virtual const char* GetType() const
   {
-    return kThumbExtractorJobType;
+    return kJobTypeMediaFlags;
   }
 
   virtual bool operator==(const CJob* job) const;

@@ -63,6 +63,7 @@ extern "C" {
   void InitAddonTypes(void);
   void DeinitAddonModule(void);
   void InitVFSModule(void);
+  void InitVFSTypes(void);
   void DeinitVFSModule(void);
 }
 
@@ -175,6 +176,66 @@ void XBPython::OnPlayBackStopped()
     while (it != m_vecPlayerCallbackList.end())
     {
       ((IPlayerCallback*)(*it))->OnPlayBackStopped();
+      it++;
+    }
+  }
+}
+
+// message all registered callbacks that playback speed changed (FF/RW)
+void XBPython::OnPlayBackSpeedChanged(int iSpeed)
+{
+  CSingleLock lock(m_critSection);
+  if (m_bInitialized)
+  {
+    PlayerCallbackList::iterator it = m_vecPlayerCallbackList.begin();
+    while (it != m_vecPlayerCallbackList.end())
+    {
+      ((IPlayerCallback*)(*it))->OnPlayBackSpeedChanged(iSpeed);
+      it++;
+    }
+  }
+}
+
+// message all registered callbacks that player is seeking
+void XBPython::OnPlayBackSeek(int iTime, int seekOffset)
+{
+  CSingleLock lock(m_critSection);
+  if (m_bInitialized)
+  {
+    PlayerCallbackList::iterator it = m_vecPlayerCallbackList.begin();
+    while (it != m_vecPlayerCallbackList.end())
+    {
+      ((IPlayerCallback*)(*it))->OnPlayBackSeek(iTime, seekOffset);
+      it++;
+    }
+  }
+}
+
+// message all registered callbacks that player chapter seeked
+void XBPython::OnPlayBackSeekChapter(int iChapter)
+{
+  CSingleLock lock(m_critSection);
+  if (m_bInitialized)
+  {
+    PlayerCallbackList::iterator it = m_vecPlayerCallbackList.begin();
+    while (it != m_vecPlayerCallbackList.end())
+    {
+      ((IPlayerCallback*)(*it))->OnPlayBackSeekChapter(iChapter);
+      it++;
+    }
+  }
+}
+
+// message all registered callbacks that next item has been queued
+void XBPython::OnQueueNextItem()
+{
+  CSingleLock lock(m_critSection);
+  if (m_bInitialized)
+  {
+    PlayerCallbackList::iterator it = m_vecPlayerCallbackList.begin();
+    while (it != m_vecPlayerCallbackList.end())
+    {
+      ((IPlayerCallback*)(*it))->OnQueueNextItem();
       it++;
     }
   }
@@ -490,6 +551,7 @@ void XBPython::Initialize()
       InitGUITypes();
       InitPluginTypes();
       InitAddonTypes();
+      InitVFSTypes();
 
       if (!(m_mainThreadState = PyThreadState_Get()))
         CLog::Log(LOGERROR, "Python threadstate is NULL.");

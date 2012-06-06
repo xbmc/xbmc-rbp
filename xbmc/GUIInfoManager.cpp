@@ -491,7 +491,9 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "lastplayed",       LISTITEM_LASTPLAYED },
                                   { "playcount",        LISTITEM_PLAYCOUNT },
                                   { "discnumber",       LISTITEM_DISC_NUMBER },
-                                  { "dateadded",        LISTITEM_DATE_ADDED }};
+                                  { "dateadded",        LISTITEM_DATE_ADDED },
+                                  { "dbtype",           LISTITEM_DBTYPE },
+                                  { "dbid",             LISTITEM_DBID }};
 
 const infomap visualisation[] =  {{ "locked",           VISUALISATION_LOCKED },
                                   { "preset",           VISUALISATION_PRESET },
@@ -1011,7 +1013,7 @@ int CGUIInfoManager::TranslateSingleString(const CStdString &strCondition)
       CStdString platform = info[2].name;
       if (platform == "linux") return SYSTEM_PLATFORM_LINUX;
       else if (platform == "windows") return SYSTEM_PLATFORM_WINDOWS;
-      else if (platform == "osx")  return SYSTEM_PLATFORM_OSX;
+      else if (platform == "darwin")  return SYSTEM_PLATFORM_DARWIN;
       else if (platform == "osx")  return SYSTEM_PLATFORM_DARWIN_OSX;
       else if (platform == "ios")  return SYSTEM_PLATFORM_DARWIN_IOS;
       else if (platform == "atv2") return SYSTEM_PLATFORM_DARWIN_ATV2;
@@ -1543,16 +1545,10 @@ CStdString CGUIInfoManager::GetLabel(int info, int contextWindow, CStdString *fa
     break;
 
   case SKIN_THEME:
-    if (g_guiSettings.GetString("lookandfeel.skintheme").Equals("skindefault"))
-      strLabel = g_localizeStrings.Get(15109);
-    else
-      strLabel = g_guiSettings.GetString("lookandfeel.skintheme");
+    strLabel = g_guiSettings.GetString("lookandfeel.skintheme");
     break;
   case SKIN_COLOUR_THEME:
-    if (g_guiSettings.GetString("lookandfeel.skincolors").Equals("skindefault"))
-      strLabel = g_localizeStrings.Get(15109);
-    else
-      strLabel = g_guiSettings.GetString("lookandfeel.skincolors");
+    strLabel = g_guiSettings.GetString("lookandfeel.skincolors");
     break;
 #ifdef HAS_LCD
   case LCD_PROGRESS_BAR:
@@ -1892,8 +1888,7 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
 #else
     bReturn = false;
 #endif
-  else if (condition == SYSTEM_PLATFORM_OSX)
-  // TODO: rename SYSTEM_PLATFORM_OSX to SYSTEM_PLATFORM_DARWIN after eden release.
+  else if (condition == SYSTEM_PLATFORM_DARWIN)
 #ifdef TARGET_DARWIN
     bReturn = true;
 #else
@@ -4218,6 +4213,24 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, CStdSt
   case LISTITEM_DATE_ADDED:
     if (item->HasVideoInfoTag() && item->GetVideoInfoTag()->m_dateAdded.IsValid())
       return item->GetVideoInfoTag()->m_dateAdded.GetAsLocalizedDate();
+    break;
+  case LISTITEM_DBTYPE:
+    if (item->HasVideoInfoTag())
+      return item->GetVideoInfoTag()->m_type;
+    break;
+  case LISTITEM_DBID:
+    if (item->HasVideoInfoTag())
+      {
+        CStdString dbid;
+        dbid.Format("%i", item->GetVideoInfoTag()->m_iDbId);
+        return dbid;
+      }
+    if (item->HasMusicInfoTag())
+      {
+        CStdString dbid;
+        dbid.Format("%i", item->GetMusicInfoTag()->GetDatabaseId());
+        return dbid;
+      }
     break;
   }
   return "";

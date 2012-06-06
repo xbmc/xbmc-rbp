@@ -227,6 +227,7 @@ void CAdvancedSettings::Initialize()
   m_bVideoLibraryCleanOnUpdate = false;
   m_bVideoLibraryExportAutoThumbs = false;
   m_bVideoLibraryImportWatchedState = false;
+  m_bVideoLibraryImportResumePoint = false;
   m_bVideoScannerIgnoreErrors = false;
 
   m_iTuxBoxStreamtsPort = 31339;
@@ -637,6 +638,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
     XMLUtils::GetString(pElement, "itemseparator", m_videoItemSeparator);
     XMLUtils::GetBoolean(pElement, "exportautothumbs", m_bVideoLibraryExportAutoThumbs);
     XMLUtils::GetBoolean(pElement, "importwatchedstate", m_bVideoLibraryImportWatchedState);
+    XMLUtils::GetBoolean(pElement, "importresumepoint", m_bVideoLibraryImportResumePoint);
   }
 
   pElement = pRootElement->FirstChildElement("videoscanner");
@@ -729,7 +731,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
 
   XMLUtils::GetBoolean(pRootElement, "handlemounting", m_handleMounting);
 
-#ifdef HAS_SDL
+#if defined(HAS_SDL) || defined(TARGET_WINDOWS)
   XMLUtils::GetBoolean(pRootElement, "fullscreen", m_startFullScreen);
 #endif
   XMLUtils::GetBoolean(pRootElement, "splash", m_splashImage);
