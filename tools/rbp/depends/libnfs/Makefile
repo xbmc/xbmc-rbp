@@ -3,7 +3,7 @@ include ../depends.mk
 
 # lib name, version
 LIBNAME=libnfs
-VERSION=0804e67
+VERSION=1.3.0
 SOURCE=$(LIBNAME)-$(VERSION)
 ARCHIVE=$(SOURCE).tar.gz
 
