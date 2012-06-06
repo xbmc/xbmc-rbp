@@ -119,7 +119,7 @@ public:
   virtual int url_feof(AVIOContext *s) { return ::url_feof(s); }
   virtual void avformat_close_input(AVFormatContext **s) { ::avformat_close_input(s); }
   virtual int av_read_frame(AVFormatContext *s, AVPacket *pkt) { return ::av_read_frame(s, pkt); }
-  virtual void av_read_frame_flush(AVFormatContext *s) { ::av_read_frame_flush_internal(s); }
+  virtual void av_read_frame_flush(AVFormatContext *s) { ::av_read_frame_flush(s); }
   virtual int av_read_play(AVFormatContext *s) { return ::av_read_play(s); }
   virtual int av_read_pause(AVFormatContext *s) { return ::av_read_pause(s); }
   virtual int av_seek_frame(AVFormatContext *s, int stream_index, int64_t timestamp, int flags) { return ::av_seek_frame(s, stream_index, timestamp, flags); }
