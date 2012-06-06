@@ -71,8 +71,6 @@
 #include "DVDDemuxers/DVDFactoryDemuxer.h"
 #include "DVDDemuxers/DVDDemuxFFmpeg.h"
 
-#include "xbmc/ThumbLoader.h"
-
 #include "LangInfo.h"
 
 using namespace XFILE;
@@ -895,17 +893,6 @@ void COMXPlayer::Process()
 
   try
   {
-    CJobManager::GetInstance().Pause(kThumbExtractorJobType);
-
-    if (CJobManager::GetInstance().IsProcessing(kThumbExtractorJobType) > 0)
-    {
-      if (!WaitForPausedThumbJobs(30000))
-      {
-        CJobManager::GetInstance().UnPause(kThumbExtractorJobType);
-        throw "COMXPlayer::Process:thumbgen jobs still running !!!";
-      }
-    }
-
     m_stats             = false;
 
     if(!OpenInputStream())
@@ -1892,9 +1879,6 @@ void COMXPlayer::OnExit()
     else
       m_callback.OnPlayBackEnded();
   }
-
-  // let thumbgen jobs resume.
-  CJobManager::GetInstance().UnPause(kThumbExtractorJobType);
 
   // set event to inform openfile something went wrong in case openfile is still waiting for this event
   m_ready.Set();
@@ -3785,23 +3769,6 @@ void COMXPlayer::Update(bool bPauseDrawing)
 void COMXPlayer::GetVideoAspectRatio(float &fAR)
 {
   fAR = g_renderManager.GetAspectRatio();
-}
-
-bool COMXPlayer::WaitForPausedThumbJobs(int timeout_ms)
-{
-  // use m_bStop and Sleep so we can get canceled.
-  while (!m_bStop && (timeout_ms > 0))
-  {
-    if (CJobManager::GetInstance().IsProcessing(kThumbExtractorJobType) > 0)
-    {
-      Sleep(100);
-      timeout_ms -= 100;
-    }
-    else
-      return true;
-  }
-
-  return false;
 }
 
 #endif
