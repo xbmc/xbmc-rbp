@@ -470,6 +470,9 @@ bool COMXImage::ReadFile(const CStdString& inputFile)
 
   GetCodingType();
 
+  if(m_width < 1 || m_height < 1)
+    return false;
+
   // ensure not too big for hardware
   while (m_width > 2048 || m_height > 2048)
     m_width >>= 1, m_height >>= 1;
