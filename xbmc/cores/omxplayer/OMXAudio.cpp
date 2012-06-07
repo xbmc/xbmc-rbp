@@ -153,29 +153,27 @@ CAEChannelInfo COMXAudio::GetChannelLayout(AEAudioFormat format)
   return info;
 }
 
-bool COMXAudio::Initialize(AEAudioFormat format, std::string& device, OMXClock *clock, CDVDStreamInfo &hints, bool bUseHWDecode)
+bool COMXAudio::Initialize(AEAudioFormat format, std::string& device, OMXClock *clock, CDVDStreamInfo &hints, bool bUsePassthrough, bool bUseHWDecode)
 {
-  m_HWDecode = false;
-  m_Passthrough = false;
+  m_HWDecode    = bUseHWDecode;
+  m_Passthrough = bUsePassthrough;
 
   m_format = format;
 
   if(hints.samplerate == 0)
     return false;
 
-  if(OMX_IS_RAW(m_format.m_dataFormat))
+  /* passthrough overwrites hw decode */
+  if(m_Passthrough)
   {
-    m_Passthrough = true;
-    SetCodingType(hints.codec);
+    m_HWDecode = false;
   }
-  else if(bUseHWDecode)
+  else if(m_HWDecode)
   {
+    /* check again if we are capable to hw decode the format */
     m_HWDecode = CanHWDecode(hints.codec);
   }
-  else
-  {
-    SetCodingType(CODEC_ID_PCM_S16LE);
-  }
+  SetCodingType(format.m_dataFormat);
 
   SetClock(clock);
 
@@ -220,10 +218,12 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
 
   m_omx_clock = m_av_clock->GetOMXClock();
 
+  /*
   m_Passthrough = false;
 
   if(OMX_IS_RAW(m_format.m_dataFormat))
     m_Passthrough =true;
+  */
 
   m_drc         = 0;
 
@@ -334,9 +334,6 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
   m_pcm_input.ePCMMode              = OMX_AUDIO_PCMModeLinear;
   m_pcm_input.nChannels             = m_format.m_channelLayout.Count();
   m_pcm_input.nSamplingRate         = m_format.m_sampleRate;
-
-  PrintPCM(&m_pcm_input, std::string("input"));
-  PrintPCM(&m_pcm_output, std::string("output"));
 
   OMX_ERRORTYPE omx_err = OMX_ErrorNone;
   std::string componentName = "";
@@ -799,14 +796,14 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
       m_pCallback->OnAudioData((float *)m_vizRemapBuffer, m_vizBufferSamples);
   }
 
-  if(m_eEncoding == OMX_AUDIO_CodingDTS && m_LostSync && m_Passthrough)
+  if(m_eEncoding == OMX_AUDIO_CodingDTS && m_LostSync && (m_Passthrough || m_HWDecode))
   {
     int skip = SyncDTS((uint8_t *)data, len);
     if(skip > 0)
       return len;
   }
 
-  if(m_eEncoding == OMX_AUDIO_CodingDDP && m_LostSync && m_Passthrough)
+  if(m_eEncoding == OMX_AUDIO_CodingDDP && m_LostSync && (m_Passthrough || m_HWDecode))
   {
     int skip = SyncAC3((uint8_t *)data, len);
     if(skip > 0)
@@ -935,7 +932,7 @@ unsigned int COMXAudio::AddPackets(const void* data, unsigned int len, double dt
           CLog::Log(LOGERROR, "COMXAudio::AddPackets error GetParameter 2 input omx_err(0x%08x)\n", omx_err);
         }
 
-        m_pcm_input.nSamplingRate = m_format.m_sampleRate;
+        m_pcm_output.nSamplingRate = m_format.m_sampleRate;
 
         /* setup mixer output */
         m_pcm_output.nPortIndex      = m_omx_mixer.GetOutputPort();
@@ -1172,16 +1169,16 @@ bool COMXAudio::SetClock(OMXClock *clock)
   return true;
 }
  
-void COMXAudio::SetCodingType(CodecID codec)
+void COMXAudio::SetCodingType(AEDataFormat dataFormat)
 {
-  switch(codec)
+  switch(dataFormat)
   { 
-    case CODEC_ID_DTS:
+    case AE_FMT_DTS:
       CLog::Log(LOGDEBUG, "COMXAudio::SetCodingType OMX_AUDIO_CodingDTS\n");
       m_eEncoding = OMX_AUDIO_CodingDTS;
       break;
-    case CODEC_ID_AC3:
-    case CODEC_ID_EAC3:
+    case AE_FMT_AC3:
+    case AE_FMT_EAC3:
       CLog::Log(LOGDEBUG, "COMXAudio::SetCodingType OMX_AUDIO_CodingDDP\n");
       m_eEncoding = OMX_AUDIO_CodingDDP;
       break;
@@ -1194,78 +1191,20 @@ void COMXAudio::SetCodingType(CodecID codec)
 
 bool COMXAudio::CanHWDecode(CodecID codec)
 {
+  bool ret = false;
   switch(codec)
   { 
-    /*
-    case CODEC_ID_VORBIS:
-      CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingVORBIS\n");
-      m_eEncoding = OMX_AUDIO_CodingVORBIS;
-      m_HWDecode = true;
-      break;
-    case CODEC_ID_AAC:
-      CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingAAC\n");
-      m_eEncoding = OMX_AUDIO_CodingAAC;
-      m_HWDecode = true;
-      break;
-    case CODEC_ID_MP2:
-    case CODEC_ID_MP3:
-      CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingMP3\n");
-      m_eEncoding = OMX_AUDIO_CodingMP3;
-      m_HWDecode = true;
-      break;
-    */
     case CODEC_ID_DTS:
       CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingDTS\n");
-      m_eEncoding = OMX_AUDIO_CodingDTS;
-      m_HWDecode = true;
+      ret = true;
       break;
     case CODEC_ID_AC3:
     case CODEC_ID_EAC3:
       CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingDDP\n");
-      m_eEncoding = OMX_AUDIO_CodingDDP;
-      m_HWDecode = true;
+      ret = true;
       break;
     default:
       CLog::Log(LOGDEBUG, "COMXAudio::CanHWDecode OMX_AUDIO_CodingPCM\n");
-      m_eEncoding = OMX_AUDIO_CodingPCM;
-      m_HWDecode = false;
-      break;
-  } 
-
-  return m_HWDecode;
-}
-
-bool COMXAudio::HWDecode(CodecID codec)
-{
-  bool ret = false;
-
-  switch(codec)
-  { 
-    /*
-    case CODEC_ID_VORBIS:
-      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_VORBIS\n");
-      ret = true;
-      break;
-    case CODEC_ID_AAC:
-      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_AAC\n");
-      ret = true;
-      break;
-    case CODEC_ID_MP2:
-    case CODEC_ID_MP3:
-      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_MP2 / CODEC_ID_MP3\n");
-      ret = true;
-      break;
-    */
-    case CODEC_ID_DTS:
-      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_DTS\n");
-      ret = true;
-      break;
-    case CODEC_ID_AC3:
-    case CODEC_ID_EAC3:
-      CLog::Log(LOGDEBUG, "COMXAudio::HWDecode CODEC_ID_AC3 / CODEC_ID_EAC3\n");
-      ret = true;
-      break;
-    default:
       ret = false;
       break;
   } 

@@ -357,7 +357,7 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
   const uint8_t *data_dec = pkt->pData;
   int            data_len = pkt->iSize;
 
-  if(!OMX_IS_RAW(m_format.m_dataFormat) && !m_hw_decode)
+  if(!OMX_IS_RAW(m_format.m_dataFormat))
   {
     while(!m_bStop && data_len > 0)
     {
@@ -679,19 +679,50 @@ AEDataFormat OMXPlayerAudio::GetDataFormat(CDVDStreamInfo hints)
     hdmi_passthrough_ac3 = true;
   if (m_DllBcmHost.vc_tv_hdmi_audio_supported(EDID_AudioFormat_eDTS, 2, EDID_AudioSampleRate_e44KHz, EDID_AudioSampleSize_16bit ) == 0)
     hdmi_passthrough_dts = true;
-  printf("Audio support hdmi=%d, AC3=%d, DTS=%d\n", hdmi_audio, hdmi_passthrough_ac3, hdmi_passthrough_dts);
+  //printf("Audio support hdmi=%d, AC3=%d, DTS=%d\n", hdmi_audio, hdmi_passthrough_ac3, hdmi_passthrough_dts);
 
+  m_passthrough = false;
+  m_hw_decode   = false;
 
-  if(AUDIO_IS_BITSTREAM(g_guiSettings.GetInt("audiooutput.mode")))
+  /* check our audio capabilties */
+
+  /* pathrought is overriding hw decode*/
+  if(AUDIO_IS_BITSTREAM(g_guiSettings.GetInt("audiooutput.mode")) && m_use_passthrough)
   {
-    if(hints.codec == CODEC_ID_AC3 && g_guiSettings.GetBool("audiooutput.ac3passthrough"))
+    if(hints.codec == CODEC_ID_AC3 && g_guiSettings.GetBool("audiooutput.ac3passthrough") && hdmi_passthrough_ac3)
     {
       dataFormat = AE_FMT_AC3;
+      m_passthrough = true;
     }
-    if(hints.codec == CODEC_ID_DTS && g_guiSettings.GetBool("audiooutput.dtspassthrough"))
+    if(hints.codec == CODEC_ID_DTS && g_guiSettings.GetBool("audiooutput.dtspassthrough") && hdmi_passthrough_dts)
     {
       dataFormat = AE_FMT_DTS;
+      m_passthrough = true;
     }
+  }
+
+  /* hw decode */
+  if(m_use_hw_decode && !m_passthrough)
+  {
+    if(hints.codec == CODEC_ID_AC3 && COMXAudio::CanHWDecode(m_hints.codec))
+    {
+      dataFormat = AE_FMT_AC3;
+      m_hw_decode = true;
+    }
+    if(hints.codec == CODEC_ID_DTS && COMXAudio::CanHWDecode(m_hints.codec))
+    {
+      dataFormat = AE_FMT_DTS;
+      m_hw_decode = true;
+    }
+  }
+
+  /* software path */
+  if(!m_passthrough && !m_hw_decode)
+  {
+    /* 6 channel have to be mapped to 8 for PCM */
+    if(m_nChannels > 4)
+      m_nChannels = 8;
+    dataFormat = AE_FMT_S16NE;
   }
 
   return dataFormat;
@@ -701,24 +732,21 @@ bool OMXPlayerAudio::OpenDecoder()
 {
   bool bAudioRenderOpen = false;
 
-  m_nChannels = m_hints.channels;
+  m_nChannels   = m_hints.channels;
+  m_passthrough = false;
+  m_hw_decode   = false;
 
   m_omxAudio.SetClock(m_av_clock);
-
-  m_format.m_dataFormat = AE_FMT_S16NE;
-
-  if(m_use_passthrough)
-    m_format.m_dataFormat = GetDataFormat(m_hints);
-
-  if(!OMX_IS_RAW(m_format.m_dataFormat) && m_use_hw_decode)
-    m_hw_decode = COMXAudio::HWDecode(m_hints.codec);
 
   m_av_clock->Lock();
   m_av_clock->OMXStop(false);
   m_av_clock->HasAudio(false);
 
+  /* setup audi format for audio render */
   m_format.m_sampleRate    = m_hints.samplerate;
   m_format.m_channelLayout = m_pAudioCodec->GetChannelMap(); 
+  /* GetDataFormat is setting up evrything */
+  m_format.m_dataFormat = GetDataFormat(m_hints);
 
   std::string device = "";
   
@@ -727,21 +755,7 @@ bool OMXPlayerAudio::OpenDecoder()
   else
     device = "local";
 
-  if(OMX_IS_RAW(m_format.m_dataFormat) || m_use_hw_decode)
-  {
-    if(OMX_IS_RAW(m_format.m_dataFormat))
-      m_hw_decode = false;
-
-    bAudioRenderOpen = m_omxAudio.Initialize(m_format, device, m_av_clock, m_hints, m_hw_decode);
-  }
-  else
-  {
-    /* 6 channel have to be mapped to 8 for PCM */
-    if(m_nChannels > 4)
-      m_nChannels = 8;
-
-    bAudioRenderOpen = m_omxAudio.Initialize(m_format, device);
-  }
+  bAudioRenderOpen = m_omxAudio.Initialize(m_format, device, m_av_clock, m_hints, m_passthrough, m_hw_decode);
 
   m_codec_name = "";
   
@@ -755,16 +769,8 @@ bool OMXPlayerAudio::OpenDecoder()
   }
   else
   {
-    if(OMX_IS_RAW(m_format.m_dataFormat))
-    {
-      CLog::Log(LOGINFO, "Audio codec %s channels %d samplerate %d bitspersample %d\n",
-        m_codec_name.c_str(), 2, m_hints.samplerate, m_hints.bitspersample);
-    }
-    else
-    {
-      CLog::Log(LOGINFO, "Audio codec %s channels %d samplerate %d bitspersample %d\n",
-        m_codec_name.c_str(), m_nChannels, m_hints.samplerate, m_hints.bitspersample);
-    }
+    CLog::Log(LOGINFO, "Audio codec %s channels %d samplerate %d bitspersample %d\n",
+      m_codec_name.c_str(), m_nChannels, m_hints.samplerate, m_hints.bitspersample);
   }
 
   m_av_clock->HasAudio(true);

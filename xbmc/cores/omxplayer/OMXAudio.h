@@ -60,7 +60,7 @@ public:
   float GetCacheTime();
   float GetCacheTotal();
   COMXAudio();
-  bool Initialize(AEAudioFormat format, std::string& device, OMXClock *clock, CDVDStreamInfo &hints, bool bUseHWDecode);
+  bool Initialize(AEAudioFormat format, std::string& device, OMXClock *clock, CDVDStreamInfo &hints, bool bUsePassthrough, bool bUseHWDecode);
   bool Initialize(AEAudioFormat format, std::string& device);
   ~COMXAudio();
 
@@ -86,9 +86,8 @@ public:
   void Process();
 
   bool SetClock(OMXClock *clock);
-  void SetCodingType(CodecID codec);
-  bool CanHWDecode(CodecID codec);
-  static bool HWDecode(CodecID codec);
+  void SetCodingType(AEDataFormat dataFormat);
+  static bool CanHWDecode(CodecID codec);
 
   void PrintChannels(OMX_AUDIO_CHANNELTYPE eChannelMapping[]);
   void PrintPCM(OMX_AUDIO_PARAM_PCMMODETYPE *pcm, std::string direction);
