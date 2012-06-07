@@ -41,6 +41,7 @@ using namespace XFILE;
 
 CAdvancedSettings::CAdvancedSettings()
 {
+  m_initialized = false;
 }
 
 void CAdvancedSettings::Initialize()
@@ -282,7 +283,7 @@ void CAdvancedSettings::Initialize()
 
   m_cpuTempCmd = "";
   m_gpuTempCmd = "";
-#ifdef __APPLE__
+#if defined(TARGET_DARWIN)
   // default for osx is fullscreen always on top
   m_alwaysOnTop = true;
 #else
@@ -308,6 +309,7 @@ void CAdvancedSettings::Initialize()
   m_logEnableAirtunes = false;
   m_airTunesPort = 36666;
   m_airPlayPort = 36667;
+  m_initialized = true;
 }
 
 bool CAdvancedSettings::Load()

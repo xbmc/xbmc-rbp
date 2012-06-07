@@ -64,7 +64,7 @@ extern "C" {
     PyObject* File_New(PyTypeObject *type, PyObject *args, PyObject *kwds)
     {
       PyObject *f_line;
-      char *cLine;
+      char *cLine = NULL;
       if (!PyArg_ParseTuple(
                             args,
                             (char*)"O|s",
@@ -82,7 +82,7 @@ extern "C" {
         return NULL;
 
       self->pFile = new CFile();
-      if (strncmp(cLine, "w", 1) == 0)
+      if (cLine && strncmp(cLine, "w", 1) == 0)
       {
         CPyThreadState pyState;
         self->pFile->OpenForWrite(strSource,true);
@@ -311,7 +311,7 @@ extern "C" {
     PyObject* vfs_rmdir(File *self, PyObject *args, PyObject *kwds)
     {
       PyObject *f_line;
-      bool bForce = false;
+      char bForce = 0;
       if (!PyArg_ParseTuple(
         args,
         (char*)"O|b",
@@ -327,7 +327,7 @@ extern "C" {
       if (bForce)
       {
         CPyThreadState pyState;
-        bResult = CFileUtils::DeleteItem(strSource, bForce);
+        bResult = CFileUtils::DeleteItem(strSource, bForce ? true : false);
         pyState.Restore();
       }
       else
@@ -571,6 +571,7 @@ extern "C" {
       pXbmcvfsModule = Py_InitModule((char*)"xbmcvfs", xbmcvfsMethods);
       if (pXbmcvfsModule == NULL) return;
 
+      Py_INCREF(&File_Type);
       PyModule_AddObject(pXbmcvfsModule, (char*)"File", (PyObject*)&File_Type);
 
       // constants
@@ -582,7 +583,7 @@ extern "C" {
     }
 
     PyMODINIT_FUNC
-    InitVFSTypes(bool bInitTypes)
+    InitVFSTypes()
     {
       initFile_Type();
       if (PyType_Ready(&File_Type)) return;
