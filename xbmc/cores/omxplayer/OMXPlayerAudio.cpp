@@ -260,7 +260,6 @@ void OMXPlayerAudio::HandleSyncError(double duration)
     {
       double limit, error;
 
-      /*
       if (m_av_clock->GetRefreshRate(&limit) > 0)
       {
         //when the videoreferenceclock is running, the discontinuity limit is one vblank period
@@ -278,10 +277,11 @@ void OMXPlayerAudio::HandleSyncError(double duration)
         limit = DVD_MSEC_TO_TIME(10);
         error = m_error;
       }
-      */
 
+      /*
       limit = DVD_MSEC_TO_TIME(10);
       error = m_error;
+      */
 
       if (fabs(error) > limit - 0.001)
       {
@@ -558,7 +558,6 @@ void OMXPlayerAudio::Process()
       if (pMsgGeneralResync->m_timestamp != DVD_NOPTS_VALUE)
         m_audioClock = pMsgGeneralResync->m_timestamp;
 
-      //m_ptsOutput.Add(m_audioClock, m_dvdAudio.GetDelay(), 0);
       if (pMsgGeneralResync->m_clock)
       {
         CLog::Log(LOGDEBUG, "COMXPlayerAudio - CDVDMsg::GENERAL_RESYNC(%f, 1)", m_audioClock);
@@ -663,7 +662,7 @@ void OMXPlayerAudio::WaitForBuffers()
 
 bool OMXPlayerAudio::Passthrough() const
 {
-  return OMX_IS_RAW(m_format.m_dataFormat);
+  return m_passthrough;
 }
 
 AEDataFormat OMXPlayerAudio::GetDataFormat(CDVDStreamInfo hints)
