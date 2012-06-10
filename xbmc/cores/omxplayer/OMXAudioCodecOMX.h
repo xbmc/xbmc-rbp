@@ -35,7 +35,7 @@ public:
   void Upmix(void *input, unsigned int channelsInput,  void *output,
     unsigned int channelsOutput, unsigned int frames, AEDataFormat dataFormat);
   COMXAudioCodecOMX();
-  ~COMXAudioCodecOMX();
+  virtual ~COMXAudioCodecOMX();
   bool Open(CDVDStreamInfo &hints);
   void Dispose();
   int Decode(BYTE* pData, int iSize);

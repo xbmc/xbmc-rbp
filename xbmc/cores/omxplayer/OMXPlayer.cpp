@@ -657,7 +657,7 @@ bool COMXPlayer::OpenDemuxStream()
 
 void COMXPlayer::OpenDefaultStreams()
 {
-  int  count;
+  //int  count;
   OMXSelectionStreams streams;
   bool valid;
 

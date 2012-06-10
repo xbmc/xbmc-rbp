@@ -398,7 +398,7 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
           break;
         }
 
-        if((unsigned long)m_omxAudio.GetSpace() < pkt->iSize)
+        if(m_omxAudio.GetSpace() < (unsigned int)pkt->iSize)
         {
           Sleep(10);
           continue;
@@ -448,7 +448,7 @@ bool OMXPlayerAudio::Decode(DemuxPacket *pkt, bool bDropPacket)
         break;
       }
 
-      if((unsigned long)m_omxAudio.GetSpace() < pkt->iSize)
+      if(m_omxAudio.GetSpace() < (unsigned int)pkt->iSize)
       {
         Sleep(10);
         continue;
@@ -668,17 +668,14 @@ bool OMXPlayerAudio::Passthrough() const
 AEDataFormat OMXPlayerAudio::GetDataFormat(CDVDStreamInfo hints)
 {
   AEDataFormat dataFormat = AE_FMT_S16NE;
-  bool hdmi_audio = false;
   bool hdmi_passthrough_dts = false;
   bool hdmi_passthrough_ac3 = false;
 
-  if (m_DllBcmHost.vc_tv_hdmi_audio_supported(EDID_AudioFormat_ePCM, 2, EDID_AudioSampleRate_e44KHz, EDID_AudioSampleSize_16bit ) == 0)
-    hdmi_audio = true;
   if (m_DllBcmHost.vc_tv_hdmi_audio_supported(EDID_AudioFormat_eAC3, 2, EDID_AudioSampleRate_e44KHz, EDID_AudioSampleSize_16bit ) == 0)
     hdmi_passthrough_ac3 = true;
   if (m_DllBcmHost.vc_tv_hdmi_audio_supported(EDID_AudioFormat_eDTS, 2, EDID_AudioSampleRate_e44KHz, EDID_AudioSampleSize_16bit ) == 0)
     hdmi_passthrough_dts = true;
-  //printf("Audio support hdmi=%d, AC3=%d, DTS=%d\n", hdmi_audio, hdmi_passthrough_ac3, hdmi_passthrough_dts);
+  //printf("Audio support AC3=%d, DTS=%d\n", hdmi_passthrough_ac3, hdmi_passthrough_dts);
 
   m_passthrough = false;
   m_hw_decode   = false;

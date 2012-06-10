@@ -248,9 +248,9 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
   if (!m_Passthrough)
   {
     /* setup output channel map */
+    /*
     int ch = 0, map;
     int chan = 0;
-    /*
     m_OutputChannels = 0;
 
     for (unsigned int ch = 0; ch < m_format.m_channelLayout.Count(); ++ch)
@@ -271,9 +271,8 @@ bool COMXAudio::Initialize(AEAudioFormat format, std::string& device)
     */
 
     /* setup input channel map */
-    ch = 0;
-    map = 0;
-    chan = 0;
+    int map = 0;
+    int chan = 0;
 
     for (unsigned int ch = 0; ch < m_format.m_channelLayout.Count(); ++ch)
     {

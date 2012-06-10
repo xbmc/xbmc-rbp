@@ -236,7 +236,7 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize)
     const void *ibuf[6] = { m_pFrame1->data[0] };
     void       *obuf[6] = { m_pBuffer2 };
     int         istr[6] = { m_dllAvUtil.av_get_bytes_per_sample(m_pCodecContext->sample_fmt) };
-    int         ostr[6] = { (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3) };
+    int         ostr[6] = { (int) (CAEUtil::DataFormatToBits(AE_FMT_S16LE) >> 3) };
     int         len     = m_iBufferSize1 / istr[0];
     if(m_dllAvCodec.av_audio_convert(m_pConvert, obuf, ostr, ibuf, istr, len) < 0)
     {
