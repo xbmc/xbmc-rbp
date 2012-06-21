@@ -439,6 +439,9 @@ OMX_IMAGE_CODINGTYPE COMXImage::GetCodingType()
     }
   }
 
+  if(m_orientation > 8)
+    m_orientation = 0;
+
   m_width  = m_omx_image.nFrameWidth;
   m_height = m_omx_image.nFrameHeight;
 

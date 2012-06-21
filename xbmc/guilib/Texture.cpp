@@ -210,8 +210,8 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
           return false;
         }
 
-        if(autoRotate)
-          m_orientation = omx_image.GetOrientation();
+        if (autoRotate && omx_image.GetOrientation())
+          m_orientation = omx_image.GetOrientation() - 1;
 
         if(omx_image.GetDecodedData())
         {
