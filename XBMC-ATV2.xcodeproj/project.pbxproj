@@ -19,6 +19,8 @@
 		18E7CAD11578C671001D4554 /* CDDARipJob.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18E7CACF1578C671001D4554 /* CDDARipJob.cpp */; };
 		18ECC9AA13CF17EB00A9ED6C /* StreamUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18ECC9A813CF17EB00A9ED6C /* StreamUtils.cpp */; };
 		32D6D47C1423A9D8003641AC /* JpegIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32D6D47A1423A9D8003641AC /* JpegIO.cpp */; };
+		36A9445915821F8300727135 /* DatabaseUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 36A9445715821F8300727135 /* DatabaseUtils.cpp */; };
+		36A9445D15821FAC00727135 /* SortUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 36A9445B15821FAB00727135 /* SortUtils.cpp */; };
 		4D5D2E131301753F006ABC13 /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D5D2E121301753F006ABC13 /* CFNetwork.framework */; };
 		7C0A7ECD13A5DBF900AFC2BD /* AppParamParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C0A7ECB13A5DBF900AFC2BD /* AppParamParser.cpp */; };
 		7C0A7FC813A9E75400AFC2BD /* DirtyRegionSolvers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C0A7FC413A9E75400AFC2BD /* DirtyRegionSolvers.cpp */; };
@@ -37,6 +39,7 @@
 		C8936060152C86EC00812418 /* PythonMonitor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C893605E152C86EC00812418 /* PythonMonitor.cpp */; };
 		C8936063152C86F500812418 /* monitor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8936061152C86F500812418 /* monitor.cpp */; };
 		C8EC5D51136954E400CCC10D /* XBMC_keytable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8EC5D4F136954E400CCC10D /* XBMC_keytable.cpp */; };
+		DF08E84515829BA600058C77 /* Exception.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF08E84315829BA600058C77 /* Exception.cpp */; };
 		DF0DF16D13A3AF82008ED511 /* NFSDirectory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF0DF16A13A3AF82008ED511 /* NFSDirectory.cpp */; };
 		DF33C2A415509C1B0046CDCB /* XbmcContext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF33C2A215509C1B0046CDCB /* XbmcContext.cpp */; };
 		DF33C2AE15509C5A0046CDCB /* ilog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF33C2AB15509C5A0046CDCB /* ilog.cpp */; };
@@ -760,7 +763,6 @@
 		F56C7B41131EC155000AD0F6 /* TuxBoxUtil.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C776C131EC154000AD0F6 /* TuxBoxUtil.cpp */; };
 		F56C7B42131EC155000AD0F6 /* Variant.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C776E131EC154000AD0F6 /* Variant.cpp */; };
 		F56C7B43131EC155000AD0F6 /* Weather.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C7770131EC154000AD0F6 /* Weather.cpp */; };
-		F56C7B44131EC155000AD0F6 /* Win32Exception.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C7772131EC154000AD0F6 /* Win32Exception.cpp */; };
 		F56C7B45131EC155000AD0F6 /* fft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C7775131EC154000AD0F6 /* fft.cpp */; };
 		F56C7B46131EC155000AD0F6 /* ssrc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C7777131EC154000AD0F6 /* ssrc.cpp */; };
 		F56C7B47131EC155000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C777B131EC154000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp */; };
@@ -818,7 +820,6 @@
 		F56C7B7F131EC155000AD0F6 /* PartyModeManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C77F6131EC154000AD0F6 /* PartyModeManager.cpp */; };
 		F56C7B80131EC155000AD0F6 /* PlayListPlayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C77F8131EC154000AD0F6 /* PlayListPlayer.cpp */; };
 		F56C7B81131EC155000AD0F6 /* SectionLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C77FA131EC154000AD0F6 /* SectionLoader.cpp */; };
-		F56C7B82131EC155000AD0F6 /* SortFileItem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C77FC131EC154000AD0F6 /* SortFileItem.cpp */; };
 		F56C7B83131EC155000AD0F6 /* Temperature.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C77FE131EC154000AD0F6 /* Temperature.cpp */; };
 		F56C7B84131EC155000AD0F6 /* TextureCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C7800131EC154000AD0F6 /* TextureCache.cpp */; };
 		F56C7B85131EC155000AD0F6 /* TextureDatabase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C7802131EC154000AD0F6 /* TextureDatabase.cpp */; };
@@ -1004,6 +1005,11 @@
 		18ECC9A913CF17EB00A9ED6C /* StreamUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StreamUtils.h; sourceTree = "<group>"; };
 		32D6D47A1423A9D8003641AC /* JpegIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JpegIO.cpp; sourceTree = "<group>"; };
 		32D6D47B1423A9D8003641AC /* JpegIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JpegIO.h; sourceTree = "<group>"; };
+		36A9445715821F8300727135 /* DatabaseUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DatabaseUtils.cpp; sourceTree = "<group>"; };
+		36A9445815821F8300727135 /* DatabaseUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DatabaseUtils.h; sourceTree = "<group>"; };
+		36A9445A15821F9100727135 /* ISortable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ISortable.h; sourceTree = "<group>"; };
+		36A9445B15821FAB00727135 /* SortUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SortUtils.cpp; sourceTree = "<group>"; };
+		36A9445C15821FAB00727135 /* SortUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SortUtils.h; sourceTree = "<group>"; };
 		4D5D2E121301753F006ABC13 /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
 		7C0A7ECB13A5DBF900AFC2BD /* AppParamParser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AppParamParser.cpp; sourceTree = "<group>"; };
 		7C0A7ECC13A5DBF900AFC2BD /* AppParamParser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppParamParser.h; sourceTree = "<group>"; };
@@ -1042,6 +1048,8 @@
 		C8936062152C86F500812418 /* monitor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = monitor.h; sourceTree = "<group>"; };
 		C8EC5D4F136954E400CCC10D /* XBMC_keytable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = XBMC_keytable.cpp; sourceTree = "<group>"; };
 		C8EC5D50136954E400CCC10D /* XBMC_keytable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XBMC_keytable.h; sourceTree = "<group>"; };
+		DF08E84315829BA600058C77 /* Exception.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Exception.cpp; sourceTree = "<group>"; };
+		DF08E84415829BA600058C77 /* Exception.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Exception.h; sourceTree = "<group>"; };
 		DF0DF16A13A3AF82008ED511 /* NFSDirectory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = NFSDirectory.cpp; sourceTree = "<group>"; };
 		DF0DF16B13A3AF82008ED511 /* NFSDirectory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NFSDirectory.h; sourceTree = "<group>"; };
 		DF33C2A215509C1B0046CDCB /* XbmcContext.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = XbmcContext.cpp; sourceTree = "<group>"; };
@@ -2613,8 +2621,6 @@
 		F56C776F131EC154000AD0F6 /* Variant.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Variant.h; sourceTree = "<group>"; };
 		F56C7770131EC154000AD0F6 /* Weather.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Weather.cpp; sourceTree = "<group>"; };
 		F56C7771131EC154000AD0F6 /* Weather.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Weather.h; sourceTree = "<group>"; };
-		F56C7772131EC154000AD0F6 /* Win32Exception.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Win32Exception.cpp; sourceTree = "<group>"; };
-		F56C7773131EC154000AD0F6 /* Win32Exception.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Win32Exception.h; sourceTree = "<group>"; };
 		F56C7774131EC154000AD0F6 /* WindowsShortcut.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WindowsShortcut.h; sourceTree = "<group>"; };
 		F56C7775131EC154000AD0F6 /* fft.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fft.cpp; sourceTree = "<group>"; };
 		F56C7776131EC154000AD0F6 /* fft.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fft.h; sourceTree = "<group>"; };
@@ -2737,7 +2743,6 @@
 		F56C77F9131EC154000AD0F6 /* PlayListPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PlayListPlayer.h; sourceTree = "<group>"; };
 		F56C77FA131EC154000AD0F6 /* SectionLoader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SectionLoader.cpp; sourceTree = "<group>"; };
 		F56C77FB131EC154000AD0F6 /* SectionLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SectionLoader.h; sourceTree = "<group>"; };
-		F56C77FC131EC154000AD0F6 /* SortFileItem.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SortFileItem.cpp; sourceTree = "<group>"; };
 		F56C77FD131EC154000AD0F6 /* SortFileItem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SortFileItem.h; sourceTree = "<group>"; };
 		F56C77FE131EC154000AD0F6 /* Temperature.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Temperature.cpp; sourceTree = "<group>"; };
 		F56C77FF131EC154000AD0F6 /* Temperature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Temperature.h; sourceTree = "<group>"; };
@@ -3128,6 +3133,8 @@
 		DF33C2AA15509C5A0046CDCB /* commons */ = {
 			isa = PBXGroup;
 			children = (
+				DF08E84315829BA600058C77 /* Exception.cpp */,
+				DF08E84415829BA600058C77 /* Exception.h */,
 				DF33C2AB15509C5A0046CDCB /* ilog.cpp */,
 				DF33C2AC15509C5A0046CDCB /* ilog.h */,
 			);
@@ -3594,7 +3601,6 @@
 				F56C77F9131EC154000AD0F6 /* PlayListPlayer.h */,
 				F56C77FA131EC154000AD0F6 /* SectionLoader.cpp */,
 				F56C77FB131EC154000AD0F6 /* SectionLoader.h */,
-				F56C77FC131EC154000AD0F6 /* SortFileItem.cpp */,
 				F56C77FD131EC154000AD0F6 /* SortFileItem.h */,
 				F56C77CC131EC154000AD0F6 /* SystemGlobals.cpp */,
 				F56C77FE131EC154000AD0F6 /* Temperature.cpp */,
@@ -5363,6 +5369,8 @@
 				F56C7717131EC154000AD0F6 /* Crc32.h */,
 				F5BD0338148D4923001B5583 /* CryptThreading.cpp */,
 				F5BD0339148D4923001B5583 /* CryptThreading.h */,
+				36A9445715821F8300727135 /* DatabaseUtils.cpp */,
+				36A9445815821F8300727135 /* DatabaseUtils.h */,
 				F56C772D131EC154000AD0F6 /* DownloadQueue.cpp */,
 				F56C772E131EC154000AD0F6 /* DownloadQueue.h */,
 				F56C772F131EC154000AD0F6 /* DownloadQueueManager.cpp */,
@@ -5395,6 +5403,7 @@
 				DF527787151BAFEE00B5B63B /* HttpResponse.h */,
 				F56C7741131EC154000AD0F6 /* InfoLoader.cpp */,
 				F56C7742131EC154000AD0F6 /* InfoLoader.h */,
+				36A9445A15821F9100727135 /* ISortable.h */,
 				F56C7747131EC154000AD0F6 /* Job.h */,
 				F56C7745131EC154000AD0F6 /* JobManager.cpp */,
 				F56C7746131EC154000AD0F6 /* JobManager.h */,
@@ -5433,6 +5442,8 @@
 				F56C775F131EC154000AD0F6 /* ScraperParser.h */,
 				F56C7760131EC154000AD0F6 /* ScraperUrl.cpp */,
 				F56C7761131EC154000AD0F6 /* ScraperUrl.h */,
+				36A9445B15821FAB00727135 /* SortUtils.cpp */,
+				36A9445C15821FAB00727135 /* SortUtils.h */,
 				F56C7762131EC154000AD0F6 /* Splash.cpp */,
 				F56C7763131EC154000AD0F6 /* Splash.h */,
 				F56C7777131EC154000AD0F6 /* ssrc.cpp */,
@@ -5459,8 +5470,6 @@
 				F56C776F131EC154000AD0F6 /* Variant.h */,
 				F56C7770131EC154000AD0F6 /* Weather.cpp */,
 				F56C7771131EC154000AD0F6 /* Weather.h */,
-				F56C7772131EC154000AD0F6 /* Win32Exception.cpp */,
-				F56C7773131EC154000AD0F6 /* Win32Exception.h */,
 				F56C7774131EC154000AD0F6 /* WindowsShortcut.h */,
 				F5ED90C71553994800842059 /* XBMCTinyXML.cpp */,
 				F5ED90C81553994800842059 /* XBMCTinyXML.h */,
@@ -6902,7 +6911,6 @@
 				F56C7B41131EC155000AD0F6 /* TuxBoxUtil.cpp in Sources */,
 				F56C7B42131EC155000AD0F6 /* Variant.cpp in Sources */,
 				F56C7B43131EC155000AD0F6 /* Weather.cpp in Sources */,
-				F56C7B44131EC155000AD0F6 /* Win32Exception.cpp in Sources */,
 				F56C7B45131EC155000AD0F6 /* fft.cpp in Sources */,
 				F56C7B46131EC155000AD0F6 /* ssrc.cpp in Sources */,
 				F56C7B47131EC155000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp in Sources */,
@@ -6960,7 +6968,6 @@
 				F56C7B7F131EC155000AD0F6 /* PartyModeManager.cpp in Sources */,
 				F56C7B80131EC155000AD0F6 /* PlayListPlayer.cpp in Sources */,
 				F56C7B81131EC155000AD0F6 /* SectionLoader.cpp in Sources */,
-				F56C7B82131EC155000AD0F6 /* SortFileItem.cpp in Sources */,
 				F56C7B83131EC155000AD0F6 /* Temperature.cpp in Sources */,
 				F56C7B84131EC155000AD0F6 /* TextureCache.cpp in Sources */,
 				F56C7B85131EC155000AD0F6 /* TextureDatabase.cpp in Sources */,
@@ -7209,6 +7216,9 @@
 				7C6EB586155E3EC80080368A /* ImageFile.cpp in Sources */,
 				7C6EB708155F3B160080368A /* HTTPImageHandler.cpp in Sources */,
 				18E7CAD11578C671001D4554 /* CDDARipJob.cpp in Sources */,
+				36A9445915821F8300727135 /* DatabaseUtils.cpp in Sources */,
+				36A9445D15821FAC00727135 /* SortUtils.cpp in Sources */,
+				DF08E84515829BA600058C77 /* Exception.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

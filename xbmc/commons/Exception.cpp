@@ -1,7 +1,5 @@
-#pragma once
-
 /*
- *      Copyright (C) 2005-2008 Team XBMC
+ *      Copyright (C) 2005-2012 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -21,43 +19,12 @@
  *
  */
 
-#include "threads/CriticalSection.h"
-#include "utils/StdString.h"
+#include "Exception.h"
 
-struct DSDeviceInfo
+namespace XbmcCommons
 {
-  LPGUID lpGuid;
-  CStdString strDescription;
-  CStdString strModule;
-};
+  ILogger* Exception::logger = NULL;
 
-class CWDSound
-{
-public:
-  CWDSound(void);
-  virtual ~CWDSound(void);
-
-  std::vector<DSDeviceInfo> GetSoundDevices();
-  
-
-private:
-
-  CCriticalSection m_critSection;
-  std::vector<DSDeviceInfo> vDSDeviceInfo;
-
-  BOOL direct_sound_enumerator_member_callback(
-   LPGUID lpGuid,
-   LPCTSTR lpcstrDescription,
-   LPCTSTR lpcstrModule
-  );
-
-  friend BOOL CALLBACK direct_sound_enumerator_callback(
-   LPGUID lpGuid,
-   LPCTSTR lpcstrDescription,
-   LPCTSTR lpcstrModule,
-   LPVOID lpContext
-  );
-
-  
-};
+  Exception::~Exception() {}
+}
 

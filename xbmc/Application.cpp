@@ -148,7 +148,7 @@
 #include "network/Zeroconf.h"
 #include "network/ZeroconfBrowser.h"
 #ifndef _LINUX
-#include "utils/Win32Exception.h"
+#include "threads/platform/win/Win32Exception.h"
 #endif
 #ifdef HAS_EVENT_SERVER
 #include "network/EventServer.h"
@@ -706,8 +706,8 @@ bool CApplication::Create()
 
   // restore AE's previous volume state
   SetHardwareVolume(g_settings.m_fVolumeLevel);
-  CAEFactory::AE->SetMute     (g_settings.m_bMute);
-  CAEFactory::AE->SetSoundMode(g_guiSettings.GetInt("audiooutput.guisoundmode"));
+  CAEFactory::SetMute     (g_settings.m_bMute);
+  CAEFactory::SetSoundMode(g_guiSettings.GetInt("audiooutput.guisoundmode"));
 
   // start-up Addons Framework
   // currently bails out if either cpluff Dll is unavailable or system dir can not be scanned
@@ -799,6 +799,15 @@ bool CApplication::CreateGUI()
   {
     CLog::Log(LOGFATAL, "CApplication::Create: Unable to init windowing system");
     return false;
+  }
+
+  // Retrieve the matching resolution based on GUI settings
+  g_guiSettings.m_LookAndFeelResolution = g_guiSettings.GetResolution();
+  CLog::Log(LOGNOTICE, "Checking resolution %i", g_guiSettings.m_LookAndFeelResolution);
+  if (!g_graphicsContext.IsValidResolution(g_guiSettings.m_LookAndFeelResolution))
+  {
+    CLog::Log(LOGNOTICE, "Setting safe mode %i", RES_DESKTOP);
+    g_guiSettings.SetResolution(RES_DESKTOP);
   }
 
   // update the window resolution
@@ -2684,7 +2693,7 @@ bool CApplication::OnAction(const CAction &action)
       else
         volume -= (float)fabs(action.GetAmount()) * action.GetAmount() * step;
 
-      SetHardwareVolume(volume);
+      SetVolume(volume, false);
     }
     // show visual feedback of volume change...
     ShowVolumeBar(&action);
@@ -2804,11 +2813,7 @@ bool CApplication::ProcessGamepad(float frameTime)
 #ifdef HAS_SDL_JOYSTICK
   if (!m_AppFocused)
     return false;
-  int iWin = g_windowManager.GetActiveWindow() & WINDOW_ID_MASK;
-  if (g_windowManager.HasModalDialog())
-  {
-    iWin = g_windowManager.GetTopMostModalDialogID() & WINDOW_ID_MASK;
-  }
+  int iWin = GetActiveWindowID();
   int bid;
   g_Joystick.Update();
   if (g_Joystick.GetButton(bid))
@@ -3168,20 +3173,7 @@ bool CApplication::ProcessJoystickEvent(const std::string& joystickName, int wKe
 #endif
    g_Mouse.SetActive(false);
 
-   // Figure out what window we're taking the event for.
-   int iWin = g_windowManager.GetActiveWindow() & WINDOW_ID_MASK;
-   if (g_windowManager.HasModalDialog())
-       iWin = g_windowManager.GetTopMostModalDialogID() & WINDOW_ID_MASK;
-
-   // This code is copied from the OnKey handler, it should be factored out.
-   if (iWin == WINDOW_FULLSCREEN_VIDEO &&
-       g_application.m_pPlayer &&
-       g_application.m_pPlayer->IsInMenu())
-   {
-     // If player is in some sort of menu, (ie DVDMENU) map buttons differently.
-     iWin = WINDOW_VIDEO_MENU;
-   }
-
+   int iWin = GetActiveWindowID();
    int actionID;
    CStdString actionName;
    bool fullRange = false;
@@ -3200,6 +3192,23 @@ bool CApplication::ProcessJoystickEvent(const std::string& joystickName, int wKe
 #endif
 
    return false;
+}
+
+int CApplication::GetActiveWindowID(void)
+{
+  // Get the currently active window
+  int iWin = g_windowManager.GetActiveWindow() & WINDOW_ID_MASK;
+
+  // If there is a dialog active get the dialog id instead
+  if (g_windowManager.HasModalDialog())
+    iWin = g_windowManager.GetTopMostModalDialogID() & WINDOW_ID_MASK;
+
+  // If the window is FullScreenVideo check if we're in a DVD menu
+  if (iWin == WINDOW_FULLSCREEN_VIDEO && g_application.m_pPlayer && g_application.m_pPlayer->IsInMenu())
+    iWin = WINDOW_VIDEO_MENU;
+
+  // Return the window id
+  return iWin;
 }
 
 bool CApplication::Cleanup()
@@ -3338,12 +3347,6 @@ bool CApplication::Cleanup()
 #ifdef _CRTDBG_MAP_ALLOC
     _CrtDumpMemoryLeaks();
     while(1); // execution ends
-#endif
-#ifdef _WIN32
-    WSACleanup();
-
-    //Uninitialize COM
-    CoUninitialize();
 #endif
     return true;
   }
@@ -3496,7 +3499,7 @@ void CApplication::Stop(int exitCode)
     g_Windowing.DestroyWindowSystem();
 
     // shutdown the AudioEngine
-    CAEFactory::AE->Shutdown();
+    CAEFactory::Shutdown();
 
     CLog::Log(LOGNOTICE, "stopped");
   }
@@ -5066,7 +5069,7 @@ void CApplication::ProcessSlow()
   if (!IsPlayingVideo())
     CAddonInstaller::Get().UpdateRepos();
 
-  CAEFactory::AE->GarbageCollect();
+  CAEFactory::GarbageCollect();
 }
 
 // Global Idle Time in Seconds
@@ -5168,7 +5171,7 @@ bool CApplication::IsMuted() const
 {
   if (g_peripherals.IsMuted())
     return true;
-  return CAEFactory::AE->IsMuted();
+  return CAEFactory::IsMuted();
 }
 
 void CApplication::ToggleMute(void)
@@ -5184,8 +5187,9 @@ void CApplication::Mute()
   if (g_peripherals.Mute())
     return;
 
-  CAEFactory::AE->SetMute(true);
+  CAEFactory::SetMute(true);
   g_settings.m_bMute = true;
+  VolumeChanged();
 }
 
 void CApplication::UnMute()
@@ -5193,8 +5197,9 @@ void CApplication::UnMute()
   if (g_peripherals.UnMute())
     return;
 
-  CAEFactory::AE->SetMute(false);
+  CAEFactory::SetMute(false);
   g_settings.m_bMute = false;
+  VolumeChanged();
 }
 
 void CApplication::SetVolume(float iValue, bool isPercentage/*=true*/)
@@ -5205,11 +5210,7 @@ void CApplication::SetVolume(float iValue, bool isPercentage/*=true*/)
     hardwareVolume /= 100.0f;
 
   SetHardwareVolume(hardwareVolume);
-
-  CVariant data(CVariant::VariantTypeObject);
-  data["volume"] = (int)(hardwareVolume * 100.0f + 0.5f);
-  data["muted"] = g_settings.m_bMute;
-  CAnnouncementManager::Announce(Application, "xbmc", "OnVolumeChanged", data);
+  VolumeChanged();
 }
 
 void CApplication::SetHardwareVolume(float hardwareVolume)
@@ -5226,7 +5227,7 @@ void CApplication::SetHardwareVolume(float hardwareVolume)
   if (value >= 0.99f)
     value = 1.0f;
 
-  CAEFactory::AE->SetVolume(value);
+  CAEFactory::SetVolume(value);
 
   /* for platforms where we do not have AE */
   if (m_pPlayer)
@@ -5237,6 +5238,14 @@ int CApplication::GetVolume() const
 {
   // converts the hardware volume to a percentage
   return (int)(g_settings.m_fVolumeLevel * 100.0f);
+}
+
+void CApplication::VolumeChanged() const
+{
+  CVariant data(CVariant::VariantTypeObject);
+  data["volume"] = GetVolume();
+  data["muted"] = g_settings.m_bMute;
+  CAnnouncementManager::Announce(Application, "xbmc", "OnVolumeChanged", data);
 }
 
 int CApplication::GetSubtitleDelay() const

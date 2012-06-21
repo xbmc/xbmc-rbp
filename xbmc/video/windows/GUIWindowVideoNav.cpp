@@ -125,17 +125,6 @@ bool CGUIWindowVideoNav::OnMessage(CGUIMessage& message)
       if (!CGUIWindowVideoBase::OnMessage(message))
         return false;
 
-      //  base class has opened the database, do our check
-      m_database.Open();
-
-      if (!m_database.HasContent() && m_vecItems->IsVideoDb())
-      { // no library - make sure we default to the root.
-        m_vecItems->SetPath("");
-        SetHistoryForPath("");
-        Update("");
-      }
-
-      m_database.Close();
       return true;
     }
     break;
@@ -372,11 +361,16 @@ void CGUIWindowVideoNav::LoadVideoInfo(CFileItemList &items)
 {
   // TODO: this could possibly be threaded as per the music info loading,
   //       we could also cache the info
-  if (!items.GetContent().IsEmpty())
-    return; // don't load for listings that have content set
+  if (!items.GetContent().IsEmpty() && !items.IsPlugin())
+    return; // don't load for listings that have content set and weren't created from plugins
 
-  CStdString content = m_database.GetContentForPath(items.GetPath());
-  items.SetContent(content.IsEmpty() ? "files" : content);
+  CStdString content = items.GetContent();
+  // determine content only if it isn't set
+  if (content.IsEmpty())
+  {
+    content = m_database.GetContentForPath(items.GetPath());
+    items.SetContent(content.IsEmpty() ? "files" : content);
+  }
 
   /*
     If we have a matching item in the library, so we can assign the metadata to it. In addition, we can choose
@@ -638,7 +632,7 @@ void CGUIWindowVideoNav::OnDeleteItem(CFileItemPtr pItem)
            pItem->GetPath().size() > 14 && pItem->m_bIsFolder)
   {
     CGUIDialogYesNo* pDialog = (CGUIDialogYesNo*)g_windowManager.GetWindow(WINDOW_DIALOG_YES_NO);
-    pDialog->SetLine(0, g_localizeStrings.Get(432));
+    pDialog->SetHeading(432);
     CStdString strLabel;
     strLabel.Format(g_localizeStrings.Get(433),pItem->GetLabel());
     pDialog->SetLine(1, strLabel);
@@ -1327,7 +1321,7 @@ void CGUIWindowVideoNav::OnLinkMovieToTvShow(int itemnumber, bool bRemove)
   int iSelectedLabel = 0;
   if (list.Size() > 1)
   {
-    list.Sort(g_guiSettings.GetBool("filelists.ignorethewhensorting") ? SORT_METHOD_LABEL_IGNORE_THE : SORT_METHOD_LABEL, SORT_ORDER_ASC);
+    list.Sort(g_guiSettings.GetBool("filelists.ignorethewhensorting") ? SORT_METHOD_LABEL_IGNORE_THE : SORT_METHOD_LABEL, SortOrderAscending);
     CGUIDialogSelect* pDialog = (CGUIDialogSelect*)g_windowManager.GetWindow(WINDOW_DIALOG_SELECT);
     pDialog->Reset();
     pDialog->SetItems(&list);

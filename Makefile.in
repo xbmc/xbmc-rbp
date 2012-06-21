@@ -29,7 +29,6 @@ DIRECTORY_ARCHIVES=$(DVDPLAYER_ARCHIVES) \
                    lib/xbmc-dll-symbols/dll-symbols.a \
                    xbmc/addons/addons.a \
                    xbmc/cdrip/cdrip.a \
-                   xbmc/commons/commons.a \
                    xbmc/cores/AudioEngine/audioengine.a \
                    xbmc/cores/DllLoader/dllloader.a \
                    xbmc/cores/DllLoader/exports/exports.a \
@@ -74,7 +73,6 @@ DIRECTORY_ARCHIVES=$(DVDPLAYER_ARCHIVES) \
                    xbmc/rendering/rendering.a \
                    xbmc/settings/settings.a \
                    xbmc/storage/storage.a \
-                   xbmc/threads/threads.a \
                    xbmc/utils/utils.a \
                    xbmc/video/dialogs/videodialogs.a \
                    xbmc/video/video.a \
@@ -82,6 +80,10 @@ DIRECTORY_ARCHIVES=$(DVDPLAYER_ARCHIVES) \
                    xbmc/windowing/windowing.a \
                    xbmc/windows/windows.a \
                    xbmc/xbmc.a \
+
+
+NWAOBJSXBMC=	xbmc/commons/commons.a \
+		xbmc/threads/threads.a \
 
 
 ifeq (@USE_WEB_SERVER@,1)
@@ -125,7 +127,7 @@ OMXPLAYER_ARCHIVES = xbmc/cores/omxplayer/OMXPlayer.a
 DIRECTORY_ARCHIVES += $(OMXPLAYER_ARCHIVES)
 endif
 
-BIN_DIRS = $(dir $(DIRECTORY_ARCHIVES))
+BIN_DIRS = $(dir $(DIRECTORY_ARCHIVES)) $(dir $(NWAOBJSXBMC))
 
 PAPCODECS_DIRS= \
 	lib/xbadpcm \
@@ -201,6 +203,9 @@ FINAL_TARGETS=xbmc.bin skins xbmc-xrandr
 endif
 FINAL_TARGETS+=Makefile externals
 
+CHECK_DIRS = xbmc/utils/test \
+             xbmc/threads/test
+
 all : $(FINAL_TARGETS)
 	@echo '-----------------------'
 	@echo 'XBMC built successfully'
@@ -240,6 +245,9 @@ endif
 # Setup some dependencies for subdir makes
 xbmc/cores/paplayer/paplayer.a: papcodecs
 $(DVDPLAYER_ARCHIVES)         : dvdpcodecs
+
+$(NWAOBJSXBMC): force
+	@$(MAKE) $(if $(V),,-s) -C $(@D)
 
 $(DIRECTORY_ARCHIVES): force
 	@$(MAKE) $(if $(V),,-s) -C $(@D)
@@ -347,19 +355,19 @@ OBJSXBMC:=$(filter-out $(DYNOBJSXBMC), $(OBJSXBMC))
 
 LIBS += @PYTHON_LDFLAGS@
 
-libxbmc.so: $(OBJSXBMC) $(DYNOBJSXBMC)
+libxbmc.so: $(OBJSXBMC) $(DYNOBJSXBMC) $(NWAOBJSXBMC)
 ifeq ($(findstring osx,@ARCH@), osx)
-	$(SILENT_LD) $(CXX) $(LDFLAGS) -bundle -o $@ -Wl,-all_load,-ObjC $(DYNOBJSXBMC) $(OBJSXBMC) $(LIBS)
+	$(SILENT_LD) $(CXX) $(LDFLAGS) -bundle -o $@ -Wl,-all_load,-ObjC $(DYNOBJSXBMC) $(NWAOBJSXBMC) $(OBJSXBMC) $(LIBS)
 else
-	$(SILENT_LD) $(CXX) $(CXXFLAGS) $(LDFLAGS) -shared -o $@ -Wl,--whole-archive $(DYNOBJSXBMC) $(OBJSXBMC) -Wl,--no-whole-archive $(LIBS)
+	$(SILENT_LD) $(CXX) $(CXXFLAGS) $(LDFLAGS) -shared -o $@ -Wl,--whole-archive $(DYNOBJSXBMC) $(OBJSXBMC) -Wl,--no-whole-archive $(NWAOBJSXBMC) $(LIBS)
 endif
 
-xbmc.bin: $(OBJSXBMC) $(DYNOBJSXBMC)
+xbmc.bin: $(OBJSXBMC) $(DYNOBJSXBMC) $(NWAOBJSXBMC)
 
 ifeq ($(findstring osx,@ARCH@), osx)
-	$(SILENT_LD) $(CXX) $(LDFLAGS) -o xbmc.bin -Wl,-all_load,-ObjC $(DYNOBJSXBMC) $(OBJSXBMC) $(LIBS) -rdynamic
+	$(SILENT_LD) $(CXX) $(LDFLAGS) -o xbmc.bin -Wl,-all_load,-ObjC $(DYNOBJSXBMC) $(NWAOBJSXBMC) $(OBJSXBMC) $(LIBS) -rdynamic
 else
-	$(SILENT_LD) $(CXX) $(CXXFLAGS) $(LDFLAGS) -o xbmc.bin -Wl,--whole-archive $(DYNOBJSXBMC) $(OBJSXBMC) -Wl,--no-whole-archive $(LIBS) -rdynamic
+	$(SILENT_LD) $(CXX) $(CXXFLAGS) $(LDFLAGS) -o xbmc.bin -Wl,--whole-archive $(DYNOBJSXBMC) $(OBJSXBMC) -Wl,--no-whole-archive $(NWAOBJSXBMC) $(LIBS) -rdynamic
 endif
 
 xbmc-xrandr: xbmc-xrandr.c
@@ -490,3 +498,6 @@ clean-codecs: clean-dvdpcodecs clean-papcodecs
 
 clean-externals: clean-codecs clean-eventclients clean-xbmctex clean-libs \
 	clean-screensavers clean-visualisations
+
+check:
+	for d in $(CHECK_DIRS); do if test -f $$d/Makefile; then $(MAKE) -C $$d $@; fi; done

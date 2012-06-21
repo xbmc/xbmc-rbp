@@ -36,7 +36,7 @@
 #include "MathUtils.h"
 
 // typecast AE to CCoreAudioAE
-#define AE (*(CCoreAudioAE*)CAEFactory::AE)
+#define AE (*(CCoreAudioAE*)CAEFactory::GetEngine())
 
 void CheckOutputBufferSize(void **buffer, int *oldSize, int newSize)
 {
@@ -413,7 +413,7 @@ unsigned int CCoreAudioAEStream::AddData(void *data, unsigned int size)
 
   unsigned int total_ms_sleep = 0;
   unsigned int room = m_Buffer->GetWriteSize();
-  while (addsize > room && !m_paused && total_ms_sleep < 2000)
+  while (addsize > room && !m_paused && total_ms_sleep < 200)
   {
     // we got deleted
     if (!m_valid || !m_Buffer || m_draining )

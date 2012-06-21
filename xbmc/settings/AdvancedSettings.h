@@ -245,6 +245,7 @@ class CAdvancedSettings
     bool m_bVideoLibraryImportResumePoint;
 
     bool m_bVideoScannerIgnoreErrors;
+    int m_iVideoLibraryDateAdded;
 
     std::vector<CStdString> m_vecTokens; // cleaning strings tied to language
     //TuxBox
