@@ -801,6 +801,10 @@ bool CApplication::CreateGUI()
     return false;
   }
 
+  // Load the calibration after the init of the windowing system.
+  // This is the point where we know the resolutions and can apply the calibration
+  g_settings.LoadCalibration();
+
   // Retrieve the matching resolution based on GUI settings
   g_guiSettings.m_LookAndFeelResolution = g_guiSettings.GetResolution();
   CLog::Log(LOGNOTICE, "Checking resolution %i", g_guiSettings.m_LookAndFeelResolution);

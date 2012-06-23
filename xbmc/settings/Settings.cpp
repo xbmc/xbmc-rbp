@@ -474,6 +474,32 @@ void CSettings::SetViewState(TiXmlNode *pRootNode, const CStdString &strTagName,
   }
 }
 
+bool CSettings::LoadCalibration()
+{
+  CSpecialProtocol::SetProfilePath(GetProfileUserDataFolder());
+  CLog::Log(LOGNOTICE, "loading calibration %s", GetSettingsFile().c_str());
+
+  // load the xml file
+  CXBMCTinyXML xmlDoc;
+  CStdString strSettingsFile = GetSettingsFile();
+
+  if (!xmlDoc.LoadFile(strSettingsFile))
+  {
+    CLog::Log(LOGERROR, "%s, Line %d\n%s", strSettingsFile.c_str(), xmlDoc.ErrorRow(), xmlDoc.ErrorDesc());
+    return false;
+  }
+
+  TiXmlElement *pRootElement = xmlDoc.RootElement();
+  if (strcmpi(pRootElement->Value(), "settings") != 0)
+  {
+    CLog::Log(LOGERROR, "%s\nDoesn't contain <settings>", strSettingsFile.c_str());
+    return false;
+  }
+
+  /* load calibration */
+  LoadCalibration(pRootElement, strSettingsFile);
+}
+
 bool CSettings::LoadCalibration(const TiXmlElement* pRoot, const CStdString& strSettingsFile)
 {
   const TiXmlElement *pElement = pRoot->FirstChildElement("resolutions");
