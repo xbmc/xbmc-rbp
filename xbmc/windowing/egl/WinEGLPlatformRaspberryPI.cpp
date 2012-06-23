@@ -155,8 +155,6 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
 
   m_dispman_display = m_DllBcmHost.vc_dispmanx_display_open(0);
 
-  OVERSCAN &overscan = res.Overscan;
-
   m_width   = res.iWidth;
   m_height  = res.iHeight;
   //m_bFullScreen = fullScreen;
@@ -168,10 +166,10 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
   VC_RECT_T dst_rect;
   VC_RECT_T src_rect;
 
-  dst_rect.x = overscan.left;
-  dst_rect.y = overscan.top;
-  dst_rect.width = overscan.right-overscan.left;
-  dst_rect.height = overscan.bottom-overscan.top;
+  dst_rect.x = 0;
+  dst_rect.y = 0;
+  dst_rect.width = res.iWidth;
+  dst_rect.height = res.iHeight;
 
   src_rect.x = 0;
   src_rect.y = 0;
@@ -198,7 +196,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
     dst_rect.width = m_width;
     */
     dst_rect.x = res.iWidth;
-    dst_rect.width >>= overscan.right - dst_rect.x;
+    dst_rect.width >>= dst_rect.width - dst_rect.x;
     m_dispman_element2 = m_DllBcmHost.vc_dispmanx_element_add(dispman_update,
       m_dispman_display,
       1,                              // layer
@@ -219,7 +217,7 @@ bool CWinEGLPlatformRaspberryPI::SetDisplayResolution(RESOLUTION_INFO& res)
     dst_rect.x = 0;
     dst_rect.width = m_width;
     */
-    dst_rect.x = overscan.left;
+    dst_rect.x = 0;
     dst_rect.width = res.iWidth - dst_rect.x;
   }
   m_dispman_element = m_DllBcmHost.vc_dispmanx_element_add(dispman_update,
