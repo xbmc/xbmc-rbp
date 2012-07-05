@@ -45,6 +45,10 @@ bool CAEFactory::LoadEngine()
 {
   bool loaded = false;
 
+#if defined(TARGET_RASPBERRY_PI)
+  return false;
+#endif
+
   std::string engine;
 
 #if defined(TARGET_LINUX)

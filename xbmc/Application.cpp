@@ -657,7 +657,7 @@ bool CApplication::Create()
   if (!CAEFactory::LoadEngine())
   {
     CLog::Log(LOGFATAL, "CApplication::Create: Failed to load an AudioEngine");
-    FatalErrorHandler(true, true, true);
+    //FatalErrorHandler(true, true, true);
   }
 
   CLog::Log(LOGNOTICE, "load settings...");
@@ -700,7 +700,7 @@ bool CApplication::Create()
   if (!CAEFactory::StartEngine())
   {
     CLog::Log(LOGFATAL, "CApplication::Create: Failed to start the AudioEngine");
-    FatalErrorHandler(true, true, true);
+    //FatalErrorHandler(true, true, true);
   }
 
   // restore AE's previous volume state
