@@ -208,23 +208,20 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
       //if(omx_image.Decode(maxWidth, maxHeight))
       if(omx_image.Decode(omx_image.GetWidth(), omx_image.GetHeight()))
       {
-        m_textureWidth  = omx_image.GetDecodedWidth();
-        m_textureHeight = omx_image.GetDecodedHeight();
-        m_imageWidth    = omx_image.GetDecodedWidth();
-        m_imageHeight   = omx_image.GetDecodedHeight();
-        m_hasAlpha      = omx_image.IsAlpha();
-
         if (originalWidth)
           *originalWidth  = omx_image.GetOriginalWidth();
         if (originalHeight)
           *originalHeight = omx_image.GetOriginalHeight();
 
-        Allocate(m_textureWidth, m_textureHeight, XB_FMT_A8R8G8B8);
+        m_hasAlpha = omx_image.IsAlpha();
+
+        Allocate(omx_image.GetDecodedWidth(), omx_image.GetDecodedHeight(), XB_FMT_A8R8G8B8);
 
         if(!m_pixels)
         {
           CLog::Log(LOGERROR, "Texture manager (OMX) out of memory");
           omx_image.Close();
+          omx_image.UnLock();
           return false;
         }
 
