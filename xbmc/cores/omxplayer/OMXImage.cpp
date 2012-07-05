@@ -37,6 +37,7 @@
 #ifndef STANDALONE
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
+#include "settings/AdvancedSettings.h"
 #endif
 
 #ifdef CLASSNAME
@@ -559,8 +560,18 @@ bool COMXImage::Decode(unsigned width, unsigned height)
   if(width == 0 || height == 0)
   {
 #ifndef STANDALONE
-    width = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenWidth;
-    height = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenHeight;
+    height = g_advancedSettings.m_imageRes;
+    if (g_advancedSettings.m_fanartRes > g_advancedSettings.m_imageRes)
+    { // a separate fanart resolution is specified - check if the image is exactly equal to this res
+      if (m_width == (unsigned int)g_advancedSettings.m_fanartRes * 16/9 &&
+          m_height == (unsigned int)g_advancedSettings.m_fanartRes)
+      { // special case for fanart res
+        height = g_advancedSettings.m_fanartRes;
+      }
+    }
+    width = height * 16/9;
+    //width = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenWidth;
+    //height = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenHeight;
 #else
     width = 2048;
     height = 2048;
