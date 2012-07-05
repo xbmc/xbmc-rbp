@@ -50,7 +50,6 @@
 #include "addons/AddonInstaller.h"
 #include "interfaces/AnnouncementManager.h"
 #include "dbwrappers/dataset.h"
-#include "ThumbnailCache.h"
 #include "utils/LabelFormatter.h"
 #include "XBDateTime.h"
 
@@ -3837,6 +3836,9 @@ bool CVideoDatabase::UpdateOldVersion(int iVersion)
       m_pDS->exec("CREATE TRIGGER delete_season AFTER DELETE ON seasons FOR EACH ROW BEGIN DELETE FROM art WHERE media_id=old.idSeason AND media_type='season'; END");
       m_pDS->exec("CREATE TRIGGER delete_set AFTER DELETE ON sets FOR EACH ROW BEGIN DELETE FROM art WHERE media_id=old.idSet AND media_type='set'; END");
       m_pDS->exec("CREATE TRIGGER delete_person AFTER DELETE ON actors FOR EACH ROW BEGIN DELETE FROM art WHERE media_id=old.idActor AND media_type IN ('actor','artist','writer','director'); END");
+
+      g_settings.m_videoNeedsUpdate = 63;
+      g_settings.Save();
     }
     if (iVersion < 64)
     { // add idShow to episode table
@@ -3961,7 +3963,15 @@ bool CVideoDatabase::GetPlayCounts(const CStdString &strPath, CFileItemList &ite
     if (NULL == m_pDS.get()) return false;
 
     // TODO: also test a single query for the above and below
-    CStdString sql = PrepareSQL("select strFilename,playCount from files where idPath=%i", pathID);
+    CStdString sql = PrepareSQL(
+      "SELECT"
+      "  files.strFilename, files.playCount,"
+      "  bookmark.timeInSeconds, bookmark.totalTimeInSeconds "
+      "FROM files"
+      "  LEFT JOIN bookmark ON"
+      "    files.idFile = bookmark.idFile AND bookmark.type = %i"
+      "  WHERE files.idPath=%i", (int)CBookmark::RESUME, pathID);
+
     if (RunQuery(sql) <= 0)
       return false;
 
@@ -3972,7 +3982,12 @@ bool CVideoDatabase::GetPlayCounts(const CStdString &strPath, CFileItemList &ite
       ConstructPath(path, strPath, m_pDS->fv(0).get_asString());
       CFileItemPtr item = items.Get(path);
       if (item)
+      {
         item->GetVideoInfoTag()->m_playCount = m_pDS->fv(1).get_asInt();
+        item->GetVideoInfoTag()->m_resumePoint.timeInSeconds = m_pDS->fv(2).get_asInt();
+        item->GetVideoInfoTag()->m_resumePoint.totalTimeInSeconds = m_pDS->fv(3).get_asInt();
+        item->GetVideoInfoTag()->m_resumePoint.type = CBookmark::RESUME;
+      }
       m_pDS->next();
     }
     return true;
@@ -4254,6 +4269,7 @@ bool CVideoDatabase::GetNavCommon(const CStdString& strBaseDir, CFileItemList& i
       {
         CFileItemPtr pItem(new CFileItem(it->second.first));
         pItem->GetVideoInfoTag()->m_iDbId = it->first;
+        pItem->GetVideoInfoTag()->m_type = type;
         CStdString strDir;
         strDir.Format("%ld/", it->first);
         pItem->SetPath(strBaseDir + strDir);
@@ -4273,7 +4289,7 @@ bool CVideoDatabase::GetNavCommon(const CStdString& strBaseDir, CFileItemList& i
       {
         CFileItemPtr pItem(new CFileItem(m_pDS->fv(1).get_asString()));
         pItem->GetVideoInfoTag()->m_iDbId = m_pDS->fv(0).get_asInt();
-        pItem->GetVideoInfoTag()->m_type = "set";
+        pItem->GetVideoInfoTag()->m_type = type;
         CStdString strDir;
         strDir.Format("%ld/", m_pDS->fv(0).get_asInt());
         pItem->SetPath(strBaseDir + strDir);
@@ -4485,9 +4501,6 @@ bool CVideoDatabase::GetMusicVideoAlbumsNav(const CStdString& strBaseDir, CFileI
           if (!items.Contains(pItem->GetPath()))
           {
             pItem->GetVideoInfoTag()->m_artist.push_back(it->second.second);
-            CStdString strThumb = CThumbnailCache::GetAlbumThumb(*pItem);
-            if (CFile::Exists(strThumb))
-              pItem->SetThumbnailImage(strThumb);
             items.Add(pItem);
           }
         }
@@ -4508,9 +4521,6 @@ bool CVideoDatabase::GetMusicVideoAlbumsNav(const CStdString& strBaseDir, CFileI
           if (!items.Contains(pItem->GetPath()))
           {
             pItem->GetVideoInfoTag()->m_artist.push_back(m_pDS->fv(2).get_asString());
-            CStdString strThumb = CThumbnailCache::GetAlbumThumb(pItem->GetLabel(), m_pDS->fv(2).get_asString());
-            if (CFile::Exists(strThumb))
-              pItem->SetThumbnailImage(strThumb);
             items.Add(pItem);
           }
         }
@@ -4547,11 +4557,7 @@ bool CVideoDatabase::GetActorsNav(const CStdString& strBaseDir, CFileItemList& i
     {
       CFileItemPtr pItem = items[i];
       if (idContent == VIDEODB_CONTENT_MUSICVIDEOS)
-      {
-        if (CFile::Exists(pItem->GetCachedArtistThumb()))
-          pItem->SetThumbnailImage(pItem->GetCachedArtistThumb());
         pItem->SetIconImage("DefaultArtist.png");
-      }
       else
         pItem->SetIconImage("DefaultActor.png");
     }
@@ -5083,19 +5089,19 @@ bool CVideoDatabase::GetSortedVideos(MediaType mediaType, const CStdString& strB
   switch (mediaType)
   {
   case MediaTypeMovie:
-    success = GetSortedMovies(strBaseDir, sorting, items, filter, fetchSets);
+    success = GetMoviesByWhere(strBaseDir, filter, items, fetchSets, sorting);
     break;
       
   case MediaTypeTvShow:
-    success = GetSortedTvShows(strBaseDir, sorting, items, filter);
+    success = GetTvShowsByWhere(strBaseDir, filter, items, sorting);
     break;
       
   case MediaTypeEpisode:
-    success = GetSortedEpisodes(strBaseDir, sorting, items, filter);
+    success = GetEpisodesByWhere(strBaseDir, filter, items, true, sorting);
     break;
       
   case MediaTypeMusicVideo:
-    success = GetSortedMusicVideos(strBaseDir, sorting, items, filter);
+    success = GetMusicVideosByWhere(strBaseDir, filter, items, true, sorting);
     break;
 
   default:
@@ -5145,7 +5151,7 @@ bool CVideoDatabase::GetMoviesNav(const CStdString& strBaseDir, CFileItemList& i
   return GetMoviesByWhere(strBaseDir, filter, items, idSet == -1);
 }
 
-bool CVideoDatabase::GetMoviesByWhere(const CStdString& strBaseDir, const Filter &filter, CFileItemList& items, bool fetchSets /* = false */)
+bool CVideoDatabase::GetMoviesByWhere(const CStdString& strBaseDir, const Filter &filter, CFileItemList& items, bool fetchSets /* = false */, const SortDescription &sortDescription /* = SortDescription() */)
 {
   try
   {
@@ -5155,99 +5161,9 @@ bool CVideoDatabase::GetMoviesByWhere(const CStdString& strBaseDir, const Filter
     if (NULL == m_pDB.get()) return false;
     if (NULL == m_pDS.get()) return false;
 
-    CStdString strSQL = PrepareSQL("select %s from movieview ", !filter.fields.empty() ? filter.fields.c_str() : "*");
-    if (fetchSets && g_guiSettings.GetBool("videolibrary.groupmoviesets"))
-    {
-      // user wants sets (and we're not fetching a particular set node), so grab all sets that match this where clause first
-      Filter setsFilter;
-      if (!filter.where.empty() || !filter.join.empty())
-      {
-        setsFilter.where = "movieview.idMovie in (select movieview.idMovie from movieview ";
-        if (!filter.join.empty())
-          setsFilter.where += filter.join;
-        if (!filter.where.empty())
-          setsFilter.where += " WHERE " + filter.where;
-        setsFilter.where += ")";
-      }
-      GetSetsByWhere("videodb://1/7/", setsFilter, items);
-      CStdString movieSetsWhere;
-      if (items.Size() > 0)
-      {
-        movieSetsWhere = "movieview.idMovie NOT IN (SELECT idMovie FROM setlinkmovie s1 JOIN(SELECT idSet, COUNT(1) AS c FROM setlinkmovie GROUP BY idSet HAVING c>1) s2 ON s2.idSet=s1.idSet WHERE s1.idSet IN (";
-        for (int index = 0; index < items.Size(); index++)
-          movieSetsWhere.AppendFormat("%s%d", index > 0 ? "," : "", items[index]->GetVideoInfoTag()->m_iDbId);
-        movieSetsWhere += "))";
-      }
-      if (!filter.join.empty())
-        strSQL += filter.join;
-      if (!filter.where.empty())
-      {
-        strSQL += " WHERE (" + filter.where + ")";
-        if (!movieSetsWhere.empty())
-          strSQL += " AND " + movieSetsWhere;
-      }
-      else if (!movieSetsWhere.empty())
-        strSQL += " WHERE " + movieSetsWhere;
-    }
-    else
-    {
-      if (!filter.join.empty())
-        strSQL += filter.join;
-      if (!filter.where.empty())
-        strSQL += " WHERE " + filter.where;
-    }
+    int total = -1;
 
-    if (!filter.group.empty())
-      strSQL += " GROUP BY " + filter.group;
-    if (filter.order.size())
-      strSQL += " ORDER BY " + filter.order;
-    if (!filter.limit.empty())
-      strSQL += " LIMIT " + filter.limit;
-
-    int iRowsFound = RunQuery(strSQL);
-    if (iRowsFound <= 0)
-      return iRowsFound == 0;
-
-    // get data from returned rows
-    items.Reserve(items.Size() + iRowsFound);
-    while (!m_pDS->eof())
-    {
-      CVideoInfoTag movie = GetDetailsForMovie(m_pDS);
-      if (g_settings.GetMasterProfile().getLockMode() == LOCK_MODE_EVERYONE ||
-          g_passwordManager.bMasterUser                                   ||
-          g_passwordManager.IsDatabasePathUnlocked(movie.m_strPath, g_settings.m_videoSources))
-      {
-        CFileItemPtr pItem(new CFileItem(movie));
-        CStdString path; path.Format("%s%ld", strBaseDir.c_str(), movie.m_iDbId);
-        pItem->SetPath(path);
-        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED,movie.m_playCount > 0);
-        items.Add(pItem);
-      }
-      m_pDS->next();
-    }
-
-    // cleanup
-    m_pDS->close();
-    return true;
-  }
-  catch (...)
-  {
-    CLog::Log(LOGERROR, "%s failed", __FUNCTION__);
-  }
-  return false;
-}
-
-bool CVideoDatabase::GetSortedMovies(const CStdString& strBaseDir, const SortDescription &sortDescription, CFileItemList& items, const Filter &filter /* = Filter() */, bool fetchSets /* = false */)
-{
-  try
-  {
-    movieTime = 0;
-    castTime = 0;
-
-    if (NULL == m_pDB.get()) return false;
-    if (NULL == m_pDS.get()) return false;
-
-    CStdString strSQL = PrepareSQL("select %s from movieview ", !filter.fields.empty() ? filter.fields.c_str() : "*");
+    CStdString strSQL;
     CFileItemList setItems;
     if (fetchSets && g_guiSettings.GetBool("videolibrary.groupmoviesets"))
     {
@@ -5296,17 +5212,27 @@ bool CVideoDatabase::GetSortedMovies(const CStdString& strBaseDir, const SortDes
       strSQL += " ORDER BY " + filter.order;
     if (!filter.limit.empty())
       strSQL += " LIMIT " + filter.limit;
-    // Apply the limiting directly here if there's no special sorting but limiting
     else if (sortDescription.sortBy == SortByNone &&
             (sortDescription.limitStart > 0 || sortDescription.limitEnd > 0))
+    {
+      total = (int)strtol(GetSingleValue(PrepareSQL(strSQL.c_str(), "COUNT(1)"), m_pDS).c_str(), NULL, 10);
       strSQL += DatabaseUtils::BuildLimitClause(sortDescription.limitEnd, sortDescription.limitStart);
+    }
+
+    strSQL = PrepareSQL("select %s from movieview ", !filter.fields.empty() ? filter.fields.c_str() : "*") + strSQL;
 
     int iRowsFound = RunQuery(strSQL);
     if (iRowsFound <= 0 && setItems.Size() == 0)
       return iRowsFound == 0;
+
+    iRowsFound += setItems.Size();
+    // store the total value of items as a property
+    if (total < iRowsFound)
+      total = iRowsFound;
+    items.SetProperty("total", total);
     
     DatabaseResults results;
-    results.reserve(iRowsFound + setItems.Size());
+    results.reserve(iRowsFound);
 
     // Add the previously retrieved sets
     for (int index = 0; index < setItems.Size(); index++)
@@ -5388,7 +5314,7 @@ bool CVideoDatabase::GetTvShowsNav(const CStdString& strBaseDir, CFileItemList& 
   return GetTvShowsByWhere(strBaseDir, filter, items);
 }
 
-bool CVideoDatabase::GetTvShowsByWhere(const CStdString& strBaseDir, const Filter &filter, CFileItemList& items)
+bool CVideoDatabase::GetTvShowsByWhere(const CStdString& strBaseDir, const Filter &filter, CFileItemList& items, const SortDescription &sortDescription /* = SortDescription() */)
 {
   try
   {
@@ -5397,75 +5323,9 @@ bool CVideoDatabase::GetTvShowsByWhere(const CStdString& strBaseDir, const Filte
     if (NULL == m_pDB.get()) return false;
     if (NULL == m_pDS.get()) return false;
 
-    CStdString strSQL = PrepareSQL("SELECT %s FROM tvshowview ", !filter.fields.empty() ? filter.fields.c_str() : "*");
-    if (!filter.join.empty())
-      strSQL += filter.join;
-    if (!filter.where.empty())
-      strSQL += " WHERE " + filter.where;
-    if (!filter.group.empty())
-      strSQL += " GROUP BY " + filter.group;
-    if (!filter.order.empty())
-      strSQL += " ORDER BY " + filter.order;
-    if (!filter.limit.empty())
-      strSQL += " LIMIT " + filter.limit;
-    int iRowsFound = RunQuery(strSQL);
-    if (iRowsFound <= 0)
-      return iRowsFound == 0;
+    int total = -1;
 
-    // get data from returned rows
-    items.Reserve(iRowsFound);
-
-    while (!m_pDS->eof())
-    {
-      int idShow = m_pDS->fv("tvshow.idShow").get_asInt();
-      int numSeasons = m_pDS->fv(VIDEODB_DETAILS_TVSHOW_NUM_SEASONS).get_asInt();
-
-      CVideoInfoTag movie = GetDetailsForTvShow(m_pDS, false);
-      if ((g_settings.GetMasterProfile().getLockMode() == LOCK_MODE_EVERYONE ||
-           g_passwordManager.bMasterUser                                     ||
-           g_passwordManager.IsDatabasePathUnlocked(movie.m_strPath, g_settings.m_videoSources)) &&
-          (!g_advancedSettings.m_bVideoLibraryHideEmptySeries || movie.m_iEpisode > 0))
-      {
-        CFileItemPtr pItem(new CFileItem(movie));
-        CStdString path; path.Format("%s%ld/", strBaseDir.c_str(), idShow);
-        pItem->SetPath(path);
-        pItem->m_dateTime = movie.m_premiered;
-        pItem->GetVideoInfoTag()->m_iYear = pItem->m_dateTime.GetYear();
-        pItem->SetProperty("totalseasons", numSeasons);
-        pItem->SetProperty("totalepisodes", movie.m_iEpisode);
-        pItem->SetProperty("numepisodes", movie.m_iEpisode); // will be changed later to reflect watchmode setting
-        pItem->SetProperty("watchedepisodes", movie.m_playCount);
-        pItem->SetProperty("unwatchedepisodes", movie.m_iEpisode - movie.m_playCount);
-        pItem->GetVideoInfoTag()->m_playCount = (movie.m_iEpisode == movie.m_playCount) ? 1 : 0;
-        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, (pItem->GetVideoInfoTag()->m_playCount > 0) && (pItem->GetVideoInfoTag()->m_iEpisode > 0));
-        items.Add(pItem);
-      }
-      m_pDS->next();
-    }
-
-    Stack(items, VIDEODB_CONTENT_TVSHOWS, !filter.order.empty());
-
-    // cleanup
-    m_pDS->close();
-    return true;
-  }
-  catch (...)
-  {
-    CLog::Log(LOGERROR, "%s failed", __FUNCTION__);
-  }
-  return false;
-}
-
-bool CVideoDatabase::GetSortedTvShows(const CStdString& strBaseDir, const SortDescription &sortDescription, CFileItemList& items, const Filter &filter /* = Filter() */)
-{
-  try
-  {
-    movieTime = 0;
-
-    if (NULL == m_pDB.get()) return false;
-    if (NULL == m_pDS.get()) return false;
-
-    CStdString strSQL = PrepareSQL("SELECT %s FROM tvshowview ", !filter.fields.empty() ? filter.fields.c_str() : "*");
+    CStdString strSQL;
     if (!filter.join.empty())
       strSQL += filter.join;
     if (!filter.where.empty())
@@ -5479,11 +5339,21 @@ bool CVideoDatabase::GetSortedTvShows(const CStdString& strBaseDir, const SortDe
     // Apply the limiting directly here if there's no special sorting but limiting
     else if (sortDescription.sortBy == SortByNone &&
             (sortDescription.limitStart > 0 || sortDescription.limitEnd > 0))
+    {
+      total = (int)strtol(GetSingleValue(PrepareSQL(strSQL.c_str(), "COUNT(1)"), m_pDS).c_str(), NULL, 10);
       strSQL += DatabaseUtils::BuildLimitClause(sortDescription.limitEnd, sortDescription.limitStart);
+    }
+
+    strSQL = PrepareSQL("SELECT %s FROM tvshowview ", !filter.fields.empty() ? filter.fields.c_str() : "*") + strSQL;
 
     int iRowsFound = RunQuery(strSQL);
     if (iRowsFound <= 0)
       return iRowsFound == 0;
+
+    // store the total value of items as a property
+    if (total < iRowsFound)
+      total = iRowsFound;
+    items.SetProperty("total", total);
     
     DatabaseResults results;
     results.reserve(iRowsFound);
@@ -5520,7 +5390,7 @@ bool CVideoDatabase::GetSortedTvShows(const CStdString& strBaseDir, const SortDe
       }
     }
 
-    Stack(items, VIDEODB_CONTENT_TVSHOWS, !filter.order.empty());
+    Stack(items, VIDEODB_CONTENT_TVSHOWS, !filter.order.empty() || sortDescription.sortBy != SortByNone);
 
     // cleanup
     m_pDS->close();
@@ -5709,7 +5579,7 @@ void CVideoDatabase::Stack(CFileItemList& items, VIDEODB_CONTENT_TYPE type, bool
   }
 }
 
-bool CVideoDatabase::GetEpisodesNav(const CStdString& strBaseDir, CFileItemList& items, int idGenre, int idYear, int idActor, int idDirector, int idShow, int idSeason)
+bool CVideoDatabase::GetEpisodesNav(const CStdString& strBaseDir, CFileItemList& items, int idGenre, int idYear, int idActor, int idDirector, int idShow, int idSeason, const SortDescription &sortDescription /* = SortDescription() */)
 {
   Filter filter;
   CStdString strIn;
@@ -5756,7 +5626,7 @@ bool CVideoDatabase::GetEpisodesNav(const CStdString& strBaseDir, CFileItemList&
   URIUtils::GetParentPath(strBaseDir,parent);
   URIUtils::GetParentPath(parent,grandParent);
 
-  bool ret = GetEpisodesByWhere(grandParent, filter, items);
+  bool ret = GetEpisodesByWhere(grandParent, filter, items, true, sortDescription);
 
   if (idSeason == -1 && idShow != -1)
   { // add any linked movies
@@ -5768,7 +5638,7 @@ bool CVideoDatabase::GetEpisodesNav(const CStdString& strBaseDir, CFileItemList&
   return ret;
 }
 
-bool CVideoDatabase::GetEpisodesByWhere(const CStdString& strBaseDir, const Filter &filter, CFileItemList& items, bool appendFullShowPath /* = true */)
+bool CVideoDatabase::GetEpisodesByWhere(const CStdString& strBaseDir, const Filter &filter, CFileItemList& items, bool appendFullShowPath /* = true */, const SortDescription &sortDescription /* = SortDescription() */)
 {
   try
   {
@@ -5778,72 +5648,9 @@ bool CVideoDatabase::GetEpisodesByWhere(const CStdString& strBaseDir, const Filt
     if (NULL == m_pDB.get()) return false;
     if (NULL == m_pDS.get()) return false;
 
-    CStdString strSQL = PrepareSQL("select %s from episodeview ", !filter.fields.empty() ? filter.fields.c_str() : "*");
-    if (!filter.join.empty())
-      strSQL += filter.join;
-    if (!filter.where.empty())
-      strSQL += " WHERE " + filter.where;
-    if (!filter.group.empty())
-      strSQL += " GROUP BY " + filter.group;
-    if (!filter.order.empty())
-      strSQL += " ORDER BY " + filter.order;
-    if (!filter.limit.empty())
-      strSQL += " LIMIT " + filter.limit;
-    int iRowsFound = RunQuery(strSQL);
-    if (iRowsFound <= 0)
-      return iRowsFound == 0;
+    int total = -1;
 
-    // get data from returned rows
-    items.Reserve(iRowsFound);
-    CLabelFormatter formatter("%H. %T", "");
-    while (!m_pDS->eof())
-    {
-      int idEpisode = m_pDS->fv("idEpisode").get_asInt();
-      int idShow = m_pDS->fv("idShow").get_asInt();
-
-      CVideoInfoTag movie = GetDetailsForEpisode(m_pDS);
-      if (g_settings.GetMasterProfile().getLockMode() == LOCK_MODE_EVERYONE ||
-          g_passwordManager.bMasterUser                                     ||
-          g_passwordManager.IsDatabasePathUnlocked(movie.m_strPath, g_settings.m_videoSources))
-      {
-        CFileItemPtr pItem(new CFileItem(movie));
-        formatter.FormatLabel(pItem.get());
-        CStdString path;
-        if (appendFullShowPath)
-          path.Format("%s%ld/%ld/%ld",strBaseDir.c_str(), idShow, movie.m_iSeason,idEpisode);
-        else
-          path.Format("%s%ld",strBaseDir.c_str(), idEpisode);
-        pItem->SetPath(path);
-        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED,movie.m_playCount > 0);
-        pItem->m_dateTime = movie.m_firstAired;
-        pItem->GetVideoInfoTag()->m_iYear = pItem->m_dateTime.GetYear();
-        items.Add(pItem);
-      }
-      m_pDS->next();
-    }
-
-    // cleanup
-    m_pDS->close();
-    return true;
-  }
-  catch (...)
-  {
-    CLog::Log(LOGERROR, "%s failed", __FUNCTION__);
-  }
-  return false;
-}
-
-bool CVideoDatabase::GetSortedEpisodes(const CStdString& strBaseDir, const SortDescription &sortDescription, CFileItemList& items, const Filter &filter /* = Filter() */, bool appendFullShowPath /* = true */)
-{
-  try
-  {
-    movieTime = 0;
-    castTime = 0;
-
-    if (NULL == m_pDB.get()) return false;
-    if (NULL == m_pDS.get()) return false;
-
-    CStdString strSQL = PrepareSQL("select %s from episodeview ", !filter.fields.empty() ? filter.fields.c_str() : "*");
+    CStdString strSQL;
     if (!filter.join.empty())
       strSQL += filter.join;
     if (!filter.where.empty())
@@ -5857,11 +5664,21 @@ bool CVideoDatabase::GetSortedEpisodes(const CStdString& strBaseDir, const SortD
     // Apply the limiting directly here if there's no special sorting but limiting
     else if (sortDescription.sortBy == SortByNone &&
             (sortDescription.limitStart > 0 || sortDescription.limitEnd > 0))
+    {
+      total = (int)strtol(GetSingleValue(PrepareSQL(strSQL.c_str(), "COUNT(1)"), m_pDS).c_str(), NULL, 10);
       strSQL += DatabaseUtils::BuildLimitClause(sortDescription.limitEnd, sortDescription.limitStart);
+    }
+
+    strSQL = PrepareSQL("select %s from episodeview ", !filter.fields.empty() ? filter.fields.c_str() : "*") + strSQL;
 
     int iRowsFound = RunQuery(strSQL);
     if (iRowsFound <= 0)
       return iRowsFound == 0;
+
+    // store the total value of items as a property
+    if (total < iRowsFound)
+      total = iRowsFound;
+    items.SetProperty("total", total);
     
     DatabaseResults results;
     results.reserve(iRowsFound);
@@ -5912,7 +5729,7 @@ bool CVideoDatabase::GetSortedEpisodes(const CStdString& strBaseDir, const SortD
   return false;
 }
 
-bool CVideoDatabase::GetMusicVideosNav(const CStdString& strBaseDir, CFileItemList& items, int idGenre, int idYear, int idArtist, int idDirector, int idStudio, int idAlbum)
+bool CVideoDatabase::GetMusicVideosNav(const CStdString& strBaseDir, CFileItemList& items, int idGenre, int idYear, int idArtist, int idDirector, int idStudio, int idAlbum, const SortDescription &sortDescription /* = SortDescription() */)
 {
   Filter filter;
   if (idGenre != -1)
@@ -5946,7 +5763,7 @@ bool CVideoDatabase::GetMusicVideosNav(const CStdString& strBaseDir, CFileItemLi
       filter.where += " and " + str2;
   }
 
-  return GetMusicVideosByWhere(strBaseDir, filter, items);
+  return GetMusicVideosByWhere(strBaseDir, filter, items, true, sortDescription);
 }
 
 bool CVideoDatabase::GetRecentlyAddedMoviesNav(const CStdString& strBaseDir, CFileItemList& items, unsigned int limit)
@@ -6680,76 +6497,7 @@ void CVideoDatabase::GetMusicVideosByAlbum(const CStdString& strSearch, CFileIte
   }
 }
 
-bool CVideoDatabase::GetMusicVideosByWhere(const CStdString &baseDir, const Filter &filter, CFileItemList &items, bool checkLocks /*= true*/)
-{
-  try
-  {
-    unsigned int time = XbmcThreads::SystemClockMillis();
-    movieTime = 0;
-    castTime = 0;
-
-    if (NULL == m_pDB.get()) return false;
-    if (NULL == m_pDS.get()) return false;
-
-    // We don't use PrepareSQL here, as the WHERE clause is already formatted.
-    CStdString strSQL = PrepareSQL("select %s from musicvideoview ", !filter.fields.empty() ? filter.fields.c_str() : "*");;
-    if (!filter.join.empty())
-      strSQL += filter.join;
-    if (!filter.where.empty())
-      strSQL += " WHERE " + filter.where;
-    if (!filter.group.empty())
-      strSQL += " GROUP BY " + filter.group;
-    if (!filter.order.empty())
-      strSQL += " ORDER BY " + filter.order;
-    if (!filter.limit.empty())
-      strSQL += " LIMIT " + filter.limit;
-    CLog::Log(LOGDEBUG, "%s query = %s", __FUNCTION__, strSQL.c_str());
-
-    // run query
-    if (!m_pDS->query(strSQL.c_str()))
-      return false;
-    CLog::Log(LOGDEBUG, "%s time for actual SQL query = %d", __FUNCTION__, XbmcThreads::SystemClockMillis() - time); time = XbmcThreads::SystemClockMillis();
-
-    int iRowsFound = m_pDS->num_rows();
-    if (iRowsFound == 0)
-    {
-      m_pDS->close();
-      return false;
-    }
-
-    // get data from returned rows
-    items.Reserve(iRowsFound);
-    // get songs from returned subtable
-    while (!m_pDS->eof())
-    {
-      int idMVideo = m_pDS->fv("idMVideo").get_asInt();
-      CVideoInfoTag musicvideo = GetDetailsForMusicVideo(m_pDS);
-      if (!checkLocks || g_settings.GetMasterProfile().getLockMode() == LOCK_MODE_EVERYONE || g_passwordManager.bMasterUser ||
-          g_passwordManager.IsDatabasePathUnlocked(musicvideo.m_strPath,g_settings.m_videoSources))
-      {
-        CFileItemPtr item(new CFileItem(musicvideo));
-        CStdString path; path.Format("%s%ld",baseDir,idMVideo);
-        item->SetPath(path);
-        item->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED,musicvideo.m_playCount > 0);
-        items.Add(item);
-      }
-      m_pDS->next();
-    }
-
-    CLog::Log(LOGDEBUG, "%s time to retrieve from dataset = %d", __FUNCTION__, XbmcThreads::SystemClockMillis() - time); time = XbmcThreads::SystemClockMillis();
-
-    // cleanup
-    m_pDS->close();
-    return true;
-  }
-  catch (...)
-  {
-    CLog::Log(LOGERROR, "%s failed", __FUNCTION__);
-  }
-  return false;
-}
-
-bool CVideoDatabase::GetSortedMusicVideos(const CStdString& strBaseDir, const SortDescription &sortDescription, CFileItemList& items, const Filter &filter /* = Filter() */, bool checkLocks /* = true */)
+bool CVideoDatabase::GetMusicVideosByWhere(const CStdString &baseDir, const Filter &filter, CFileItemList &items, bool checkLocks /*= true*/, const SortDescription &sortDescription /* = SortDescription() */)
 {
   try
   {
@@ -6759,8 +6507,9 @@ bool CVideoDatabase::GetSortedMusicVideos(const CStdString& strBaseDir, const So
     if (NULL == m_pDB.get()) return false;
     if (NULL == m_pDS.get()) return false;
 
-    // We don't use PrepareSQL here, as the WHERE clause is already formatted.
-    CStdString strSQL = PrepareSQL("select %s from musicvideoview ", !filter.fields.empty() ? filter.fields.c_str() : "*");;
+    int total = -1;
+
+    CStdString strSQL;
     if (!filter.join.empty())
       strSQL += filter.join;
     if (!filter.where.empty())
@@ -6774,11 +6523,21 @@ bool CVideoDatabase::GetSortedMusicVideos(const CStdString& strBaseDir, const So
     // Apply the limiting directly here if there's no special sorting but limiting
     else if (sortDescription.sortBy == SortByNone &&
             (sortDescription.limitStart > 0 || sortDescription.limitEnd > 0))
+    {
+      total = (int)strtol(GetSingleValue(PrepareSQL(strSQL.c_str(), "COUNT(1)"), m_pDS).c_str(), NULL, 10);
       strSQL += DatabaseUtils::BuildLimitClause(sortDescription.limitEnd, sortDescription.limitStart);
+    }
+
+    strSQL = PrepareSQL("select %s from musicvideoview ", !filter.fields.empty() ? filter.fields.c_str() : "*") + strSQL;
 
     int iRowsFound = RunQuery(strSQL);
     if (iRowsFound <= 0)
       return iRowsFound == 0;
+
+    // store the total value of items as a property
+    if (total < iRowsFound)
+      total = iRowsFound;
+    items.SetProperty("total", total);
     
     DatabaseResults results;
     results.reserve(iRowsFound);
@@ -6799,7 +6558,7 @@ bool CVideoDatabase::GetSortedMusicVideos(const CStdString& strBaseDir, const So
           g_passwordManager.IsDatabasePathUnlocked(musicvideo.m_strPath, g_settings.m_videoSources))
       {
         CFileItemPtr item(new CFileItem(musicvideo));
-        CStdString path; path.Format("%s%ld", strBaseDir, record->at(0).get_asInt());
+        CStdString path; path.Format("%s%ld", baseDir, record->at(0).get_asInt());
         item->SetPath(path);
         item->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, musicvideo.m_playCount > 0);
         items.Add(item);
