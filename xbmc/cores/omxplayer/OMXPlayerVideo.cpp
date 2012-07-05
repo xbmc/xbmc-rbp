@@ -491,9 +491,16 @@ void OMXPlayerVideo::Process()
 
     if (pMsg->IsType(CDVDMsg::GENERAL_SYNCHRONIZE))
     {
-      ((CDVDMsgGeneralSynchronize*)pMsg)->Wait( &m_bStop, SYNCSOURCE_VIDEO );
-      CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_SYNCHRONIZE");
+      if(((CDVDMsgGeneralSynchronize*)pMsg)->Wait(100, SYNCSOURCE_VIDEO))
+      {
+        CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_SYNCHRONIZE");
+
+      }
+      else
+        m_messageQueue.Put(pMsg->Acquire(), 1); /* push back as prio message, to process other prio messages */
+
       pMsg->Release();
+
       continue;
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_RESYNC))
@@ -525,7 +532,7 @@ void OMXPlayerVideo::Process()
       {
         double timeout = static_cast<CDVDMsgDouble*>(pMsg)->m_value;
 
-        CLog::Log(LOGDEBUG, "CDVDPlayerVideo - CDVDMsg::GENERAL_DELAY(%f)", timeout);
+        CLog::Log(LOGDEBUG, "COMXPlayerVideo - CDVDMsg::GENERAL_DELAY(%f)", timeout);
 
         timeout *= (double)DVD_PLAYSPEED_NORMAL / abs(m_speed);
         timeout += m_av_clock->GetAbsoluteClock();

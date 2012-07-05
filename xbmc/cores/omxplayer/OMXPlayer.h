@@ -88,13 +88,11 @@ public:
   const int        player;
   // stuff to handle starting after seek
   double   startpts;
-  CDVDMsg*         startsync;
 
   COMXCurrentStream(StreamType t, int i)
     : type(t)
     , player(i)
   {
-    startsync = NULL;
     Clear();
   }
 
@@ -108,9 +106,6 @@ public:
     stream = NULL;
     inited = false;
     started = false;
-    if(startsync)
-      startsync->Release();
-    startsync = NULL;
     startpts  = DVD_NOPTS_VALUE;
   }
   double dts_end()
@@ -208,8 +203,8 @@ public:
   virtual void  ProcessVideoData(CDemuxStream* pStream, DemuxPacket* pPacket);
   virtual void  ProcessSubData(CDemuxStream* pStream, DemuxPacket* pPacket);
   virtual void  ProcessPacket(CDemuxStream* pStream, DemuxPacket* pPacket);
-  virtual void  SynchronizeDemuxer(DWORD timeout);
-  virtual void  SynchronizePlayers(DWORD sources);
+  virtual void  SynchronizeDemuxer(unsigned int timeout);
+  virtual void  SynchronizePlayers(unsigned int sources);
   virtual void  SendPlayerMessage(CDVDMsg* pMsg, unsigned int target);
   virtual void  HandleMessages();
 

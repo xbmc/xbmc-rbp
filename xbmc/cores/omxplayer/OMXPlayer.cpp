@@ -1400,8 +1400,6 @@ void COMXPlayer::HandlePlaySpeed()
       ||  (!m_player_video.AcceptsData() && !m_CurrentAudio.started))
       {
         caching = CACHESTATE_DONE;
-        SAFE_RELEASE(m_CurrentAudio.startsync);
-        SAFE_RELEASE(m_CurrentVideo.startsync);
       }
     }
   }
@@ -1490,9 +1488,17 @@ bool COMXPlayer::CheckStartCaching(COMXCurrentStream& current)
 
 bool COMXPlayer::CheckPlayerInit(COMXCurrentStream& current, unsigned int source)
 {
-  if(current.startpts != DVD_NOPTS_VALUE
-  && current.dts      != DVD_NOPTS_VALUE)
+  if(current.inited)
+    return false;
+
+  if(current.startpts != DVD_NOPTS_VALUE)
   {
+    if(current.dts == DVD_NOPTS_VALUE)
+    {
+      CLog::Log(LOGDEBUG, "%s - dropping packet type:%d dts:%f to get to start point at %f", __FUNCTION__, source,  current.dts, current.startpts);
+      return true;
+    }
+
     if((current.startpts - current.dts) > DVD_SEC_TO_TIME(20))
     {
       CLog::Log(LOGDEBUG, "%s - too far to decode before finishing seek", __FUNCTION__);
@@ -1506,26 +1512,15 @@ bool COMXPlayer::CheckPlayerInit(COMXCurrentStream& current, unsigned int source
         m_CurrentTeletext.startpts = current.dts;
     }
 
-    if(current.startpts <= current.dts)
-      current.startpts = DVD_NOPTS_VALUE;
-  }
-
-  // await start sync to be finished
-  if(current.startpts != DVD_NOPTS_VALUE)
-  {
-    CLog::Log(LOGDEBUG, "%s - dropping packet type:%d dts:%f to get to start point at %f", __FUNCTION__, source,  current.dts, current.startpts);
-    return true;
-  }
-
-  // send of the sync message if any
-  if(current.startsync)
-  {
-    SendPlayerMessage(current.startsync, source);
-    current.startsync = NULL;
+    if(current.dts < current.startpts)
+    {
+      CLog::Log(LOGDEBUG, "%s - dropping packet type:%d dts:%f to get to start point at %f", __FUNCTION__, source,  current.dts, current.startpts);
+      return true;
+    }
   }
 
   //If this is the first packet after a discontinuity, send it as a resync
-  if (current.inited == false && current.dts != DVD_NOPTS_VALUE)
+  if (current.dts != DVD_NOPTS_VALUE)
   {
     current.inited   = true;
     current.startpts = current.dts;
@@ -1555,10 +1550,10 @@ bool COMXPlayer::CheckPlayerInit(COMXCurrentStream& current, unsigned int source
       starttime = m_CurrentVideo.startpts;
 
     starttime = current.startpts - starttime;
-    if(starttime > 0)
+    if(starttime > 0 && setclock)
     {
       if(starttime > DVD_SEC_TO_TIME(2))
-        CLog::Log(LOGWARNING, "CDVDPlayer::CheckPlayerInit(%d) - Ignoring too large delay of %f", source, starttime);
+        CLog::Log(LOGWARNING, "COMXPlayer::CheckPlayerInit(%d) - Ignoring too large delay of %f", source, starttime);
       else
         SendPlayerMessage(new CDVDMsgDouble(CDVDMsg::GENERAL_DELAY, starttime), source);
     }
@@ -1658,7 +1653,7 @@ bool COMXPlayer::CheckSceneSkip(COMXCurrentStream& current)
   if(current.dts == DVD_NOPTS_VALUE)
     return false;
 
-  if(current.startpts != DVD_NOPTS_VALUE)
+  if(current.inited == false)
     return false;
 
   CEdl::Cut cut;
@@ -1681,8 +1676,8 @@ void COMXPlayer::CheckAutoSceneSkip()
    * If there is a startpts defined for either the audio or video stream then dvdplayer is still
    * still decoding frames to get to the previously requested seek point.
    */
-  if(m_CurrentAudio.startpts != DVD_NOPTS_VALUE
-  || m_CurrentVideo.startpts != DVD_NOPTS_VALUE)
+  if(m_CurrentAudio.inited == false
+  || m_CurrentVideo.inited == false)
     return;
 
   if(m_CurrentAudio.dts == DVD_NOPTS_VALUE
@@ -1743,7 +1738,7 @@ void COMXPlayer::CheckAutoSceneSkip()
   m_EdlAutoSkipMarkers.ResetCutMarker(500); // in msec
 }
 
-void COMXPlayer::SynchronizeDemuxer(DWORD timeout)
+void COMXPlayer::SynchronizeDemuxer(unsigned int timeout)
 {
   if(IsCurrentThread())
     return;
@@ -1756,32 +1751,22 @@ void COMXPlayer::SynchronizeDemuxer(DWORD timeout)
   message->Release();
 }
 
-void COMXPlayer::SynchronizePlayers(DWORD sources)
+void COMXPlayer::SynchronizePlayers(unsigned int sources)
 {
-  /* if we are awaiting a start sync, we can't sync here or we could deadlock */
-  if(m_CurrentAudio.startsync
-  || m_CurrentVideo.startsync
-  || m_CurrentSubtitle.startsync
-  || m_CurrentTeletext.startsync)
-  {
-    CLog::Log(LOGDEBUG, "%s - can't sync since we are already awaiting a sync", __FUNCTION__);
-    return;
-  }
-
   /* we need a big timeout as audio queue is about 8seconds for 2ch ac3 */
   const int timeout = 10*1000; // in milliseconds
 
   CDVDMsgGeneralSynchronize* message = new CDVDMsgGeneralSynchronize(timeout, sources);
   if (m_CurrentAudio.id >= 0)
-    m_CurrentAudio.startsync = message->Acquire();
+    m_player_audio.SendMessage(message->Acquire());
 
   if (m_CurrentVideo.id >= 0)
-    m_CurrentVideo.startsync = message->Acquire();
+    m_player_video.SendMessage(message->Acquire());
 /* TODO - we have to rewrite the sync class, to not require
           all other players waiting for subtitle, should only
           be the oposite way
   if (m_CurrentSubtitle.id >= 0)
-    m_CurrentSubtitle.startsync = message->Acquire();
+    m_player_subtitle.SendMessage(message->Acquire()); 
 */
   message->Release();
 }
@@ -2147,7 +2132,7 @@ void COMXPlayer::SetCaching(ECacheState state)
   if(m_caching == state)
     return;
 
-  CLog::Log(LOGDEBUG, "CDVDPlayer::SetCaching - caching state %d", state);
+  CLog::Log(LOGDEBUG, "COMXPlayer::SetCaching - caching state %d", state);
   if(state == CACHESTATE_FULL
   || state == CACHESTATE_INIT)
   {
