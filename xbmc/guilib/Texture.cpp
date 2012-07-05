@@ -221,7 +221,6 @@ bool CBaseTexture::LoadFromFile(const CStdString& texturePath, unsigned int maxW
         {
           CLog::Log(LOGERROR, "Texture manager (OMX) out of memory");
           omx_image.Close();
-          omx_image.UnLock();
           return false;
         }
 
