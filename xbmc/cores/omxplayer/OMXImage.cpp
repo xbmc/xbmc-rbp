@@ -570,8 +570,11 @@ bool COMXImage::Decode(unsigned width, unsigned height)
       }
     }
     width = height * 16/9;
-    //width = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenWidth;
-    //height = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenHeight;
+    if(!width || !height)
+    {
+      width = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenWidth;
+      height = g_settings.m_ResInfo[g_guiSettings.m_LookAndFeelResolution].iScreenHeight;
+    }
 #else
     width = 2048;
     height = 2048;
