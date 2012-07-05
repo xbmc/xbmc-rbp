@@ -283,13 +283,6 @@ bool CPlayerCoreFactory::LoadConfiguration(TiXmlElement* pConfig, bool clear)
     paplayer->m_bPlaysAudio = true;
     s_vecCoreConfigs.push_back(paplayer);
 
-#if defined(HAVE_OMXPLAYER)
-    CPlayerCoreConfig* omxplayer = new CPlayerCoreConfig("OMXPlayer", EPC_OMXPLAYER, NULL);
-    omxplayer->m_bPlaysAudio = true;
-    omxplayer->m_bPlaysVideo = true;
-    s_vecCoreConfigs.push_back(omxplayer);
-#endif
-
     for(std::vector<CPlayerSelectionRule *>::iterator it = s_vecCoreSelectionRules.begin(); it != s_vecCoreSelectionRules.end(); it++)
       delete *it;
     s_vecCoreSelectionRules.clear();
@@ -316,9 +309,6 @@ bool CPlayerCoreFactory::LoadConfiguration(TiXmlElement* pConfig, bool clear)
       if (type == "dvdplayer" || type == "mplayer") eCore = EPC_DVDPLAYER;
       if (type == "paplayer" ) eCore = EPC_PAPLAYER;
       if (type == "externalplayer" ) eCore = EPC_EXTPLAYER;
-#if defined(HAVE_OMXPLAYER)
-      if (type == "omxplayer" ) eCore = EPC_OMXPLAYER;
-#endif
 
       if (eCore != EPC_NONE)
       {

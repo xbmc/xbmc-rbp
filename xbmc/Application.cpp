@@ -3917,7 +3917,7 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
   // one of the players that allows gapless playback (paplayer, dvdplayer)
   if (m_pPlayer)
   {
-    if ( !(m_eCurrentPlayer == eNewCore && (m_eCurrentPlayer == EPC_DVDPLAYER || m_eCurrentPlayer  == EPC_PAPLAYER || m_eCurrentPlayer == EPC_OMXPLAYER)) )
+    if ( !(m_eCurrentPlayer == eNewCore && (m_eCurrentPlayer == EPC_DVDPLAYER || m_eCurrentPlayer  == EPC_PAPLAYER)) )
     {
       delete m_pPlayer;
       m_pPlayer = NULL;
