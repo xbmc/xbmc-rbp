@@ -104,6 +104,7 @@
 #include "settings/AdvancedSettings.h"
 #include "guilib/LocalizeStrings.h"
 #include "utils/CPUInfo.h"
+#include "utils/SeekHandler.h"
 
 #include "input/KeyboardStat.h"
 #include "input/XBMC_vkeys.h"
@@ -306,6 +307,7 @@
 #include "utils/SaveFileStateJob.h"
 #include "utils/AlarmClock.h"
 #include "utils/StringUtils.h"
+#include "DatabaseManager.h"
 
 #ifdef _LINUX
 #include "XHandle.h"
@@ -374,6 +376,7 @@ CApplication::CApplication(void)
   , m_progressTrackingItem(new CFileItem)
   , m_videoInfoScanner(new CVideoInfoScanner)
   , m_musicInfoScanner(new CMusicInfoScanner)
+  , m_seekHandler(new CSeekHandler)
 {
   TiXmlBase::SetCondenseWhiteSpace(false);
   m_iPlaySpeed = 1;
@@ -444,6 +447,7 @@ CApplication::~CApplication(void)
 #endif
 
   delete m_dpms;
+  delete m_seekHandler;
   delete m_pInertialScrollingHandler;
 }
 
@@ -708,6 +712,9 @@ bool CApplication::Create()
   SetHardwareVolume(g_settings.m_fVolumeLevel);
   CAEFactory::SetMute     (g_settings.m_bMute);
   CAEFactory::SetSoundMode(g_guiSettings.GetInt("audiooutput.guisoundmode"));
+
+  // initialize the addon database (must be before the addon manager is init'd)
+  CDatabaseManager::Get().Initialize(true);
 
   // start-up Addons Framework
   // currently bails out if either cpluff Dll is unavailable or system dir can not be scanned
@@ -1156,6 +1163,9 @@ bool CApplication::Initialize()
   //  uses these other libraries."
   g_curlInterface.Load();
   g_curlInterface.Unload();
+
+  // initialize (and update as needed) our databases
+  CDatabaseManager::Get().Initialize();
 
 #ifdef HAS_WEB_SERVER
   CWebServer::RegisterRequestHandler(&m_httpImageHandler);
@@ -2709,9 +2719,7 @@ bool CApplication::OnAction(const CAction &action)
   if (IsPlaying() && action.GetAmount() && (action.GetID() == ACTION_ANALOG_SEEK_FORWARD || action.GetID() == ACTION_ANALOG_SEEK_BACK))
   {
     if (!m_pPlayer->CanSeek()) return false;
-    CGUIWindow *seekBar = g_windowManager.GetWindow(WINDOW_DIALOG_SEEK_BAR);
-    if (seekBar)
-      seekBar->OnAction(action);
+    m_seekHandler->Seek(action.GetID() == ACTION_ANALOG_SEEK_FORWARD, action.GetAmount(), action.GetRepeat());
     return true;
   }
   if (action.GetID() == ACTION_GUIPROFILE_BEGIN)
@@ -2804,7 +2812,10 @@ void CApplication::FrameMove(bool processEvents, bool processGUI)
     ProcessEventServer(frameTime);
     ProcessPeripherals(frameTime);
     if (processGUI)
+    {
       m_pInertialScrollingHandler->ProcessInertialScroll(frameTime);
+      m_seekHandler->Process();
+    }
   }
   if (processGUI)
   {
@@ -3065,6 +3076,16 @@ bool CApplication::ProcessJsonRpcButtons()
 {
 #ifdef HAS_JSONRPC
   CKey tempKey(JSONRPC::CInputOperations::GetKey());
+  if (tempKey.GetButtonCode() == KEY_UNICODE && tempKey.GetUnicode() != 0)
+  {
+    XBMC_Event event = { 0 };
+    event.type = XBMC_KEYDOWN;
+    event.key.type = XBMC_KEYDOWN;
+    event.key.keysym.unicode = (uint16_t)tempKey.GetUnicode();
+    event.key.keysym.sym = (XBMCKey)tempKey.GetUnicode();
+
+    return OnEvent(event);
+  }
   if (tempKey.GetButtonCode() != KEY_INVALID)
   {
     tempKey.SetFromService(true);
@@ -4708,6 +4729,9 @@ bool CApplication::OnMessage(CGUIMessage& message)
 #ifdef TARGET_DARWIN
       DarwinSetScheduling(message.GetMessage());
 #endif
+      // reset the seek handler
+      m_seekHandler->Reset();
+
       // Update our infoManager with the new details etc.
       if (m_nextPlaylistItem >= 0)
       { // we've started a previously queued item

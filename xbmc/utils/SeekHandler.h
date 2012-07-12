@@ -1,6 +1,6 @@
 #pragma once
 /*
- *      Copyright (C) 2005-2008 Team XBMC
+ *      Copyright (C) 2012 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -20,19 +20,23 @@
  *
  */
 
-#include "ImusicInfoTagLoader.h"
-#include "DllASAP.h"
+#include "utils/Stopwatch.h"
 
-namespace MUSIC_INFO
+class CSeekHandler
 {
-  class CMusicInfoTagLoaderASAP: public IMusicInfoTagLoader
-  {
-  public:
-    CMusicInfoTagLoaderASAP(void);
-    virtual ~CMusicInfoTagLoaderASAP();
+public:
+  CSeekHandler();
 
-    virtual bool Load(const CStdString& strFileName, CMusicInfoTag& tag, EmbeddedArt *art = NULL);
-  private:
-    DllASAP m_dll;
-  };
-}
+  void Seek(bool forward, float amount, float duration = 0);
+  void Process();
+  void Reset();
+
+  float GetPercent() const;
+  bool InProgress() const;
+private:
+  static const int time_before_seek = 500;
+  static const int time_for_display = 2000; // TODO: WTF?
+  bool       m_requireSeek;
+  float      m_percent;
+  CStopWatch m_timer;
+};

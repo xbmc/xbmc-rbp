@@ -19,14 +19,14 @@
  *
  */
 
- /* Functions taken from SDL (SDL_endian.h) */
+ /* Endian_SwapXX functions taken from SDL (SDL_endian.h) */
 
 #ifndef __ENDIAN_SWAP_H__
 #define __ENDIAN_SWAP_H__
 
 /* Include config.h to define (or not) WORDS_BIGENDIAN
    File created by configure */
-#if defined(__linux__) || defined(TARGET_DARWIN)
+#if defined(__linux__) || defined(TARGET_DARWIN) || defined(TARGET_FREEBSD)
 #include "config.h"
 #include <inttypes.h>
 #endif
@@ -82,6 +82,8 @@ static __inline__ uint64_t Endian_Swap64(uint64_t x) {
         return(x);
 
 }
+
+void Endian_Swap16_buf(uint16_t *dst, uint16_t *src, int w);
 
 #ifndef WORDS_BIGENDIAN
 #define Endian_SwapLE16(X) (X)
