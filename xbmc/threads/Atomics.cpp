@@ -160,7 +160,10 @@ long long cas2(volatile long long* pAddr, long long expectedVal, long long swapV
 ///////////////////////////////////////////////////////////////////////////
 long AtomicIncrement(volatile long* pAddr)
 {
-#if defined(__ppc__) || defined(__powerpc__) // PowerPC
+#if defined(HAS_GCC_INTRINSICS)
+  return __sync_add_and_fetch(pAddr, 1);
+
+#elif defined(__ppc__) || defined(__powerpc__) // PowerPC
   long val;
   __asm__ __volatile__ (
     "sync             \n"
