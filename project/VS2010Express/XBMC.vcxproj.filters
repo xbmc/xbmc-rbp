@@ -1456,9 +1456,6 @@
     <ClCompile Include="..\..\xbmc\programs\GUIWindowPrograms.cpp">
       <Filter>programs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\xbmc\programs\Shortcut.cpp">
-      <Filter>programs</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\xbmc\rendering\RenderSystem.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
@@ -1863,9 +1860,6 @@
     </ClCompile>
     <ClCompile Include="..\..\xbmc\interfaces\python\xbmcmodule\xbmcplugin.cpp">
       <Filter>interfaces\python\xbmcmodule</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\xbmc\utils\ssrc.cpp">
-      <Filter>cores</Filter>
     </ClCompile>
     <ClCompile Include="..\..\xbmc\dialogs\GUIDialogCache.cpp">
       <Filter>dialogs</Filter>
@@ -2507,9 +2501,6 @@
     </ClCompile>
     <ClCompile Include="..\..\xbmc\music\MusicDatabase.cpp">
       <Filter>music</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\xbmc\programs\ProgramDatabase.cpp">
-      <Filter>programs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\xbmc\video\VideoDatabase.cpp">
       <Filter>video</Filter>
@@ -4043,9 +4034,6 @@
     <ClInclude Include="..\..\xbmc\programs\GUIWindowPrograms.h">
       <Filter>programs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xbmc\programs\Shortcut.h">
-      <Filter>programs</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\xbmc\rendering\RenderSystem.h">
       <Filter>rendering</Filter>
     </ClInclude>
@@ -4435,9 +4423,6 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\interfaces\python\xbmcmodule\winxml.h">
       <Filter>interfaces\python\xbmcmodule</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\xbmc\utils\ssrc.h">
-      <Filter>cores</Filter>
     </ClInclude>
     <ClInclude Include="..\..\xbmc\dialogs\GUIDialogCache.h">
       <Filter>dialogs</Filter>
@@ -5135,9 +5120,6 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\music\MusicDatabase.h">
       <Filter>music</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\xbmc\programs\ProgramDatabase.h">
-      <Filter>programs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\xbmc\video\VideoDatabase.h">
       <Filter>video</Filter>

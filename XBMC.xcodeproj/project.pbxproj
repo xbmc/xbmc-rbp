@@ -495,7 +495,6 @@
 		E38E1FDB0D25F9FD00618676 /* TimidityCodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E16370D25F9FA00618676 /* TimidityCodec.cpp */; };
 		E38E1FDC0D25F9FD00618676 /* WAVcodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E16390D25F9FA00618676 /* WAVcodec.cpp */; };
 		E38E1FDF0D25F9FD00618676 /* YMCodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E16410D25F9FA00618676 /* YMCodec.cpp */; };
-		E38E1FE50D25F9FD00618676 /* ssrc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E16560D25F9FA00618676 /* ssrc.cpp */; };
 		E38E1FE90D25F9FD00618676 /* LinuxRendererGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E165F0D25F9FA00618676 /* LinuxRendererGL.cpp */; };
 		E38E1FEC0D25F9FD00618676 /* RenderManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E16650D25F9FA00618676 /* RenderManager.cpp */; };
 		E38E1FF00D25F9FD00618676 /* VideoFilterShader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E166F0D25F9FA00618676 /* VideoFilterShader.cpp */; };
@@ -752,7 +751,6 @@
 		E38E22A40D25F9FE00618676 /* PictureThumbLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1DDD0D25F9FD00618676 /* PictureThumbLoader.cpp */; };
 		E38E22AA0D25F9FE00618676 /* PlayListPlayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1DE90D25F9FD00618676 /* PlayListPlayer.cpp */; };
 		E38E22AE0D25F9FE00618676 /* Profile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1DF10D25F9FD00618676 /* Profile.cpp */; };
-		E38E22AF0D25F9FE00618676 /* ProgramDatabase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1DF30D25F9FD00618676 /* ProgramDatabase.cpp */; };
 		E38E22B30D25F9FE00618676 /* SectionLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1DFE0D25F9FD00618676 /* SectionLoader.cpp */; };
 		E38E22B40D25F9FE00618676 /* VideoSettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1E010D25F9FD00618676 /* VideoSettings.cpp */; };
 		E38E22B70D25F9FE00618676 /* Shortcut.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E38E1E070D25F9FD00618676 /* Shortcut.cpp */; };
@@ -2064,8 +2062,6 @@
 		E38E163A0D25F9FA00618676 /* WAVcodec.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WAVcodec.h; sourceTree = "<group>"; };
 		E38E16410D25F9FA00618676 /* YMCodec.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = YMCodec.cpp; sourceTree = "<group>"; };
 		E38E16420D25F9FA00618676 /* YMCodec.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = YMCodec.h; sourceTree = "<group>"; };
-		E38E16560D25F9FA00618676 /* ssrc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ssrc.cpp; sourceTree = "<group>"; };
-		E38E16570D25F9FA00618676 /* ssrc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ssrc.h; sourceTree = "<group>"; };
 		E38E165F0D25F9FA00618676 /* LinuxRendererGL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LinuxRendererGL.cpp; sourceTree = "<group>"; };
 		E38E16600D25F9FA00618676 /* LinuxRendererGL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LinuxRendererGL.h; sourceTree = "<group>"; };
 		E38E16650D25F9FA00618676 /* RenderManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RenderManager.cpp; sourceTree = "<group>"; };
@@ -2666,14 +2662,10 @@
 		E38E1DEA0D25F9FD00618676 /* PlayListPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PlayListPlayer.h; sourceTree = "<group>"; };
 		E38E1DF10D25F9FD00618676 /* Profile.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Profile.cpp; sourceTree = "<group>"; };
 		E38E1DF20D25F9FD00618676 /* Profile.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Profile.h; sourceTree = "<group>"; };
-		E38E1DF30D25F9FD00618676 /* ProgramDatabase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ProgramDatabase.cpp; sourceTree = "<group>"; };
-		E38E1DF40D25F9FD00618676 /* ProgramDatabase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ProgramDatabase.h; sourceTree = "<group>"; };
 		E38E1DFE0D25F9FD00618676 /* SectionLoader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SectionLoader.cpp; sourceTree = "<group>"; };
 		E38E1DFF0D25F9FD00618676 /* SectionLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SectionLoader.h; sourceTree = "<group>"; };
 		E38E1E010D25F9FD00618676 /* VideoSettings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = VideoSettings.cpp; sourceTree = "<group>"; };
 		E38E1E020D25F9FD00618676 /* VideoSettings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VideoSettings.h; sourceTree = "<group>"; };
-		E38E1E070D25F9FD00618676 /* Shortcut.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Shortcut.cpp; sourceTree = "<group>"; };
-		E38E1E080D25F9FD00618676 /* Shortcut.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Shortcut.h; sourceTree = "<group>"; };
 		E38E1E090D25F9FD00618676 /* SlideShowPicture.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SlideShowPicture.cpp; sourceTree = "<group>"; };
 		E38E1E0A0D25F9FD00618676 /* SlideShowPicture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SlideShowPicture.h; sourceTree = "<group>"; };
 		E38E1E0D0D25F9FD00618676 /* Song.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Song.cpp; sourceTree = "<group>"; };
@@ -3669,10 +3661,6 @@
 				8863281A0E07B37200BB3DAB /* GUIViewStatePrograms.h */,
 				E38E18230D25F9FA00618676 /* GUIWindowPrograms.cpp */,
 				E38E18240D25F9FA00618676 /* GUIWindowPrograms.h */,
-				E38E1DF30D25F9FD00618676 /* ProgramDatabase.cpp */,
-				E38E1DF40D25F9FD00618676 /* ProgramDatabase.h */,
-				E38E1E070D25F9FD00618676 /* Shortcut.cpp */,
-				E38E1E080D25F9FD00618676 /* Shortcut.h */,
 			);
 			path = programs;
 			sourceTree = "<group>";
@@ -5907,8 +5895,6 @@
 				36A9444015821E7C00727135 /* SortUtils.h */,
 				E38E1E7F0D25F9FD00618676 /* Splash.cpp */,
 				E38E1E800D25F9FD00618676 /* Splash.h */,
-				E38E16560D25F9FA00618676 /* ssrc.cpp */,
-				E38E16570D25F9FA00618676 /* ssrc.h */,
 				E38E1E810D25F9FD00618676 /* Stopwatch.cpp */,
 				E38E1E820D25F9FD00618676 /* Stopwatch.h */,
 				F5487B4B0FE6F02700E506FD /* StreamDetails.cpp */,
@@ -6458,7 +6444,6 @@
 				E38E1FDB0D25F9FD00618676 /* TimidityCodec.cpp in Sources */,
 				E38E1FDC0D25F9FD00618676 /* WAVcodec.cpp in Sources */,
 				E38E1FDF0D25F9FD00618676 /* YMCodec.cpp in Sources */,
-				E38E1FE50D25F9FD00618676 /* ssrc.cpp in Sources */,
 				E38E1FE90D25F9FD00618676 /* LinuxRendererGL.cpp in Sources */,
 				E38E1FEC0D25F9FD00618676 /* RenderManager.cpp in Sources */,
 				E38E1FF00D25F9FD00618676 /* VideoFilterShader.cpp in Sources */,
@@ -6715,7 +6700,6 @@
 				E38E22A40D25F9FE00618676 /* PictureThumbLoader.cpp in Sources */,
 				E38E22AA0D25F9FE00618676 /* PlayListPlayer.cpp in Sources */,
 				E38E22AE0D25F9FE00618676 /* Profile.cpp in Sources */,
-				E38E22AF0D25F9FE00618676 /* ProgramDatabase.cpp in Sources */,
 				E38E22B30D25F9FE00618676 /* SectionLoader.cpp in Sources */,
 				E38E22B40D25F9FE00618676 /* VideoSettings.cpp in Sources */,
 				E38E22B70D25F9FE00618676 /* Shortcut.cpp in Sources */,

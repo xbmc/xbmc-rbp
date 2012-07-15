@@ -785,7 +785,6 @@
 		F56C8ADA131F42ED000AD0F6 /* PowerManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C869F131F42EB000AD0F6 /* PowerManager.cpp */; };
 		F56C8ADB131F42ED000AD0F6 /* GUIViewStatePrograms.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C86A2131F42EB000AD0F6 /* GUIViewStatePrograms.cpp */; };
 		F56C8ADC131F42ED000AD0F6 /* GUIWindowPrograms.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C86A4131F42EB000AD0F6 /* GUIWindowPrograms.cpp */; };
-		F56C8ADD131F42ED000AD0F6 /* ProgramDatabase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C86A6131F42EB000AD0F6 /* ProgramDatabase.cpp */; };
 		F56C8ADE131F42ED000AD0F6 /* Shortcut.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C86A8131F42EB000AD0F6 /* Shortcut.cpp */; };
 		F56C8ADF131F42ED000AD0F6 /* RenderSystemGLES.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C86AC131F42EB000AD0F6 /* RenderSystemGLES.cpp */; };
 		F56C8AE0131F42ED000AD0F6 /* RenderSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C86AE131F42EB000AD0F6 /* RenderSystem.cpp */; };
@@ -860,7 +859,6 @@
 		F56C8B31131F42ED000AD0F6 /* Variant.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C875D131F42EC000AD0F6 /* Variant.cpp */; };
 		F56C8B32131F42ED000AD0F6 /* Weather.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C875F131F42EC000AD0F6 /* Weather.cpp */; };
 		F56C8B34131F42ED000AD0F6 /* fft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C8764131F42EC000AD0F6 /* fft.cpp */; };
-		F56C8B35131F42ED000AD0F6 /* ssrc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C8766131F42EC000AD0F6 /* ssrc.cpp */; };
 		F56C8B36131F42ED000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C876A131F42EC000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp */; };
 		F56C8B37131F42ED000AD0F6 /* GUIDialogFileStacking.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C876C131F42EC000AD0F6 /* GUIDialogFileStacking.cpp */; };
 		F56C8B38131F42ED000AD0F6 /* GUIDialogFullScreenInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F56C876E131F42EC000AD0F6 /* GUIDialogFullScreenInfo.cpp */; };
@@ -2677,10 +2675,6 @@
 		F56C86A3131F42EB000AD0F6 /* GUIViewStatePrograms.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GUIViewStatePrograms.h; sourceTree = "<group>"; };
 		F56C86A4131F42EB000AD0F6 /* GUIWindowPrograms.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GUIWindowPrograms.cpp; sourceTree = "<group>"; };
 		F56C86A5131F42EB000AD0F6 /* GUIWindowPrograms.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GUIWindowPrograms.h; sourceTree = "<group>"; };
-		F56C86A6131F42EB000AD0F6 /* ProgramDatabase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ProgramDatabase.cpp; sourceTree = "<group>"; };
-		F56C86A7131F42EB000AD0F6 /* ProgramDatabase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ProgramDatabase.h; sourceTree = "<group>"; };
-		F56C86A8131F42EB000AD0F6 /* Shortcut.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Shortcut.cpp; sourceTree = "<group>"; };
-		F56C86A9131F42EB000AD0F6 /* Shortcut.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Shortcut.h; sourceTree = "<group>"; };
 		F56C86AC131F42EB000AD0F6 /* RenderSystemGLES.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RenderSystemGLES.cpp; sourceTree = "<group>"; };
 		F56C86AD131F42EB000AD0F6 /* RenderSystemGLES.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RenderSystemGLES.h; sourceTree = "<group>"; };
 		F56C86AE131F42EB000AD0F6 /* RenderSystem.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RenderSystem.cpp; sourceTree = "<group>"; };
@@ -2836,8 +2830,6 @@
 		F56C8763131F42EC000AD0F6 /* WindowsShortcut.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WindowsShortcut.h; sourceTree = "<group>"; };
 		F56C8764131F42EC000AD0F6 /* fft.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fft.cpp; sourceTree = "<group>"; };
 		F56C8765131F42EC000AD0F6 /* fft.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fft.h; sourceTree = "<group>"; };
-		F56C8766131F42EC000AD0F6 /* ssrc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ssrc.cpp; sourceTree = "<group>"; };
-		F56C8767131F42EC000AD0F6 /* ssrc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ssrc.h; sourceTree = "<group>"; };
 		F56C876A131F42EC000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GUIDialogAudioSubtitleSettings.cpp; sourceTree = "<group>"; };
 		F56C876B131F42EC000AD0F6 /* GUIDialogAudioSubtitleSettings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GUIDialogAudioSubtitleSettings.h; sourceTree = "<group>"; };
 		F56C876C131F42EC000AD0F6 /* GUIDialogFileStacking.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GUIDialogFileStacking.cpp; sourceTree = "<group>"; };
@@ -5599,10 +5591,6 @@
 				F56C86A3131F42EB000AD0F6 /* GUIViewStatePrograms.h */,
 				F56C86A4131F42EB000AD0F6 /* GUIWindowPrograms.cpp */,
 				F56C86A5131F42EB000AD0F6 /* GUIWindowPrograms.h */,
-				F56C86A6131F42EB000AD0F6 /* ProgramDatabase.cpp */,
-				F56C86A7131F42EB000AD0F6 /* ProgramDatabase.h */,
-				F56C86A8131F42EB000AD0F6 /* Shortcut.cpp */,
-				F56C86A9131F42EB000AD0F6 /* Shortcut.h */,
 			);
 			path = programs;
 			sourceTree = "<group>";
@@ -5828,8 +5816,6 @@
 				36A9445115821F5300727135 /* SortUtils.h */,
 				F56C8751131F42EC000AD0F6 /* Splash.cpp */,
 				F56C8752131F42EC000AD0F6 /* Splash.h */,
-				F56C8766131F42EC000AD0F6 /* ssrc.cpp */,
-				F56C8767131F42EC000AD0F6 /* ssrc.h */,
 				F56C8753131F42EC000AD0F6 /* Stopwatch.cpp */,
 				F56C8754131F42EC000AD0F6 /* Stopwatch.h */,
 				F56C8755131F42EC000AD0F6 /* StreamDetails.cpp */,
@@ -6959,7 +6945,6 @@
 				F56C8ADA131F42ED000AD0F6 /* PowerManager.cpp in Sources */,
 				F56C8ADB131F42ED000AD0F6 /* GUIViewStatePrograms.cpp in Sources */,
 				F56C8ADC131F42ED000AD0F6 /* GUIWindowPrograms.cpp in Sources */,
-				F56C8ADD131F42ED000AD0F6 /* ProgramDatabase.cpp in Sources */,
 				F56C8ADE131F42ED000AD0F6 /* Shortcut.cpp in Sources */,
 				F56C8ADF131F42ED000AD0F6 /* RenderSystemGLES.cpp in Sources */,
 				F56C8AE0131F42ED000AD0F6 /* RenderSystem.cpp in Sources */,
@@ -7034,7 +7019,6 @@
 				F56C8B31131F42ED000AD0F6 /* Variant.cpp in Sources */,
 				F56C8B32131F42ED000AD0F6 /* Weather.cpp in Sources */,
 				F56C8B34131F42ED000AD0F6 /* fft.cpp in Sources */,
-				F56C8B35131F42ED000AD0F6 /* ssrc.cpp in Sources */,
 				F56C8B36131F42ED000AD0F6 /* GUIDialogAudioSubtitleSettings.cpp in Sources */,
 				F56C8B37131F42ED000AD0F6 /* GUIDialogFileStacking.cpp in Sources */,
 				F56C8B38131F42ED000AD0F6 /* GUIDialogFullScreenInfo.cpp in Sources */,
