@@ -25,9 +25,10 @@
 #include "Util.h"
 #include "guilib/GUIWindowManager.h"
 #include "settings/GUISettings.h"
-#include "Application.h"
+#include "ApplicationMessenger.h"
 #include "threads/SingleLock.h"
 #include "utils/log.h"
+#include "URL.h"
 
 #define CONTROL_LABELSTATUS       401
 #define CONTROL_LABELDIRECTORY    402
@@ -141,7 +142,7 @@ void CGUIDialogVideoScan::OnFinished()
 
   if (!g_guiSettings.GetBool("videolibrary.backgroundupdate"))
   {
-    g_application.getApplicationMessenger().Close(this,false,false);
+    CApplicationMessenger::Get().Close(this,false,false);
   }
 }
 

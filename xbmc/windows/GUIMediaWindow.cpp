@@ -30,6 +30,7 @@
 #include "filesystem/MultiPathDirectory.h"
 #include "GUIPassword.h"
 #include "Application.h"
+#include "ApplicationMessenger.h"
 #include "network/Network.h"
 #include "utils/RegExp.h"
 #include "PartyModeManager.h"
@@ -40,6 +41,7 @@
 #include "dialogs/GUIDialogProgress.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/GUISettings.h"
+#include "URL.h"
 
 #include "dialogs/GUIDialogSmartPlaylistEditor.h"
 #include "addons/GUIDialogAddonSettings.h"
@@ -851,6 +853,7 @@ void CGUIMediaWindow::OnPrepareFileItems(CFileItemList &items)
 // to modify the fileitems. Eg. to modify the item label
 void CGUIMediaWindow::OnFinalizeFileItems(CFileItemList &items)
 {
+  m_unfilteredItems->SetPath(items.GetPath()); // use the original path - it'll likely be relied on for other things later.
   m_unfilteredItems->Append(items);
   
   CStdString filter(GetProperty("filter").asString());
@@ -1466,7 +1469,7 @@ bool CGUIMediaWindow::OnContextButton(int itemNumber, CONTEXT_BUTTON button)
     {
       CStdString action;
       action.Format("contextmenuaction(%i)", button - CONTEXT_BUTTON_USER1);
-      g_application.getApplicationMessenger().ExecBuiltIn(m_vecItems->Get(itemNumber)->GetProperty(action).asString());
+      CApplicationMessenger::Get().ExecBuiltIn(m_vecItems->Get(itemNumber)->GetProperty(action).asString());
       return true;
     }
   default:
@@ -1521,7 +1524,7 @@ void CGUIMediaWindow::OnFilterItems(const CStdString &filter)
   
   m_viewControl.Clear();
   
-  CFileItemList items;
+  CFileItemList items(m_unfilteredItems->GetPath()); // use the original path - it'll likely be relied on for other things later.
   items.Append(*m_unfilteredItems);
   if (GetFilteredItems(filter, items))
   {
@@ -1544,7 +1547,7 @@ bool CGUIMediaWindow::GetFilteredItems(const CStdString &filter, CFileItemList &
   if (trimmedFilter.IsEmpty())
     return true;
 
-  CFileItemList filteredItems;
+  CFileItemList filteredItems(items.GetPath()); // use the original path - it'll likely be relied on for other things later.
   bool numericMatch = StringUtils::IsNaturalNumber(trimmedFilter);
   for (int i = 0; i < items.Size(); i++)
   {

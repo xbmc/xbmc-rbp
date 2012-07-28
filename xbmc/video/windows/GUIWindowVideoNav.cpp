@@ -42,6 +42,7 @@
 #include "filesystem/File.h"
 #include "FileItem.h"
 #include "Application.h"
+#include "ApplicationMessenger.h"
 #include "settings/Settings.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/GUISettings.h"
@@ -521,9 +522,9 @@ void CGUIWindowVideoNav::UpdateButtons()
 
 bool CGUIWindowVideoNav::GetFilteredItems(const CStdString &filter, CFileItemList &items)
 {
-  bool result = CGUIMediaWindow::GetFilteredItems(filter, items);
-  ApplyWatchedFilter(items);
-  return result || g_settings.GetWatchMode(m_vecItems->GetContent()) != VIDEO_SHOW_ALL;
+  bool listchanged = CGUIMediaWindow::GetFilteredItems(filter, items);
+  listchanged |= ApplyWatchedFilter(items);
+  return listchanged;
 }
 
 /// \brief Search for names, genres, artists, directors, and plots with search string \e strSearch in the
@@ -1356,7 +1357,7 @@ bool CGUIWindowVideoNav::OnContextButton(int itemNumber, CONTEXT_BUTTON button)
                                                                         m_vecItems->Get(itemNumber)->GetVideoInfoTag()->m_strTitle),
                                                                         song))
       {
-        g_application.getApplicationMessenger().PlayFile(song);
+        CApplicationMessenger::Get().PlayFile(song);
       }
       return true;
     }
@@ -1563,8 +1564,9 @@ CStdString CGUIWindowVideoNav::GetStartFolder(const CStdString &dir)
   return CGUIWindowVideoBase::GetStartFolder(dir);
 }
 
-void CGUIWindowVideoNav::ApplyWatchedFilter(CFileItemList &items)
+bool CGUIWindowVideoNav::ApplyWatchedFilter(CFileItemList &items)
 {
+  bool listchanged = false;
   CVideoDatabaseDirectory dir;
   NODE_TYPE node = dir.GetDirectoryChildType(items.GetPath());
 
@@ -1598,7 +1600,10 @@ void CGUIWindowVideoNav::ApplyWatchedFilter(CFileItemList &items)
         item->GetVideoInfoTag()->m_iEpisode = (int)item->GetProperty("unwatchedepisodes").asInteger();
       if (watchMode == VIDEO_SHOW_WATCHED)
         item->GetVideoInfoTag()->m_iEpisode = (int)item->GetProperty("watchedepisodes").asInteger();
+      if (watchMode == VIDEO_SHOW_ALL)
+        item->GetVideoInfoTag()->m_iEpisode = (int)item->GetProperty("totalepisodes").asInteger();
       item->SetProperty("numepisodes", item->GetVideoInfoTag()->m_iEpisode);
+      listchanged = true;
     }
 
     if (filterWatched)
@@ -1608,9 +1613,17 @@ void CGUIWindowVideoNav::ApplyWatchedFilter(CFileItemList &items)
       {
         items.Remove(i);
         i--;
+        listchanged = true;
       }
     }
   }
+
+  if(node == NODE_TYPE_TITLE_TVSHOWS || node == NODE_TYPE_SEASONS)
+    // the watched filter may change the "numepisodes" property which is reflected in the TV_SHOWS and SEASONS nodes
+    // therefore, the items labels have to be refreshed, and possibly the list needs resorting as well.
+    FormatAndSort(items); 
+
+  return listchanged;
 }
 
 bool CGUIWindowVideoNav::GetItemsForTag(const CStdString &strHeading, const std::string &type, CFileItemList &items, int idTag /* = -1 */, bool showAll /* = true */)

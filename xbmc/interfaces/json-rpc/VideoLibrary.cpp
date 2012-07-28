@@ -20,7 +20,7 @@
  */
 
 #include "VideoLibrary.h"
-#include "Application.h"
+#include "ApplicationMessenger.h"
 #include "Util.h"
 #include "utils/URIUtils.h"
 #include "video/VideoDatabase.h"
@@ -350,7 +350,12 @@ JSONRPC_STATUS CVideoLibrary::SetMovieDetails(const CStdString &method, ITranspo
     return InternalError;
 
   if (playcount != infos.m_playCount || lastPlayed != infos.m_lastPlayed)
-    videodatabase.SetPlayCount(CFileItem(infos), infos.m_playCount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  {
+    // restore original playcount or the new one won't be announced
+    int newPlaycount = infos.m_playCount;
+    infos.m_playCount = playcount;
+    videodatabase.SetPlayCount(CFileItem(infos), newPlaycount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  }
 
   return ACK;
 }
@@ -382,7 +387,12 @@ JSONRPC_STATUS CVideoLibrary::SetTVShowDetails(const CStdString &method, ITransp
     return InternalError;
 
   if (playcount != infos.m_playCount || lastPlayed != infos.m_lastPlayed)
-    videodatabase.SetPlayCount(CFileItem(infos), infos.m_playCount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  {
+    // restore original playcount or the new one won't be announced
+    int newPlaycount = infos.m_playCount;
+    infos.m_playCount = playcount;
+    videodatabase.SetPlayCount(CFileItem(infos), newPlaycount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  }
 
   return ACK;
 }
@@ -422,7 +432,12 @@ JSONRPC_STATUS CVideoLibrary::SetEpisodeDetails(const CStdString &method, ITrans
     return InternalError;
 
   if (playcount != infos.m_playCount || lastPlayed != infos.m_lastPlayed)
-    videodatabase.SetPlayCount(CFileItem(infos), infos.m_playCount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  {
+    // restore original playcount or the new one won't be announced
+    int newPlaycount = infos.m_playCount;
+    infos.m_playCount = playcount;
+    videodatabase.SetPlayCount(CFileItem(infos), newPlaycount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  }
 
   return ACK;
 }
@@ -455,7 +470,12 @@ JSONRPC_STATUS CVideoLibrary::SetMusicVideoDetails(const CStdString &method, ITr
     return InternalError;
 
   if (playcount != infos.m_playCount || lastPlayed != infos.m_lastPlayed)
-    videodatabase.SetPlayCount(CFileItem(infos), infos.m_playCount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  {
+    // restore original playcount or the new one won't be announced
+    int newPlaycount = infos.m_playCount;
+    infos.m_playCount = playcount;
+    videodatabase.SetPlayCount(CFileItem(infos), newPlaycount, infos.m_lastPlayed.IsValid() ? infos.m_lastPlayed : CDateTime::GetCurrentDateTime());
+  }
 
   return ACK;
 }
@@ -489,7 +509,7 @@ JSONRPC_STATUS CVideoLibrary::Scan(const CStdString &method, ITransportLayer *tr
   else
     cmd.Format("updatelibrary(video, %s)", directory.c_str());
 
-  g_application.getApplicationMessenger().ExecBuiltIn(cmd);
+  CApplicationMessenger::Get().ExecBuiltIn(cmd);
   return ACK;
 }
 
@@ -504,13 +524,13 @@ JSONRPC_STATUS CVideoLibrary::Export(const CStdString &method, ITransportLayer *
       parameterObject["options"]["overwrite"].asBoolean() ? "true" : "false",
       parameterObject["options"]["actorthumbs"].asBoolean() ? "true" : "false");
 
-  g_application.getApplicationMessenger().ExecBuiltIn(cmd);
+  CApplicationMessenger::Get().ExecBuiltIn(cmd);
   return ACK;
 }
 
 JSONRPC_STATUS CVideoLibrary::Clean(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
-  g_application.getApplicationMessenger().ExecBuiltIn("cleanlibrary(video)");
+  CApplicationMessenger::Get().ExecBuiltIn("cleanlibrary(video)");
   return ACK;
 }
 

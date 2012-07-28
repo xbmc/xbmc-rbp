@@ -20,6 +20,7 @@
  */
 
 #include "CPUInfo.h"
+#include "Temperature.h"
 #include <string>
 #include <string.h>
 
@@ -70,8 +71,8 @@
 
 using namespace std;
 
-// In seconds
-#define MINIMUM_TIME_BETWEEN_READS 2
+// In milliseconds
+#define MINIMUM_TIME_BETWEEN_READS 500
 
 #ifdef _WIN32
 /* replacement gettimeofday implementation, copy from dvdnav_internal.h */
@@ -238,8 +239,9 @@ CCPUInfo::CCPUInfo(void)
     m_cpuModel = "Unknown";
   }
 
-  readProcStat(m_userTicks, m_niceTicks, m_systemTicks, m_idleTicks, m_ioTicks);
 #endif
+  readProcStat(m_userTicks, m_niceTicks, m_systemTicks, m_idleTicks, m_ioTicks);
+  m_nextUsedReadTime.Set(MINIMUM_TIME_BETWEEN_READS);
 
   ReadCPUFeatures();
 
@@ -263,10 +265,8 @@ CCPUInfo::~CCPUInfo()
 
 int CCPUInfo::getUsedPercentage()
 {
-  if (m_lastReadTime + MINIMUM_TIME_BETWEEN_READS > time(NULL))
-  {
+  if (!m_nextUsedReadTime.IsTimePast())
     return m_lastUsedPercentage;
-  }
 
   unsigned long long userTicks;
   unsigned long long niceTicks;
@@ -275,9 +275,7 @@ int CCPUInfo::getUsedPercentage()
   unsigned long long ioTicks;
 
   if (!readProcStat(userTicks, niceTicks, systemTicks, idleTicks, ioTicks))
-  {
-    return 0;
-  }
+    return m_lastUsedPercentage;
 
   userTicks -= m_userTicks;
   niceTicks -= m_niceTicks;
@@ -302,6 +300,7 @@ int CCPUInfo::getUsedPercentage()
   m_ioTicks += ioTicks;
 
   m_lastUsedPercentage = result;
+  m_nextUsedReadTime.Set(MINIMUM_TIME_BETWEEN_READS);
 
   return result;
 }
@@ -323,9 +322,7 @@ float CCPUInfo::getCPUFrequency()
   ret = RegQueryValueEx(hKey,"~MHz", NULL, NULL, (LPBYTE)&dwMHz, &dwSize);
   RegCloseKey(hKey);
   if(ret == 0)
-  {
     return float(dwMHz);
-  }
   else
     return 0.f;
 #else
@@ -347,7 +344,7 @@ float CCPUInfo::getCPUFrequency()
 #endif
 }
 
-CTemperature CCPUInfo::getTemperature()
+bool CCPUInfo::getTemperature(CTemperature& temperature)
 {
   int         value = 0,
               ret   = 0;
@@ -355,8 +352,10 @@ CTemperature CCPUInfo::getTemperature()
   FILE        *p    = NULL;
   CStdString  cmd   = g_advancedSettings.m_cpuTempCmd;
 
+  temperature.SetState(CTemperature::invalid);
+
   if (cmd.IsEmpty() && m_fProcTemperature == NULL)
-    return CTemperature();
+    return false;
 
   if (!cmd.IsEmpty())
   {
@@ -388,13 +387,16 @@ CTemperature CCPUInfo::getTemperature()
   }
 
   if (ret != 2)
-    return CTemperature();
+    return false; 
 
   if (scale == 'C' || scale == 'c')
-    return CTemperature::CreateFromCelsius(value);
-  if (scale == 'F' || scale == 'f')
-    return CTemperature::CreateFromFahrenheit(value);
-  return CTemperature();
+    temperature = CTemperature::CreateFromCelsius(value);
+  else if (scale == 'F' || scale == 'f')
+    temperature = CTemperature::CreateFromFahrenheit(value);
+  else
+    return false;
+  
+  return true;
 }
 
 bool CCPUInfo::HasCoreId(int nCoreId) const
@@ -494,7 +496,6 @@ bool CCPUInfo::readProcStat(unsigned long long& user, unsigned long long& nice,
   }
 #endif
 
-  m_lastReadTime = time(NULL);
   return true;
 }
 
@@ -605,13 +606,3 @@ void CCPUInfo::ReadCPUFeatures()
 }
 
 CCPUInfo g_cpuInfo;
-
-/*
-int main()
-{
-  CCPUInfo c;
-  usleep(...);
-  int r = c.getUsedPercentage();
-  printf("%d\n", r);
-}
-*/

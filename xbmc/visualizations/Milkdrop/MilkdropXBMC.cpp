@@ -93,7 +93,8 @@ extern "C" ADDON_STATUS ADDON_Create(void* hdl, void* props)
   _mkdir(visprops->profile);
 
   Preinit();
-  g_plugin->PluginInitialize((LPDIRECT3DDEVICE9)visprops->device, visprops->x, visprops->y, visprops->width, visprops->height, visprops->pixelRatio);
+  if(!g_plugin || !g_plugin->PluginInitialize((LPDIRECT3DDEVICE9)visprops->device, visprops->x, visprops->y, visprops->width, visprops->height, visprops->pixelRatio))
+    return ADDON_STATUS_UNKNOWN;
 
   return ADDON_STATUS_NEED_SAVEDSETTINGS; // We need some settings to be saved later before we quit this plugin
 }
@@ -112,7 +113,7 @@ extern "C" void ADDON_Stop()
   }
 }
 
-unsigned char waves[2][576];
+unsigned char waves[2][512];
 
 //-- Audiodata ----------------------------------------------------------------
 // Called by XBMC to pass new audio data to the vis
@@ -120,14 +121,14 @@ unsigned char waves[2][576];
 extern "C" void AudioData(const float* pAudioData, int iAudioDataLength, float *pFreqData, int iFreqDataLength)
 {
 	int ipos=0;
-	while (ipos < 576)
+	while (ipos < 512)
 	{
 		for (int i=0; i < iAudioDataLength; i+=2)
 		{
       waves[0][ipos] = char (pAudioData[i] * 255.0f);
       waves[1][ipos] = char (pAudioData[i+1]  * 255.0f);
 			ipos++;
-			if (ipos >= 576) break;
+			if (ipos >= 512) break;
 		}
 	}
 }
@@ -264,7 +265,7 @@ extern "C" void ADDON_FreeSettings()
 //-----------------------------------------------------------------------------
 extern "C" ADDON_STATUS ADDON_SetSetting(const char* id, const void* value)
 {
-  if (!id || !value)
+  if (!id || !value || !g_plugin)
     return ADDON_STATUS_UNKNOWN;
 
   if (strcmp(id, "###GetSavedSettings") == 0) // We have some settings to be saved in the settings.xml file

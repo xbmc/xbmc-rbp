@@ -23,6 +23,7 @@
 #include "GUIUserMessages.h"
 #include "GUIWindowSettingsCategory.h"
 #include "Application.h"
+#include "ApplicationMessenger.h"
 #include "interfaces/Builtins.h"
 #include "input/KeyboardLayoutConfiguration.h"
 #include "filesystem/Directory.h"
@@ -44,13 +45,10 @@
 #include "network/libscrobbler/lastfmscrobbler.h"
 #include "network/libscrobbler/librefmscrobbler.h"
 #include "GUIPassword.h"
-#include "dialogs/GUIDialogGamepad.h"
-#include "dialogs/GUIDialogNumeric.h"
 #include "dialogs/GUIDialogFileBrowser.h"
 #include "addons/GUIDialogAddonSettings.h"
 #include "addons/GUIWindowAddonBrowser.h"
 #include "dialogs/GUIDialogContextMenu.h"
-#include "dialogs/GUIDialogKeyboard.h"
 #include "dialogs/GUIDialogYesNo.h"
 #include "dialogs/GUIDialogOK.h"
 #include "dialogs/GUIDialogProgress.h"
@@ -1609,7 +1607,7 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
     if (CGUIDialogYesNo::ShowAndGetInput(14038, 14039, 14040, -1, -1))
     {
       g_settings.Save();
-      g_application.getApplicationMessenger().RestartApp();
+      CApplicationMessenger::Get().RestartApp();
     }
   }
   else if (strSetting.Equals("services.upnpserver"))

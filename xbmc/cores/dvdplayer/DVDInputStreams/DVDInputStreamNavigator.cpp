@@ -20,7 +20,6 @@
  */
 
 #include "DVDInputStreamNavigator.h"
-#include "Util.h"
 #include "utils/LangCodeExpander.h"
 #include "../DVDDemuxSPU.h"
 #include "DVDStateSerializer.h"
@@ -28,7 +27,6 @@
 #include "LangInfo.h"
 #include "utils/log.h"
 #include "guilib/Geometry.h"
-#include "filesystem/IFile.h"
 #if defined(TARGET_DARWIN)
 #include "CocoaInterface.h"
 #endif

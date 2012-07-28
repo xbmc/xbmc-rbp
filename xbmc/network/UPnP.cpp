@@ -24,7 +24,7 @@
 #include "UPnP.h"
 #include "utils/URIUtils.h"
 #include "Application.h"
-
+#include "ApplicationMessenger.h"
 #include "Network.h"
 #include "utils/log.h"
 #include "filesystem/MusicDatabaseDirectory.h"
@@ -59,12 +59,11 @@
 #include "utils/md5.h"
 #include "guilib/Key.h"
 #include "ThumbLoader.h"
+#include "Util.h"
 
 using namespace std;
 using namespace MUSIC_INFO;
 using namespace XFILE;
-
-extern CGUIInfoManager g_infoManager;
 
 NPT_SET_LOCAL_LOGGER("xbmc.upnp")
 
@@ -1792,9 +1791,9 @@ CUPnPRenderer::OnNext(PLT_ActionReference& action)
 {
     if (g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW) {
         CAction action(ACTION_NEXT_PICTURE);
-        g_application.getApplicationMessenger().SendAction(action, WINDOW_SLIDESHOW);
+        CApplicationMessenger::Get().SendAction(action, WINDOW_SLIDESHOW);
     } else {
-        g_application.getApplicationMessenger().PlayListPlayerNext();
+        CApplicationMessenger::Get().PlayListPlayerNext();
     }
     return NPT_SUCCESS;
 }
@@ -1807,9 +1806,9 @@ CUPnPRenderer::OnPause(PLT_ActionReference& action)
 {
     if (g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW) {
         CAction action(ACTION_PAUSE);
-        g_application.getApplicationMessenger().SendAction(action, WINDOW_SLIDESHOW);
+        CApplicationMessenger::Get().SendAction(action, WINDOW_SLIDESHOW);
     } else if (!g_application.IsPaused())
-      g_application.getApplicationMessenger().MediaPause();
+      CApplicationMessenger::Get().MediaPause();
     return NPT_SUCCESS;
 }
 
@@ -1822,7 +1821,7 @@ CUPnPRenderer::OnPlay(PLT_ActionReference& action)
     if (g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW) {
         return NPT_SUCCESS;
     } else if (g_application.IsPaused()) {
-      g_application.getApplicationMessenger().MediaPause();
+      CApplicationMessenger::Get().MediaPause();
     } else if (!g_application.IsPlaying()) {
         NPT_String uri, meta;
         PLT_Service* service;
@@ -1845,9 +1844,9 @@ CUPnPRenderer::OnPrevious(PLT_ActionReference& action)
 {
     if (g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW) {
         CAction action(ACTION_PREV_PICTURE);
-        g_application.getApplicationMessenger().SendAction(action, WINDOW_SLIDESHOW);
+        CApplicationMessenger::Get().SendAction(action, WINDOW_SLIDESHOW);
     } else {
-        g_application.getApplicationMessenger().PlayListPlayerPrevious();
+        CApplicationMessenger::Get().PlayListPlayerPrevious();
     }
     return NPT_SUCCESS;
 }
@@ -1860,9 +1859,9 @@ CUPnPRenderer::OnStop(PLT_ActionReference& action)
 {
     if (g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW) {
         CAction action(ACTION_STOP);
-        g_application.getApplicationMessenger().SendAction(action, WINDOW_SLIDESHOW);
+        CApplicationMessenger::Get().SendAction(action, WINDOW_SLIDESHOW);
     } else {
-        g_application.getApplicationMessenger().MediaStop();
+        CApplicationMessenger::Get().MediaStop();
     }
     return NPT_SUCCESS;
 }
@@ -1954,13 +1953,13 @@ CUPnPRenderer::PlayMedia(const char* uri, const char* meta, PLT_Action* action)
         } else if (object->m_ObjectClass.type.StartsWith("object.item.imageItem")) {
             bImageFile = true;
         }
-        bImageFile?g_application.getApplicationMessenger().PictureShow(item.GetPath())
-                  :g_application.getApplicationMessenger().MediaPlay(item);
+        bImageFile?CApplicationMessenger::Get().PictureShow(item.GetPath())
+                  :CApplicationMessenger::Get().MediaPlay(item);
     } else {
         bImageFile = NPT_String(PLT_MediaObject::GetUPnPClass(uri)).StartsWith("object.item.imageItem", true);
 
-        bImageFile?g_application.getApplicationMessenger().PictureShow((const char*)uri)
-                  :g_application.getApplicationMessenger().MediaPlay((const char*)uri);
+        bImageFile?CApplicationMessenger::Get().PictureShow((const char*)uri)
+                  :CApplicationMessenger::Get().MediaPlay((const char*)uri);
     }
 
     if (g_application.IsPlaying() || g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW) {

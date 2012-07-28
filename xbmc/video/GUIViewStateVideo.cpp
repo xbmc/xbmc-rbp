@@ -23,13 +23,11 @@
 #include "PlayListPlayer.h"
 #include "filesystem/VideoDatabaseDirectory.h"
 #include "filesystem/Directory.h"
-#include "guilib/GUIBaseContainer.h"
 #include "VideoDatabase.h"
 #include "settings/GUISettings.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "FileItem.h"
-#include "Util.h"
 #include "guilib/Key.h"
 #include "guilib/LocalizeStrings.h"
 
@@ -573,19 +571,17 @@ void CGUIViewStateVideoMusicVideos::SaveViewState()
   SaveViewToDb(m_items.GetPath(), WINDOW_VIDEO_NAV, &g_settings.m_viewStateVideoNavMusicVideos);
 }
 
-
 CGUIViewStateVideoTVShows::CGUIViewStateVideoTVShows(const CFileItemList& items) : CGUIViewStateWindowVideo(items)
 {
   if (g_guiSettings.GetBool("filelists.ignorethewhensorting"))
-    AddSortMethod(SORT_METHOD_LABEL_IGNORE_THE, 551, LABEL_MASKS("%L", "%M", "%L", "%M"));  // Label, #Episodes | Label, #Episodes
+    AddSortMethod(SORT_METHOD_VIDEO_SORT_TITLE_IGNORE_THE, 551, LABEL_MASKS("%T", "%M", "%T", "%M"));  // Title, #Episodes | Title, #Episodes
   else
-    AddSortMethod(SORT_METHOD_LABEL, 551, LABEL_MASKS("%L", "%M", "%L", "%M"));  // Label, #Episodes | Label, #Episodes
-
-  AddSortMethod(SORT_METHOD_YEAR, 562, LABEL_MASKS("%L","%Y","%L","%Y"));  // Label, Year | Label, Year
+    AddSortMethod(SORT_METHOD_VIDEO_SORT_TITLE, 551, LABEL_MASKS("%T", "%M", "%T", "%M"));  // Title, #Episodes | Title, #Episodes
+  AddSortMethod(SORT_METHOD_YEAR, 562, LABEL_MASKS("%T", "%Y", "%T", "%Y"));  // Title, Year | Title, Year
 
   if (items.IsSmartPlayList() || items.GetProperty("library.filter").asBoolean())
   {
-    AddSortMethod(SORT_METHOD_PLAYLIST_ORDER, 559, LABEL_MASKS("%L", "%M", "%L", "%M"));  // Label, #Episodes | Label, #Episodes
+    AddSortMethod(SORT_METHOD_PLAYLIST_ORDER, 559, LABEL_MASKS("%T", "%M", "%T", "%M"));  // Title, #Episodes | Title, #Episodes
     SetSortMethod(SORT_METHOD_PLAYLIST_ORDER);
   }
   else

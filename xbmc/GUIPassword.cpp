@@ -21,7 +21,7 @@
 
 #include "GUIPassword.h"
 #include "GUIUserMessages.h"
-#include "Application.h"
+#include "ApplicationMessenger.h"
 #include "dialogs/GUIDialogGamepad.h"
 #include "dialogs/GUIDialogKeyboard.h"
 #include "dialogs/GUIDialogNumeric.h"
@@ -29,7 +29,6 @@
 #include "settings/GUIDialogLockSettings.h"
 #include "settings/GUIDialogProfileSettings.h"
 #include "Util.h"
-#include "URL.h"
 #include "settings/Settings.h"
 #include "settings/GUISettings.h"
 #include "guilib/GUIWindowManager.h"
@@ -157,7 +156,7 @@ bool CGUIPassword::CheckStartUpLock()
   }
   else
   {
-    g_application.getApplicationMessenger().Shutdown(); // Turn off the box
+    CApplicationMessenger::Get().Shutdown(); // Turn off the box
     return false;
   }
 }

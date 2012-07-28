@@ -21,13 +21,12 @@
 
 #include "dialog.h"
 
-#include "Application.h"
+#include "ApplicationMessenger.h"
 #include "settings/Settings.h"
 #include "pyutil.h"
 #include "pythreadstate.h"
 #include "dialogs/GUIDialogFileBrowser.h"
 #include "dialogs/GUIDialogNumeric.h"
-#include "dialogs/GUIDialogGamepad.h"
 #include "guilib/GUIWindowManager.h"
 #include "dialogs/GUIDialogOK.h"
 #include "dialogs/GUIDialogProgress.h"
