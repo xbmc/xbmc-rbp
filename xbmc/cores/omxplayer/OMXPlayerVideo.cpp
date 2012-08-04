@@ -803,6 +803,6 @@ void OMXPlayerVideo::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
     dst_rect.y2 *= yscale;
   }
 
-  //xxx m_omxVideo.SetVideoRect(SrcRect, m_dst_rect);
+  m_omxVideo.SetVideoRect(SrcRect, m_dst_rect);
 }
 
