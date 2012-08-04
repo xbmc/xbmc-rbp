@@ -178,8 +178,6 @@ class CAdvancedSettings
     int m_lcdScrolldelay;
     CStdString m_lcdHostName;
 
-    int m_autoDetectPingTime;
-
     int m_songInfoDuration;
     int m_busyDialogDelay;
     int m_logLevel;
@@ -345,6 +343,8 @@ class CAdvancedSettings
 
     float GetDisplayLatency(float refreshrate);
     bool m_initialized;
+
+    void SetDebugMode(bool debug);
 };
 
 XBMC_GLOBAL(CAdvancedSettings,g_advancedSettings);
