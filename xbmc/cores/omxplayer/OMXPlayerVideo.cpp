@@ -344,7 +344,8 @@ void OMXPlayerVideo::Output(int iGroupId, double pts, bool bDropPacket)
         __FUNCTION__, m_width, m_height, m_fps);
 
     if(!g_renderManager.Configure(m_video_width, m_video_height, 
-          m_video_width, m_video_height, m_fps, flags, format, 0))
+          m_video_width, m_video_height, m_fps, flags, format, 0,
+          m_hints.orientation))
     {
       CLog::Log(LOGERROR, "%s - failed to configure renderer", __FUNCTION__);
       return;
