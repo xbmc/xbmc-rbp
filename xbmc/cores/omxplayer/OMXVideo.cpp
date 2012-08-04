@@ -514,11 +514,35 @@ bool COMXVideo::Open(CDVDStreamInfo &hints, OMXClock *clock, bool deinterlace, b
   m_is_open           = true;
   m_drop_state        = false;
 
-  /*
   OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
   OMX_INIT_STRUCTURE(configDisplay);
   configDisplay.nPortIndex = m_omx_render.GetInputPort();
 
+  configDisplay.set = OMX_DISPLAY_SET_TRANSFORM;
+
+  switch(hints.orientation)
+  {
+    case 90:
+      configDisplay.transform = OMX_DISPLAY_ROT90;
+      break;
+    case 180:
+      configDisplay.transform = OMX_DISPLAY_ROT180;
+      break;
+    case 270:
+      configDisplay.transform = OMX_DISPLAY_ROT270;
+      break;
+    default:
+      configDisplay.transform = OMX_DISPLAY_ROT0;
+      break;
+  }
+
+  omx_err = m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGWARNING, "COMXVideo::Open could not set orientation : %d\n", hints.orientation);
+  }
+
+  /*
   configDisplay.set     = OMX_DISPLAY_SET_LAYER;
   configDisplay.layer   = 2;
 
