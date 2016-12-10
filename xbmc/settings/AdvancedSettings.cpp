@@ -294,8 +294,8 @@ void CAdvancedSettings::Initialize()
 
   m_canWindowed = true;
   m_guiVisualizeDirtyRegions = false;
-  m_guiAlgorithmDirtyRegions = 0;
-  m_guiDirtyRegionNoFlipTimeout = -1;
+  m_guiAlgorithmDirtyRegions = 3; // we need this for RaspberryPi = 3; before it was 0
+  m_guiDirtyRegionNoFlipTimeout = 0; // we need this for RaspberryPi = 0; before it was -1
   m_logEnableAirtunes = false;
   m_airTunesPort = 36666;
   m_airPlayPort = 36667;
